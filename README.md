@@ -1,213 +1,189 @@
-# 🧠 Devlogia — Personal Blog CMS by Noah
+# 🧠 Devlogia — Personal Blog CMS
 
-> “Where logic meets narrative.”  
-> A modern, developer-centric personal blog CMS — fast, minimal, and built for deep writing.
+> “Where logic meets narrative.” Devlogia is a modern, developer-centric personal blog CMS — fast, minimal, and built for deep writing.
 
----
+## ✨ Highlights
 
-<p align="center">
-  <img src="https://dummyimage.com/1200x300/1f2937/ffffff&text=Devlogia+—+Personal+Blog+CMS" alt="Devlogia Banner"/>
-</p>
+- **Next.js 16 App Router** with MDX-powered publishing
+- **Prisma + PostgreSQL** schema for users, posts, pages, media, and tags
+- **NextAuth credentials** login with protected `/admin` middleware
+- **MDX editor with autosave** (localStorage fallback & live preview)
+- **UploadThing stub** so the app is deploy-ready without external storage
+- **SEO suite**: dynamic sitemap, RSS feed, canonical metadata, OG image
+- **Vitest + Playwright** test harness with GitHub Actions-friendly scripts
 
-<p align="center">
-  <a href="https://github.com/noah-isme/devlogia/actions">
-    <img src="https://github.com/noah-isme/devlogia/actions/workflows/ci.yml/badge.svg" alt="Build Status"/>
-  </a>
-  <a href="https://github.com/noah-isme/devlogia/blob/main/LICENSE">
-    <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"/>
-  </a>
-  <img src="https://img.shields.io/badge/Node.js-v20.x-brightgreen.svg" alt="Node.js Version"/>
-  <img src="https://img.shields.io/badge/Next.js-16-black.svg" alt="Next.js Version"/>
-</p>
+## 🧱 Tech Stack
 
----
+| Layer      | Tools |
+| ---------- | ----- |
+| Frontend   | Next.js 16, React 19, Tailwind CSS 4 |
+| Backend    | App Router route handlers + Prisma ORM |
+| Auth       | NextAuth (JWT sessions, email/password) |
+| Database   | PostgreSQL |
+| Editor     | MDX (remark/rehype), custom Callout component |
+| Uploads    | UploadThing (stub provider) |
+| Testing    | Vitest, Testing Library, Playwright |
+| CI/CD      | GitHub Actions template (lint → typecheck → test → build) |
 
-## ✨ Overview
-
-**Devlogia** adalah blog CMS pribadi untuk kreator dan developer yang ingin menulis tanpa hambatan teknis.  
-Dirancang dengan fokus pada:
-- kecepatan (SSG/ISR),
-- pengalaman menulis modern (MDX + autosave editor),
-- SEO dan performa maksimal,
-- arsitektur bersih (Next.js + PostgreSQL + Prisma).
-
-Kamu dapat mengelola artikel, halaman statis, media, dan SEO langsung dari dashboard admin — ringan, indah, dan efisien.
-
----
-
-## 🏗️ Tech Stack
-
-| Layer | Teknologi | Deskripsi |
-|-------|------------|-----------|
-| Frontend | **Next.js 16 (App Router)** | Rendering hybrid SSG/ISR, MDX rendering |
-| Backend | **Node.js / Express API (in-app)** | CRUD posts, pages, uploads, auth |
-| Database | **PostgreSQL** (via Prisma ORM) | Data terstruktur dan relasi fleksibel |
-| Auth | **NextAuth.js** | Email/password, session JWT |
-| Upload | **UploadThing / Cloudflare R2** | Media upload & optimization |
-| Styling | **Tailwind CSS** | Utility-first design, dark/light mode |
-| Editor | **MDX + React Components** | Markdown interaktif dengan Callouts, YouTube, dsb |
-| Deployment | **Vercel + Railway (DB)** | Auto CI/CD + scalable infra |
-| Testing | **Vitest / Playwright** | Unit & E2E testing |
-| CI/CD | **GitHub Actions** | Lint, typecheck, test, Lighthouse budget |
-
----
-
-## 🧩 Fitur Utama (MVP)
-
-✅ Auth admin (login, logout, session)  
-✅ CRUD Posts & Pages  
-✅ MDX Editor dengan autosave  
-✅ Upload media (gambar/video)  
-✅ Tag & kategori sistem  
-✅ Pencarian full-text (Postgres tsvector)  
-✅ SEO otomatis (meta, OG, sitemap, RSS)  
-✅ Mode gelap & ringan  
-✅ Code highlight (Shiki/Prism)  
-✅ Deploy cepat ke Vercel/Railway  
-
----
-
-## 🚀 Rencana Pengembangan
-
-### Phase 1 — MVP (✅ Sedang dikerjakan)
-- Struktur proyek + Prisma schema
-- Auth admin & dashboard awal
-- Editor MDX dasar + autosave
-- CRUD posts/pages
-- SEO helper, sitemap, RSS
-
-### Phase 2 — Polishing
-- Schedule & draft preview
-- OG image generator
-- Analytics (Plausible/Umami)
-- Newsletter (Buttondown/Resend)
-- Komentar via Utterances
-
-### Phase 3 — Ekosistem
-- Multi-author + RBAC
-- Webhook revalidate + incremental builds
-- AI assist (generate meta/tagging)
-
----
-
-## 🗂️ Struktur Proyek
+## 📦 Project Structure
 
 ```
 devlogia/
 ├── prisma/
-│   ├── schema.prisma        # Skema database
-│   └── seed.ts              # Data awal
+│   ├── schema.prisma      # Database models & enums
+│   └── seed.ts            # Seeds admin user + sample content
 ├── src/
 │   ├── app/
-│   │   ├── (public)/        # Halaman publik (blog, about)
-│   │   ├── (admin)/         # Dashboard admin
-│   │   └── api/             # API routes
-│   ├── components/          # UI components
-│   ├── lib/                 # Utils (auth, prisma, seo, upload)
-│   ├── mdx-components/      # Komponen interaktif untuk MDX
-│   └── styles/              # Tailwind & global styles
-├── public/                  # Assets statis
-├── .env.example             # Variabel lingkungan
-├── package.json
-└── README.md
+│   │   ├── (public)/      # Public-facing pages & blog routes
+│   │   ├── (admin)/       # Admin dashboard & CRUD routes
+│   │   ├── (auth)/        # Auth routes (admin login)
+│   │   └── api/           # Route handlers (auth, posts, pages, rss, etc.)
+│   ├── components/        # UI primitives, forms, editor widgets
+│   ├── lib/               # Prisma client, auth, seo, mdx, helpers
+│   ├── mdx-components/    # Custom MDX components (Callout, code blocks)
+│   ├── styles/            # Tailwind globals
+│   └── types/             # Type augmentations (NextAuth)
+├── public/                # Static assets (favicon, OG image)
+├── tests/e2e/             # Playwright specs
+├── vitest.config.ts       # Vitest setup
+└── playwright.config.ts   # Playwright setup
 ```
 
----
+## ✅ Prerequisites
 
-## ⚙️ Instalasi & Setup Lokal
+- **Node.js 20+** and **pnpm 8+** (`corepack enable pnpm` recommended)
+- **PostgreSQL 14+** running locally (default credentials below)
+- Recommended: `psql` CLI for managing the database
 
-### 1. Clone repositori
+### Environment Variables
+
+Copy the template and adjust as needed:
+
 ```bash
-git clone https://github.com/noah-isme/devlogia.git
-cd devlogia
+cp .env.example .env
 ```
 
-### 2. Instal dependensi
-```bash
-pnpm install
-```
+Defaults assume a local PostgreSQL server:
 
-### 3. Konfigurasi environment
-Buat file `.env` berdasarkan `.env.example`:
-```bash
-DATABASE_URL="postgresql://user:password@localhost:5432/devlogia"
-NEXTAUTH_SECRET="your-secret"
+```
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/devlogia"
 NEXTAUTH_URL="http://localhost:3000"
-UPLOADTHING_SECRET="your-upload-secret"
+NEXTAUTH_SECRET="changeme"
+UPLOADTHING_SECRET="changeme"
+UPLOADER_PROVIDER="stub"
+SEED_ADMIN_EMAIL="admin@devlogia.test"
+SEED_ADMIN_PASSWORD="admin123"
 ```
 
-### 4. Migrasi & seed database
+## 🚀 Local Development
+
+1. **Install dependencies**
+
+   ```bash
+   pnpm install
+   ```
+
+2. **Apply Prisma migrations**
+
+   ```bash
+   pnpm prisma:migrate
+   ```
+
+3. **Seed the database** (creates an admin user & sample content)
+
+   ```bash
+   pnpm prisma:seed
+   ```
+
+4. **Run the development server**
+
+   ```bash
+   pnpm dev
+   ```
+
+   Visit [http://localhost:3000](http://localhost:3000) for the public site or [http://localhost:3000/admin/login](http://localhost:3000/admin/login) for the admin portal.
+
+### Admin Credentials
+
+The seed script provisions a default admin account:
+
+- **Email:** `admin@devlogia.test`
+- **Password:** `admin123`
+
+You can customise these via `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` before seeding.
+
+## 🧪 Quality Gates & Scripts
+
+The project follows a strict `lint → test → build` pipeline. Run all checks with:
+
 ```bash
-pnpm prisma migrate dev
-pnpm prisma db seed
+pnpm lint
+pnpm test
+pnpm typecheck
+pnpm build
 ```
 
-### 5. Jalankan aplikasi
+Additional scripts:
+
+| Script | Description |
+| ------ | ----------- |
+| `pnpm dev` | Start Next.js development server |
+| `pnpm lint` | ESLint via `next lint` |
+| `pnpm typecheck` | TypeScript `tsc --noEmit` |
+| `pnpm test` | Vitest unit tests (jsdom) |
+| `pnpm test:watch` | Vitest in watch mode |
+| `pnpm e2e` | Playwright E2E tests (requires running PostgreSQL) |
+| `pnpm build` | Production Next.js build |
+| `pnpm prisma:migrate` | Apply migrations interactively |
+| `pnpm prisma:seed` | Seed the database via `tsx prisma/seed.ts` |
+| `pnpm format` | Prettier check |
+| `pnpm format:write` | Prettier write |
+
+### Running Playwright Tests
+
+Playwright spins up the Next.js dev server automatically. Ensure your PostgreSQL instance is running and populated (migration + seed) before executing:
+
 ```bash
-pnpm dev
-```
-Buka di browser: [http://localhost:3000](http://localhost:3000)
-
----
-
-## 🧠 Arsitektur Data (Ringkas)
-
-```
-User(id, email, password_hash, role, created_at)
-Post(id, slug, title, summary, content_mdx, cover_url,
-     status, published_at, author_id, created_at, updated_at)
-Tag(id, name, slug)
-PostTag(post_id, tag_id)
-Page(id, slug, title, content_mdx, published, created_at, updated_at)
-Media(id, url, alt, owner_id, created_at)
+pnpm prisma:migrate
+pnpm prisma:seed
+pnpm e2e
 ```
 
----
+The E2E spec logs in as the seeded admin, creates a new post via the editor (autosave + publish), and verifies it appears on the public blog.
 
-## 🧪 Scripts
+## 🛠️ Admin & Editor Workflow
 
-| Perintah | Fungsi |
-|-----------|--------|
-| `pnpm dev` | Jalankan dev server |
-| `pnpm build` | Build untuk production |
-| `pnpm start` | Jalankan hasil build |
-| `pnpm lint` | Jalankan ESLint |
-| `pnpm test` | Jalankan unit test |
-| `pnpm format` | Format dengan Prettier |
+- `/admin/login` — Credentials sign-in backed by NextAuth JWT sessions
+- `/admin/dashboard` — Content health stats & recent activity
+- `/admin/posts` — Filterable list of posts (Draft, Published, Scheduled)
+- `/admin/posts/new` — MDX editor with autosave (1500 ms debounce, offline-safe)
+- `/admin/posts/[id]` — Edit existing posts with tag management & status changes
+- `/admin/pages` — Minimal CRUD for static pages with live preview on `/<slug>`
 
----
+### Editor Features
 
-## 🌐 Deployment
+- Autosave persists to the database (and localStorage as a fallback)
+- Live MDX preview using the same rendering pipeline as the public site
+- Custom MDX components such as `<Callout>` are supported out of the box
+- Tag input accepts comma-separated values and creates tags automatically
 
-- **Frontend:** [Vercel](https://vercel.com/)
-- **Database:** [Railway.app](https://railway.app/) atau [Neon.tech](https://neon.tech/)
-- **Storage:** Cloudflare R2 / Supabase Storage
-- **CI/CD:** GitHub Actions (lint + test + deploy)
+## 🌐 SEO & Feeds
 
----
+- `GET /api/sitemap` — Dynamic sitemap including posts and published pages
+- `GET /api/rss` — RSS feed with MDX content enclosed in CDATA
+- Default metadata (title template, OpenGraph, Twitter cards) via `siteConfig`
+- Canonical URLs derived from `NEXT_PUBLIC_APP_URL` / `NEXTAUTH_URL`
 
-## 🧰 TODO (Development Checklist)
+## ♻️ Uploads
 
-- [ ] Auth system (NextAuth + JWT)
-- [ ] CRUD Post/Page
-- [ ] MDX Editor + autosave
-- [ ] File upload (UploadThing)
-- [ ] SEO helper + OG image generator
-- [ ] Sitemap + RSS
-- [ ] Tags & search
-- [ ] Unit tests + e2e tests
-- [ ] Deployment pipeline
+UploadThing is configured with a **stub provider** for local development and test environments. The `/api/uploadthing` route returns a fake path without storing files, making it safe to deploy without cloud storage credentials. Swap `UPLOADER_PROVIDER` when wiring a real provider (R2/S3) in future phases.
 
----
+## 🧪 Testing Details
 
-## 💬 Kontribusi
+- **Unit tests**: Vitest + Testing Library cover key flows (Home page rendering, admin login form validation, utility functions)
+- **E2E tests**: Playwright script validates the core publishing workflow
+- **CI ready**: lint → typecheck → test → build flow suitable for GitHub Actions
 
-Meskipun ini proyek pribadi, kontribusi ide & feedback sangat diterima!  
-Buka issue atau PR untuk diskusi pengembangan fitur baru.
+## 📄 License
 
----
-
-## 🧑‍💻 Lisensi
-
-MIT © 2025 [Noah Is Me](https://github.com/noah-isme)  
-Crafted with ❤️ & clean code.
+MIT © 2025 Devlogia contributors. Crafted with ❤️ for long-form writing.
