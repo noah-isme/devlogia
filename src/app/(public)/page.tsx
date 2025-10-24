@@ -5,21 +5,42 @@ import { Prisma } from "@prisma/client";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
+import {
+  appendToStack,
+  buildCursorCondition,
+  clampLimit,
+  decodeCursor,
+  encodeCursor,
+  parseCursorParam,
+  parseStackParam,
+  serializeStack,
+} from "@/lib/pagination";
 import { isDatabaseEnabled, prisma } from "@/lib/prisma";
 import { estimateReadingTime, formatDate } from "@/lib/utils";
 
-const POSTS_PER_PAGE = 5;
+const DEFAULT_POSTS_PER_PAGE = 10;
+const MAX_POSTS_PER_PAGE = 25;
 
 type HomePageProps = {
   searchParams?: Record<string, string | string[] | undefined>;
 };
 
+type PublishedPost = Prisma.PostGetPayload<{
+  include: { author: true; tags: { include: { tag: true } } };
+}>;
+
 export default async function HomePage({ searchParams }: HomePageProps) {
-  const page = Number(searchParams?.page ?? 1);
-  const currentPage = Number.isFinite(page) && page > 0 ? page : 1;
   const searchQuery = typeof searchParams?.q === "string" ? searchParams.q.trim().slice(0, 200) : "";
   const tagParam = typeof searchParams?.tag === "string" ? searchParams.tag : "";
   const tagSlug = tagParam.toLowerCase().replace(/[^a-z0-9-]/g, "");
+  const limit = clampLimit(searchParams?.limit, DEFAULT_POSTS_PER_PAGE, {
+    min: 3,
+    max: MAX_POSTS_PER_PAGE,
+  });
+
+  const cursorParam = parseCursorParam(searchParams?.cursor);
+  const cursor = decodeCursor(cursorParam);
+  const stack = parseStackParam(searchParams?.stack);
 
   if (!isDatabaseEnabled) {
     return (
@@ -43,12 +64,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     );
   }
 
-  type PublishedPost = Prisma.PostGetPayload<{
-    include: { author: true; tags: { include: { tag: true } } };
-  }>;
-
   let posts: PublishedPost[] = [];
-  let totalPublished = 0;
+  let hasNext = false;
   let loadError: unknown | null = null;
 
   const tagsPromise = prisma.tag
@@ -63,72 +80,76 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     });
 
   try {
-    if (searchQuery) {
-      const tagFilterSql = tagSlug
-        ? Prisma.sql`AND EXISTS (
-            SELECT 1
-            FROM "PostTag" pt
-            INNER JOIN "Tag" t ON t."id" = pt."tagId"
-            WHERE pt."postId" = p."id" AND t."slug" = ${tagSlug}
-          )`
-        : Prisma.sql``;
+    const sortField = Prisma.sql`COALESCE(p."publishedAt", p."createdAt")`;
+    const baseConditions: Prisma.Sql[] = [Prisma.sql`p."status" = 'PUBLISHED'`];
 
-      const matches = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
-        SELECT p."id"
+    if (tagSlug) {
+      baseConditions.push(
+        Prisma.sql`EXISTS (SELECT 1 FROM "PostTag" pt INNER JOIN "Tag" t ON t."id" = pt."tagId" WHERE pt."postId" = p."id" AND t."slug" = ${tagSlug})`,
+      );
+    }
+
+    if (searchQuery) {
+      baseConditions.push(Prisma.sql`p."searchVector" @@ plainto_tsquery('english', ${searchQuery})`);
+    }
+
+    const cursorCondition = buildCursorCondition(sortField, cursor);
+    const allConditions = cursorCondition ? [...baseConditions, cursorCondition] : baseConditions;
+    const whereClause = allConditions.slice(1).reduce(
+      (acc, condition) => Prisma.sql`${acc} AND ${condition}`,
+      allConditions[0],
+    );
+
+    const rows = await prisma.$queryRaw<Array<{ id: string; sortKey: Date }>>(Prisma.sql`
+      SELECT p."id", ${sortField} AS "sortKey"
+      FROM "Post" p
+      WHERE ${whereClause}
+      ORDER BY ${sortField} DESC, p."id" DESC
+      LIMIT ${limit + 1}
+    `);
+
+    hasNext = rows.length > limit;
+    const trimmed = hasNext ? rows.slice(0, limit) : rows;
+    const ids = trimmed.map((row) => row.id);
+
+    if (ids.length > 0) {
+      const fetched = await prisma.post.findMany({
+        where: { id: { in: ids } },
+        include: { author: true, tags: { include: { tag: true } } },
+      });
+
+      const byId = new Map(fetched.map((post) => [post.id, post]));
+      posts = ids
+        .map((id) => byId.get(id))
+        .filter(Boolean) as PublishedPost[];
+    }
+
+    if (!hasNext && posts.length === 0 && cursorParam) {
+      // cursor was stale; retry from beginning once
+      const retryWhereClause = baseConditions.slice(1).reduce(
+        (acc, condition) => Prisma.sql`${acc} AND ${condition}`,
+        baseConditions[0],
+      );
+      const retryRows = await prisma.$queryRaw<Array<{ id: string; sortKey: Date }>>(Prisma.sql`
+        SELECT p."id", ${sortField} AS "sortKey"
         FROM "Post" p
-        WHERE p."status" = 'PUBLISHED'
-        ${tagFilterSql}
-        AND p."searchVector" @@ plainto_tsquery('english', ${searchQuery})
-        ORDER BY ts_rank(p."searchVector", plainto_tsquery('english', ${searchQuery})) DESC,
-                 p."publishedAt" DESC NULLS LAST
-        LIMIT ${POSTS_PER_PAGE}
-        OFFSET ${(currentPage - 1) * POSTS_PER_PAGE}
+        WHERE ${retryWhereClause}
+        ORDER BY ${sortField} DESC, p."id" DESC
+        LIMIT ${limit}
       `);
 
-      const ids = matches.map((row) => row.id);
-      if (ids.length > 0) {
-        const fetched = await prisma.post.findMany({
-          where: { id: { in: ids } },
+      const retryIds = retryRows.map((row) => row.id);
+      hasNext = retryRows.length === limit;
+      if (retryIds.length > 0) {
+        const retryFetched = await prisma.post.findMany({
+          where: { id: { in: retryIds } },
           include: { author: true, tags: { include: { tag: true } } },
         });
-
-        const byId = new Map(fetched.map((post) => [post.id, post]));
-        posts = ids
-          .map((id) => byId.get(id))
+        const retryById = new Map(retryFetched.map((post) => [post.id, post]));
+        posts = retryIds
+          .map((id) => retryById.get(id))
           .filter(Boolean) as PublishedPost[];
       }
-
-      const countResult = await prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
-        SELECT COUNT(*)::bigint AS count
-        FROM "Post" p
-        WHERE p."status" = 'PUBLISHED'
-        ${tagFilterSql}
-        AND p."searchVector" @@ plainto_tsquery('english', ${searchQuery})
-      `);
-
-      totalPublished = Number(countResult[0]?.count ?? 0);
-    } else {
-      const where: Prisma.PostWhereInput = {
-        status: "PUBLISHED",
-        ...(tagSlug
-          ? {
-              tags: {
-                some: { tag: { slug: tagSlug } },
-              },
-            }
-          : {}),
-      };
-
-      [posts, totalPublished] = await Promise.all([
-        prisma.post.findMany({
-          where,
-          orderBy: { publishedAt: "desc" },
-          include: { author: true, tags: { include: { tag: true } } },
-          take: POSTS_PER_PAGE,
-          skip: (currentPage - 1) * POSTS_PER_PAGE,
-        }),
-        prisma.post.count({ where }),
-      ]);
     }
   } catch (error) {
     loadError = error;
@@ -157,8 +178,43 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   }
 
   const tags = await tagsPromise;
-  const totalPages = Math.max(1, Math.ceil(totalPublished / POSTS_PER_PAGE));
   const hasFilters = Boolean(searchQuery || tagSlug);
+  const hasPrevious = stack.length > 0;
+
+  const baseQuery: Record<string, string | undefined> = {
+    q: searchQuery || undefined,
+    tag: tagSlug || undefined,
+    limit: limit !== DEFAULT_POSTS_PER_PAGE ? String(limit) : undefined,
+  };
+
+  const lastPost = posts.at(-1);
+  const nextCursor =
+    hasNext && lastPost
+      ? encodeCursor({
+          id: lastPost.id,
+          sortKey: (lastPost.publishedAt ?? lastPost.createdAt).toISOString(),
+        })
+      : null;
+
+  const nextStack = serializeStack(appendToStack(stack, cursorParam));
+  const prevStack = serializeStack(stack.slice(0, -1));
+  const prevCursor = stack.length ? stack[stack.length - 1] : null;
+
+  const nextQuery = hasNext
+    ? {
+        ...baseQuery,
+        cursor: nextCursor ?? undefined,
+        stack: nextStack,
+      }
+    : undefined;
+
+  const previousQuery = hasPrevious
+    ? {
+        ...baseQuery,
+        cursor: prevCursor ?? undefined,
+        stack: prevStack,
+      }
+    : undefined;
 
   return (
     <section className="space-y-10">
@@ -181,6 +237,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             className="sm:flex-1"
           />
           {tagSlug ? <input type="hidden" name="tag" value={tagSlug} /> : null}
+          {limit !== DEFAULT_POSTS_PER_PAGE ? <input type="hidden" name="limit" value={String(limit)} /> : null}
           <Button type="submit" className="sm:w-auto">
             Search
           </Button>
@@ -198,6 +255,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               const params = new URLSearchParams();
               if (searchQuery) {
                 params.set("q", searchQuery);
+              }
+              if (limit !== DEFAULT_POSTS_PER_PAGE) {
+                params.set("limit", String(limit));
               }
               params.set("tag", tag.slug);
               const href = `/?${params.toString()}`;
@@ -220,7 +280,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             })}
             {tagSlug ? (
               <Link
-                href={searchQuery ? `/?q=${encodeURIComponent(searchQuery)}` : "/"}
+                href={(() => {
+                  const params = new URLSearchParams();
+                  if (searchQuery) params.set("q", searchQuery);
+                  if (limit !== DEFAULT_POSTS_PER_PAGE) params.set("limit", String(limit));
+                  return params.size ? `/?${params.toString()}` : "/";
+                })()}
                 className="text-xs text-muted-foreground underline-offset-4 hover:underline"
               >
                 Clear tag filter
@@ -270,12 +335,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         )}
       </div>
       <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        query={{
-          q: searchQuery || undefined,
-          tag: tagSlug || undefined,
-        }}
+        basePath="/"
+        hasNext={Boolean(hasNext)}
+        hasPrevious={hasPrevious}
+        nextQuery={nextQuery}
+        previousQuery={previousQuery}
       />
     </section>
   );

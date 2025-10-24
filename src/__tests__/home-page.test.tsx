@@ -28,12 +28,13 @@ vi.mock("@/lib/prisma", () => {
             tags: [],
           },
         ]),
-        count: vi.fn().mockResolvedValue(1),
       },
       tag: {
         findMany: vi.fn().mockResolvedValue([]),
       },
-      $queryRaw: vi.fn(),
+      $queryRaw: vi.fn().mockResolvedValue([
+        { id: "post_1", sortKey: new Date("2024-01-01") },
+      ]),
     },
   };
 });
