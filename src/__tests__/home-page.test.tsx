@@ -30,6 +30,10 @@ vi.mock("@/lib/prisma", () => {
         ]),
         count: vi.fn().mockResolvedValue(1),
       },
+      tag: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+      $queryRaw: vi.fn(),
     },
   };
 });

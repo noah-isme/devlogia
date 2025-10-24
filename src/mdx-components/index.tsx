@@ -1,6 +1,6 @@
 import type { MDXRemoteProps } from "next-mdx-remote/rsc";
 
-import { Callout } from "@/mdx-components/callout";
+import { Callout } from "@/mdx-components/Callout";
 import { InlineCode, Pre } from "@/mdx-components/code";
 
 export const mdxComponents: MDXRemoteProps["components"] = {

@@ -33,6 +33,33 @@ async function main() {
     },
   });
 
+  await prisma.post.update({
+    where: { id: helloWorldPost.id },
+    data: {
+      tags: {
+        deleteMany: {},
+        create: [
+          {
+            tag: {
+              connectOrCreate: {
+                where: { slug: "nextjs" },
+                create: { name: "Next.js", slug: "nextjs" },
+              },
+            },
+          },
+          {
+            tag: {
+              connectOrCreate: {
+                where: { slug: "mdx" },
+                create: { name: "MDX", slug: "mdx" },
+              },
+            },
+          },
+        ],
+      },
+    },
+  });
+
   await prisma.page.upsert({
     where: { slug: "about" },
     update: {},

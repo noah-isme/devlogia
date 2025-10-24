@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,12 @@ type EditorPost = {
   status: PostStatus;
   tags: string[];
   publishedAt: string | null;
+  updatedAt: string | null;
+};
+
+type PersistedDraft = {
+  snapshot: EditorPost;
+  autosavedAt: string;
 };
 
 type PostEditorProps = {
@@ -30,8 +36,24 @@ type PostEditorProps = {
 };
 
 type AutosaveState = "idle" | "saving" | "saved" | "error";
+type UploadState = "idle" | "uploading" | "success" | "error";
 
 const AUTOSAVE_DELAY = 1500;
+
+function serialize(post: EditorPost) {
+  return JSON.stringify(post);
+}
+
+function formatTime(date: Date | null) {
+  if (!date) {
+    return "baru saja";
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
 
 export function PostEditor({ initialPost, mode }: PostEditorProps) {
   const [post, setPost] = useState<EditorPost>(
@@ -45,17 +67,24 @@ export function PostEditor({ initialPost, mode }: PostEditorProps) {
       status: "DRAFT",
       tags: [],
       publishedAt: null,
+      updatedAt: null,
     },
   );
   const [autosaveState, setAutosaveState] = useState<AutosaveState>("idle");
-  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(
+    initialPost?.updatedAt ? new Date(initialPost.updatedAt) : null,
+  );
   const [activeView, setActiveView] = useState<"write" | "preview">("write");
   const [previewHtml, setPreviewHtml] = useState<string>("");
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [pendingRestore, setPendingRestore] = useState<PersistedDraft | null>(null);
+  const [uploadState, setUploadState] = useState<UploadState>("idle");
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const latestState = useRef(post);
-  const lastSavedSnapshot = useRef<string>("");
+  const lastSavedSnapshot = useRef<string>(serialize(post));
   const autosaveTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const localStorageKey = useMemo(() => {
@@ -66,55 +95,73 @@ export function PostEditor({ initialPost, mode }: PostEditorProps) {
     return `devlogia-editor-${id}`;
   }, [post.id]);
 
+  const initialStorageKey = useMemo(
+    () => (initialPost ? `devlogia-editor-${initialPost.id}` : "devlogia-editor-new"),
+    [initialPost],
+  );
+
   useEffect(() => {
     latestState.current = post;
   }, [post]);
 
   useEffect(() => {
+    if (!isInitializing) {
+      return;
+    }
+
     if (typeof window === "undefined") {
       return;
     }
 
-    let snapshot: EditorPost | null = null;
-
-    if (!initialPost) {
-      const persisted = window.localStorage.getItem("devlogia-editor-new");
-      if (persisted) {
-        try {
-          const parsed = JSON.parse(persisted) as EditorPost;
-          setPost(parsed);
-          snapshot = parsed;
-        } catch (error) {
-          console.error("Failed to parse persisted draft", error);
-        }
-      }
-    } else {
-      const persisted = window.localStorage.getItem(`devlogia-editor-${initialPost.id}`);
-      if (persisted) {
-        try {
-          const parsed = JSON.parse(persisted) as EditorPost;
-          setPost(parsed);
-          snapshot = parsed;
-        } catch (error) {
-          console.error("Failed to parse persisted draft", error);
-        }
-      }
+    const persistedRaw = window.localStorage.getItem(initialStorageKey);
+    if (!persistedRaw) {
+      lastSavedSnapshot.current = serialize(post);
+      setIsInitializing(false);
+      return;
     }
 
-    const reference = snapshot ?? latestState.current;
-    lastSavedSnapshot.current = JSON.stringify({ ...reference, lastSavedAt: undefined });
+    try {
+      const parsed = JSON.parse(persistedRaw) as PersistedDraft | EditorPost;
+      const snapshot = "snapshot" in parsed ? parsed.snapshot : parsed;
+      const autosavedAt = "autosavedAt" in parsed ? parsed.autosavedAt : snapshot.updatedAt;
+      const normalized: PersistedDraft = {
+        snapshot: {
+          ...snapshot,
+          updatedAt: snapshot.updatedAt ?? null,
+        },
+        autosavedAt: autosavedAt ?? new Date().toISOString(),
+      };
 
-    setIsInitializing(false);
-  }, [initialPost]);
+      if (!initialPost) {
+        setPendingRestore(normalized);
+      } else {
+        const serverUpdatedAt = initialPost.updatedAt ? new Date(initialPost.updatedAt).getTime() : null;
+        const localUpdatedAt = new Date(normalized.autosavedAt).getTime();
+        if (!serverUpdatedAt || localUpdatedAt > serverUpdatedAt + 500) {
+          setPendingRestore(normalized);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to parse persisted draft", error);
+      window.localStorage.removeItem(initialStorageKey);
+    } finally {
+      setIsInitializing(false);
+    }
+  }, [initialPost, initialStorageKey, isInitializing, post]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !localStorageKey) {
       return;
     }
 
-    window.localStorage.setItem(localStorageKey, JSON.stringify(latestState.current));
+    const persisted: PersistedDraft = {
+      snapshot: latestState.current,
+      autosavedAt: new Date().toISOString(),
+    };
 
-    if (mode === "create" && post.id && localStorageKey !== "devlogia-editor-new") {
+    window.localStorage.setItem(localStorageKey, JSON.stringify(persisted));
+
+    if (mode === "create" && latestState.current.id && localStorageKey !== "devlogia-editor-new") {
       window.localStorage.removeItem("devlogia-editor-new");
     }
   }, [localStorageKey, mode, post]);
@@ -128,15 +175,17 @@ export function PostEditor({ initialPost, mode }: PostEditorProps) {
       clearTimeout(autosaveTimeout.current);
     }
 
-    const snapshot = JSON.stringify({ ...post, lastSavedAt: undefined });
+    const snapshot = serialize(post);
     if (snapshot === lastSavedSnapshot.current) {
       return;
     }
 
     autosaveTimeout.current = setTimeout(async () => {
       try {
-        await persistChanges();
-        lastSavedSnapshot.current = JSON.stringify({ ...latestState.current, lastSavedAt: undefined });
+        const saved = await persistChanges();
+        if (saved) {
+          lastSavedSnapshot.current = serialize(saved);
+        }
       } catch (error) {
         console.error("Autosave failed", error);
       }
@@ -160,7 +209,7 @@ export function PostEditor({ initialPost, mode }: PostEditorProps) {
   async function persistChanges() {
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       setAutosaveState("error");
-      return;
+      return null;
     }
 
     setAutosaveState("saving");
@@ -192,7 +241,7 @@ export function PostEditor({ initialPost, mode }: PostEditorProps) {
 
     if (!response.ok) {
       setAutosaveState("error");
-      return;
+      throw new Error(`Failed to persist post: ${response.status}`);
     }
 
     const data = await response.json();
@@ -210,23 +259,29 @@ export function PostEditor({ initialPost, mode }: PostEditorProps) {
         ? received.tags.map((item: { tag: { name: string } }) => item.tag.name)
         : latestState.current.tags,
       publishedAt: received.publishedAt ?? null,
+      updatedAt: received.updatedAt ?? new Date().toISOString(),
     };
 
     setPost(updated);
+    setPendingRestore(null);
+
+    const savedAt = updated.updatedAt ? new Date(updated.updatedAt) : new Date();
+    setLastSavedAt(savedAt);
     setAutosaveState("saved");
-    setLastSavedAt(new Date());
+
+    return updated;
   }
 
-  const autosaveLabel = useMemo(() => {
+  const autosaveDescription = useMemo(() => {
     switch (autosaveState) {
       case "saving":
-        return "Saving…";
+        return "Menyimpan perubahan…";
       case "saved":
-        return lastSavedAt ? `Saved ${lastSavedAt.toLocaleTimeString()}` : "Saved";
+        return `Terakhir disimpan pukul ${formatTime(lastSavedAt)}`;
       case "error":
-        return "Offline — saved locally";
+        return "Tidak tersambung — versi lokal disimpan.";
       default:
-        return "Idle";
+        return "Perubahan akan tersimpan otomatis.";
     }
   }, [autosaveState, lastSavedAt]);
 
@@ -263,6 +318,7 @@ export function PostEditor({ initialPost, mode }: PostEditorProps) {
 
   function updateField<K extends keyof EditorPost>(key: K, value: EditorPost[K]) {
     setPost((prev) => ({ ...prev, [key]: value }));
+    setAutosaveState("idle");
   }
 
   function handleTagsChange(value: string) {
@@ -273,14 +329,121 @@ export function PostEditor({ initialPost, mode }: PostEditorProps) {
     updateField("tags", tags);
   }
 
+  function handleRestoreDraft() {
+    if (!pendingRestore) return;
+
+    setPost(pendingRestore.snapshot);
+    setLastSavedAt(new Date(pendingRestore.autosavedAt));
+    lastSavedSnapshot.current = serialize(pendingRestore.snapshot);
+    setPendingRestore(null);
+    setAutosaveState("idle");
+  }
+
+  function handleDiscardDraft() {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(initialStorageKey);
+    }
+    setPendingRestore(null);
+  }
+
+  function openFileDialog() {
+    fileInputRef.current?.click();
+  }
+
+  async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setUploadState("error");
+      setUploadMessage("Tidak dapat mengunggah saat offline.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    setUploadState("uploading");
+    setUploadMessage(null);
+
+    try {
+      const response = await fetch("/api/uploadthing", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed with status ${response.status}`);
+      }
+
+      const data = await response.json();
+      const uploaded = data.files?.[0];
+
+      if (!uploaded?.url) {
+        throw new Error("Upload response missing URL");
+      }
+
+      const fallbackAlt = file.name
+        .replace(/\.[^/.]+$/, "")
+        .replace(/[-_]+/g, " ")
+        .trim();
+      const alt = uploaded.alt ?? (fallbackAlt || "Image");
+
+      setPost((prev) => ({
+        ...prev,
+        coverUrl: uploaded.url,
+        contentMdx: `${prev.contentMdx.trimEnd()}\n\n![${alt}](${uploaded.url})\n`,
+      }));
+      setAutosaveState("idle");
+      setUploadState("success");
+      setUploadMessage("Gambar diunggah. Cover diperbarui dan markdown disisipkan.");
+    } catch (error) {
+      console.error("Upload failed", error);
+      setUploadState("error");
+      setUploadMessage("Gagal mengunggah gambar stub.");
+    }
+  }
+
   return (
     <div className="space-y-6">
+      <div className="rounded-lg border border-dashed border-border bg-muted/50 px-4 py-3">
+        <div className="flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <p className="font-medium">Draft tersimpan otomatis</p>
+          <p className="text-xs text-muted-foreground">{autosaveDescription}</p>
+        </div>
+      </div>
+
+      {pendingRestore ? (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-900 dark:text-amber-100">
+          <p className="font-medium">Draf lokal ditemukan</p>
+          <p className="mt-1 text-xs">
+            Versi ini tersimpan pada {" "}
+            {new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(
+              new Date(pendingRestore.autosavedAt),
+            )}
+            . Pulihkan untuk melanjutkan dari titik terakhir.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" onClick={handleRestoreDraft}>
+              Pulihkan draft
+            </Button>
+            <Button size="sm" variant="ghost" onClick={handleDiscardDraft}>
+              Abaikan
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
             {mode === "edit" ? "Edit post" : "Create a new post"}
           </h1>
-          <p className="text-sm text-muted-foreground">{autosaveLabel}</p>
         </div>
         <div className="flex gap-2">
           <Button
@@ -376,7 +539,12 @@ export function PostEditor({ initialPost, mode }: PostEditorProps) {
             </Select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="coverUrl">Cover image URL</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="coverUrl">Cover image URL</Label>
+              <Button type="button" variant="outline" size="sm" onClick={openFileDialog}>
+                Upload
+              </Button>
+            </div>
             <Input
               id="coverUrl"
               name="coverUrl"
@@ -384,6 +552,22 @@ export function PostEditor({ initialPost, mode }: PostEditorProps) {
               value={post.coverUrl}
               onChange={(event) => updateField("coverUrl", event.target.value)}
             />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            {uploadMessage ? (
+              <p
+                className={`text-xs ${
+                  uploadState === "error" ? "text-red-500" : "text-muted-foreground"
+                }`}
+              >
+                {uploadMessage}
+              </p>
+            ) : null}
           </div>
           <div className="space-y-2">
             <Label htmlFor="tags">Tags</Label>
@@ -405,14 +589,18 @@ export function PostEditor({ initialPost, mode }: PostEditorProps) {
               name="publishedAt"
               type="datetime-local"
               value={post.publishedAt ? new Date(post.publishedAt).toISOString().slice(0, 16) : ""}
-              onChange={(event) => updateField("publishedAt", event.target.value ? new Date(event.target.value).toISOString() : null)}
+              onChange={(event) =>
+                updateField(
+                  "publishedAt",
+                  event.target.value ? new Date(event.target.value).toISOString() : null,
+                )
+              }
             />
-            <p className="text-xs text-muted-foreground">
-              Leave blank to auto-fill when publishing.
-            </p>
+            <p className="text-xs text-muted-foreground">Leave blank to auto-fill when publishing.</p>
           </div>
         </aside>
       </div>
     </div>
   );
 }
+
