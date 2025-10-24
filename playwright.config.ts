@@ -9,7 +9,7 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: "pnpm dev -- --hostname 0.0.0.0 --port 3000",
+    command: "pnpm dev --hostname 0.0.0.0 --port 3000",
     port: 3000,
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,

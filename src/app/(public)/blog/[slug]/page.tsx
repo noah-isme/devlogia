@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { renderMdx } from "@/lib/mdx";
 import { isDatabaseEnabled, prisma } from "@/lib/prisma";
-import { buildMetadata, siteConfig } from "@/lib/seo";
+import { buildMetadata, buildOgImageUrl, siteConfig } from "@/lib/seo";
 import { estimateReadingTime, formatDate } from "@/lib/utils";
 
 export const revalidate = 60;
@@ -39,6 +39,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const url = `${siteConfig.url}/blog/${post.slug}`;
+  const ogImage = buildOgImageUrl(post.title);
 
   return buildMetadata({
     title: post.title,
@@ -50,6 +51,20 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       url,
       type: "article",
       publishedTime: post.publishedAt?.toISOString(),
+      images: [
+        {
+          url: ogImage,
+          width: 1200,
+          height: 630,
+          alt: post.title,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description: post.summary ?? siteConfig.description,
+      images: [ogImage],
     },
   });
 }

@@ -10,6 +10,7 @@
 - **MDX editor with autosave** (localStorage fallback & live preview)
 - **UploadThing stub** so the app is deploy-ready without external storage
 - **SEO suite**: dynamic sitemap, RSS feed, canonical metadata, OG image
+- **Full-text search** with Postgres tsvector + tag filters on the home page
 - **Vitest + Playwright** test harness with GitHub Actions-friendly scripts
 
 ## 🧱 Tech Stack
@@ -69,7 +70,7 @@ Defaults assume a local PostgreSQL server:
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/devlogia"
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="changeme"
-UPLOADTHING_SECRET="changeme"
+UPLOADTHING_SECRET="stub-dev"
 UPLOADER_PROVIDER="stub"
 SEED_ADMIN_EMAIL="admin@devlogia.test"
 SEED_ADMIN_PASSWORD="admin123"
@@ -132,7 +133,7 @@ Additional scripts:
 | `pnpm typecheck` | TypeScript `tsc --noEmit` |
 | `pnpm test` | Vitest unit tests (jsdom) |
 | `pnpm test:watch` | Vitest in watch mode |
-| `pnpm e2e` | Playwright E2E tests (requires running PostgreSQL) |
+| `pnpm test:e2e` | Playwright E2E tests (requires running PostgreSQL) |
 | `pnpm build` | Production Next.js build |
 | `pnpm prisma:migrate` | Apply migrations interactively |
 | `pnpm prisma:seed` | Seed the database via `tsx prisma/seed.ts` |
@@ -146,7 +147,7 @@ Playwright spins up the Next.js dev server automatically. Ensure your PostgreSQL
 ```bash
 pnpm prisma:migrate
 pnpm prisma:seed
-pnpm e2e
+pnpm test:e2e
 ```
 
 The E2E spec logs in as the seeded admin, creates a new post via the editor (autosave + publish), and verifies it appears on the public blog.
@@ -171,12 +172,20 @@ The E2E spec logs in as the seeded admin, creates a new post via the editor (aut
 
 - `GET /api/sitemap` — Dynamic sitemap including posts and published pages
 - `GET /api/rss` — RSS feed with MDX content enclosed in CDATA
+- `GET /api/og` — Dynamic Open Graph image generator (title → PNG via `next/og`)
 - Default metadata (title template, OpenGraph, Twitter cards) via `siteConfig`
 - Canonical URLs derived from `NEXT_PUBLIC_APP_URL` / `NEXTAUTH_URL`
+- `public/og-default.png` ships as a text placeholder — swap with your own branded asset in production
+
+## 🔍 Search & Discovery
+
+- Home page search uses Postgres `tsvector` + `plainto_tsquery` for relevance-ranked results
+- Tag filters are encoded in the query string and combinable with full-text search
+- Pagination preserves active filters to keep the browsing context intact
 
 ## ♻️ Uploads
 
-UploadThing is configured with a **stub provider** for local development and test environments. The `/api/uploadthing` route returns a fake path without storing files, making it safe to deploy without cloud storage credentials. Swap `UPLOADER_PROVIDER` when wiring a real provider (R2/S3) in future phases.
+UploadThing is configured with a **stub provider** for local development and test environments. The `/api/uploadthing` route authenticates the admin, stores metadata in the `Media` table, and returns a deterministic fake URL (e.g. `/uploads/{id}.png`). Swap `UPLOADER_PROVIDER` when wiring a real provider (R2/S3) in future phases.
 
 ## 🧪 Testing Details
 

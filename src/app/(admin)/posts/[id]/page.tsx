@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import type { Prisma } from "@prisma/client";
 
-import { PostEditor } from "@/components/editor/post-editor";
+import { PostEditor } from "@/components/editor/Editor";
 import { isDatabaseEnabled, prisma } from "@/lib/prisma";
 import { buildMetadata } from "@/lib/seo";
 
@@ -85,6 +85,7 @@ export default async function EditPostPage({ params }: PageProps) {
     status: post.status,
     tags: post.tags.map(({ tag }) => tag.name),
     publishedAt: post.publishedAt ? post.publishedAt.toISOString() : null,
+    updatedAt: post.updatedAt.toISOString(),
   } as const;
 
   return <PostEditor mode="edit" initialPost={initialPost} />;

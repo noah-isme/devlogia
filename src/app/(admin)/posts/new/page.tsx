@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { PostEditor } from "@/components/editor/post-editor";
+import { PostEditor } from "@/components/editor/Editor";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
