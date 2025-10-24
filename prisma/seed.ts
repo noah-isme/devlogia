@@ -3,21 +3,28 @@ import { PrismaClient, PostStatus } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-async function main() {
-  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? "admin@devlogia.test";
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "admin123";
-
-  const passwordHash = await bcrypt.hash(adminPassword, 10);
-
-  const admin = await prisma.user.upsert({
-    where: { email: adminEmail },
-    update: {},
-    create: {
-      email: adminEmail,
-      passwordHash,
-      role: "admin",
-    },
+async function upsertUser(email: string, password: string, role: string) {
+  const passwordHash = await bcrypt.hash(password, 10);
+  return prisma.user.upsert({
+    where: { email },
+    update: { role },
+    create: { email, passwordHash, role },
   });
+}
+
+async function main() {
+  const ownerEmail = process.env.SEED_OWNER_EMAIL ?? "owner@devlogia.test";
+  const ownerPassword = process.env.SEED_OWNER_PASSWORD ?? "owner123";
+  const editorEmail = process.env.SEED_EDITOR_EMAIL ?? "editor@devlogia.test";
+  const editorPassword = process.env.SEED_EDITOR_PASSWORD ?? "editor123";
+  const writerEmail = process.env.SEED_WRITER_EMAIL ?? "writer@devlogia.test";
+  const writerPassword = process.env.SEED_WRITER_PASSWORD ?? "writer123";
+
+  const owner = await upsertUser(ownerEmail, ownerPassword, "owner");
+  await Promise.all([
+    upsertUser(editorEmail, editorPassword, "editor"),
+    upsertUser(writerEmail, writerPassword, "writer"),
+  ]);
 
   const tags = [
     { name: "Next.js", slug: "nextjs" },
@@ -172,7 +179,7 @@ async function main() {
         contentMdx: data.contentMdx,
         status: data.status,
         publishedAt,
-        authorId: admin.id,
+        authorId: owner.id,
       },
       create: {
         title: data.title,
@@ -181,7 +188,7 @@ async function main() {
         contentMdx: data.contentMdx,
         status: data.status,
         publishedAt,
-        authorId: admin.id,
+        authorId: owner.id,
       },
     });
 
@@ -210,7 +217,10 @@ async function main() {
     },
   });
 
-  console.log(`Seed completed. Admin credentials: ${adminEmail} / ${adminPassword}`);
+  console.log(`Seed completed.`);
+  console.log(`Owner credentials: ${ownerEmail} / ${ownerPassword}`);
+  console.log(`Editor credentials: ${editorEmail} / ${editorPassword}`);
+  console.log(`Writer credentials: ${writerEmail} / ${writerPassword}`);
   console.log(`Seeded ${postsSeed.length} posts and ${tags.length} tags.`);
 }
 

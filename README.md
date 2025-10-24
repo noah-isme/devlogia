@@ -8,12 +8,15 @@
 - **Prisma + PostgreSQL** schema for users, posts, pages, media, and tags
 - **NextAuth credentials** login with protected `/admin` middleware
 - **MDX editor with autosave** (localStorage fallback & live preview)
+- **AI Assist panel** for outlines, metadata, tags, and rephrasing (provider agnostic)
 - **UploadThing stub** so the app is deploy-ready without external storage
+- **Role-based admin** (owner/editor/writer) with audit logging and user management
 - **SEO suite**: dynamic sitemap, RSS feed, canonical metadata, enriched OG images
 - **Full-text search** with Postgres tsvector + tag filters on the home page
 - **Cursor-based pagination** on public + admin listings with preserved filters
 - **Accessibility polish**: share buttons, optional table of contents, skip links, focus rings
 - **Analytics & newsletter flags** controlled via environment variables
+- **Webhook revalidation** with HMAC signatures & rate limiting for safe cache busting
 - **Vitest + Playwright** test harness with GitHub Actions-friendly scripts
 
 ## 🧱 Tech Stack
@@ -75,8 +78,18 @@ NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="changeme"
 UPLOADTHING_SECRET="stub-dev"
 UPLOADER_PROVIDER="stub"
-SEED_ADMIN_EMAIL="admin@devlogia.test"
-SEED_ADMIN_PASSWORD="admin123"
+SEED_OWNER_EMAIL="owner@devlogia.test"
+SEED_OWNER_PASSWORD="owner123"
+SEED_EDITOR_EMAIL="editor@devlogia.test"
+SEED_EDITOR_PASSWORD="editor123"
+SEED_WRITER_EMAIL="writer@devlogia.test"
+SEED_WRITER_PASSWORD="writer123"
+AI_PROVIDER="none" # "openai" | "hf" | "none"
+OPENAI_API_KEY=""
+HF_API_KEY=""
+AI_RATE_LIMIT_PER_MIN="30"
+WEBHOOKS_OUTBOUND_URLS="[]"
+WEBHOOKS_SIGNING_SECRET="devlogia-signature"
 
 # Optional analytics & newsletter flags
 ANALYTICS_PROVIDER=""
@@ -103,7 +116,7 @@ RESEND_AUDIENCE_ID=""
    pnpm prisma:migrate
    ```
 
-3. **Seed the database** (creates an admin user & sample content)
+3. **Seed the database** (creates owner/editor/writer accounts & sample content)
 
    ```bash
    pnpm prisma:seed
@@ -117,14 +130,15 @@ RESEND_AUDIENCE_ID=""
 
    Visit [http://localhost:3000](http://localhost:3000) for the public site or [http://localhost:3000/admin/login](http://localhost:3000/admin/login) for the admin portal.
 
-### Admin Credentials
+### Seeded accounts
 
-The seed script provisions a default admin account:
+The seed script provisions three accounts for testing RBAC:
 
-- **Email:** `admin@devlogia.test`
-- **Password:** `admin123`
+- **Owner:** `owner@devlogia.test` / `owner123`
+- **Editor:** `editor@devlogia.test` / `editor123`
+- **Writer:** `writer@devlogia.test` / `writer123`
 
-You can customise these via `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` before seeding.
+Override these via `SEED_OWNER_*`, `SEED_EDITOR_*`, and `SEED_WRITER_*` before seeding.
 
 ## 🧪 Quality Gates & Scripts
 
@@ -163,7 +177,7 @@ pnpm prisma:seed
 pnpm test:e2e
 ```
 
-The E2E spec logs in as the seeded admin, creates a new post via the editor (autosave + publish), and verifies it appears on the public blog.
+The E2E spec logs in as the seeded owner, creates a new post via the editor (autosave + publish), and verifies it appears on the public blog.
 
 ## 🛠️ Admin & Editor Workflow
 
@@ -173,11 +187,13 @@ The E2E spec logs in as the seeded admin, creates a new post via the editor (aut
 - `/admin/posts/new` — MDX editor with autosave (1500 ms debounce, offline-safe)
 - `/admin/posts/[id]` — Edit existing posts with tag management & status changes
 - `/admin/pages` — Minimal CRUD for static pages with live preview on `/<slug>`
+- `/admin/users` — Owner-only user management with role assignments
 
 ### Editor Features
 
 - Autosave persists to the database (and localStorage as a fallback)
 - Live MDX preview using the same rendering pipeline as the public site
+- AI Assist panel for outlines, metadata, tags, and rephrasing (disabled when no provider configured)
 - Custom MDX components such as `<Callout>` are supported out of the box
 - Tag input accepts comma-separated values and creates tags automatically
 

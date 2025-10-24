@@ -2,11 +2,13 @@
 
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import type { Role } from "@/lib/rbac";
 import { postStatusValues } from "@/lib/validations/post";
 import { slugify } from "@/lib/utils";
 
@@ -33,10 +35,19 @@ type PersistedDraft = {
 type PostEditorProps = {
   initialPost?: EditorPost;
   mode: "create" | "edit";
+  role: Role;
+  aiEnabled: boolean;
 };
 
 type AutosaveState = "idle" | "saving" | "saved" | "error";
 type UploadState = "idle" | "uploading" | "success" | "error";
+
+type AIEndpoint = "outline" | "meta" | "tags" | "rephrase";
+type AIResult =
+  | { type: "outline"; data: string[] }
+  | { type: "meta"; data: { title: string; description: string } }
+  | { type: "tags"; data: string[] }
+  | { type: "rephrase"; data: string };
 
 const AUTOSAVE_DELAY = 1500;
 
@@ -55,7 +66,7 @@ function formatTime(date: Date | null) {
   }).format(date);
 }
 
-export function PostEditor({ initialPost, mode }: PostEditorProps) {
+export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorProps) {
   const [post, setPost] = useState<EditorPost>(
     initialPost ?? {
       id: null,
@@ -81,11 +92,16 @@ export function PostEditor({ initialPost, mode }: PostEditorProps) {
   const [pendingRestore, setPendingRestore] = useState<PersistedDraft | null>(null);
   const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [actionState, setActionState] = useState<"idle" | "saving" | "success" | "error">("idle");
+  const [aiStatus, setAiStatus] = useState<"idle" | "loading">("idle");
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiResult, setAiResult] = useState<AIResult | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const latestState = useRef(post);
   const lastSavedSnapshot = useRef<string>(serialize(post));
   const autosaveTimeout = useRef<NodeJS.Timeout | null>(null);
+  const actionTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const localStorageKey = useMemo(() => {
     if (typeof window === "undefined") {
@@ -99,6 +115,17 @@ export function PostEditor({ initialPost, mode }: PostEditorProps) {
     () => (initialPost ? `devlogia-editor-${initialPost.id}` : "devlogia-editor-new"),
     [initialPost],
   );
+
+  const statusOptions = useMemo(
+    () => (role === "writer" ? postStatusValues.filter((status) => status !== "PUBLISHED") : postStatusValues),
+    [role],
+  );
+
+  const canPublish = role !== "writer";
+  const aiAvailable = aiEnabled && role !== "writer";
+  const primaryLabel = canPublish ? (post.status === "PUBLISHED" ? "Update post" : "Publish") : "Save draft";
+  const isPrimarySaving = actionState === "saving";
+  const primaryVariant = actionState === "error" ? "destructive" : "default";
 
   useEffect(() => {
     latestState.current = post;
@@ -203,6 +230,9 @@ export function PostEditor({ initialPost, mode }: PostEditorProps) {
       if (autosaveTimeout.current) {
         clearTimeout(autosaveTimeout.current);
       }
+      if (actionTimeout.current) {
+        clearTimeout(actionTimeout.current);
+      }
     };
   }, []);
 
@@ -263,6 +293,7 @@ export function PostEditor({ initialPost, mode }: PostEditorProps) {
     };
 
     setPost(updated);
+    latestState.current = updated;
     setPendingRestore(null);
 
     const savedAt = updated.updatedAt ? new Date(updated.updatedAt) : new Date();
@@ -316,8 +347,207 @@ export function PostEditor({ initialPost, mode }: PostEditorProps) {
     }
   };
 
+  async function handlePrimaryAction() {
+    if (isPrimarySaving) {
+      return;
+    }
+
+    if (actionTimeout.current) {
+      clearTimeout(actionTimeout.current);
+    }
+
+    if (autosaveTimeout.current) {
+      clearTimeout(autosaveTimeout.current);
+    }
+
+    const previous = latestState.current;
+    const desiredStatus = canPublish ? "PUBLISHED" : "DRAFT";
+    const nextState: EditorPost = {
+      ...previous,
+      status: desiredStatus,
+      publishedAt:
+        desiredStatus === "PUBLISHED"
+          ? previous.publishedAt ?? new Date().toISOString()
+          : null,
+    };
+
+    latestState.current = nextState;
+    setPost(nextState);
+    setAutosaveState("idle");
+    setActionState("saving");
+
+    try {
+      const saved = await persistChanges();
+      if (!saved) {
+        throw new Error("Unable to save post");
+      }
+      setActionState("success");
+      actionTimeout.current = setTimeout(() => setActionState("idle"), 2000);
+    } catch (error) {
+      console.error("Primary action failed", error);
+      latestState.current = previous;
+      setPost(previous);
+      setActionState("error");
+      setAutosaveState("error");
+      actionTimeout.current = setTimeout(() => setActionState("idle"), 4000);
+    }
+  }
+
+  async function requestAI(endpoint: AIEndpoint) {
+    if (!aiAvailable) {
+      return;
+    }
+
+    if (endpoint !== "outline") {
+      const contentLength = latestState.current.contentMdx.trim().length;
+      if (contentLength < 10) {
+        setAiError("Add more content before requesting AI suggestions.");
+        return;
+      }
+    } else if (!latestState.current.title || latestState.current.title.trim().length < 3) {
+      setAiError("Add a working title before requesting an outline.");
+      return;
+    }
+
+    setAiStatus("loading");
+    setAiError(null);
+    setAiResult(null);
+
+    const payload = (() => {
+      switch (endpoint) {
+        case "outline":
+          return { topic: latestState.current.title || latestState.current.slug || "Draft" };
+        case "meta":
+          return {
+            title: latestState.current.title || "Untitled draft",
+            content: latestState.current.contentMdx,
+          };
+        case "tags":
+          return { content: latestState.current.contentMdx, limit: 8 };
+        case "rephrase":
+          return { content: latestState.current.contentMdx };
+        default:
+          return {};
+      }
+    })();
+
+    try {
+      const response = await fetch(`/api/ai/${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        const message =
+          response.status === 429
+            ? "AI rate limit reached. Try again later."
+            : response.status === 503
+              ? "AI assistant is disabled for this workspace."
+              : typeof body.error === "string"
+                ? body.error
+                : `AI request failed (${response.status}).`;
+        setAiError(message);
+        setAiStatus("idle");
+        return;
+      }
+
+      const body = await response.json();
+      const data = body.data;
+      let result: AIResult | null = null;
+
+      switch (endpoint) {
+        case "outline":
+          if (Array.isArray(data)) {
+            result = { type: "outline", data: data.map((item: unknown) => String(item)) };
+          }
+          break;
+        case "meta":
+          if (data && typeof data === "object") {
+            result = {
+              type: "meta",
+              data: {
+                title: String((data as { title?: string }).title ?? latestState.current.title),
+                description: String((data as { description?: string }).description ?? latestState.current.summary),
+              },
+            };
+          }
+          break;
+        case "tags":
+          if (Array.isArray(data)) {
+            result = {
+              type: "tags",
+              data: data.map((item: unknown) => String(item)).filter(Boolean),
+            };
+          }
+          break;
+        case "rephrase":
+          if (typeof data === "string") {
+            result = { type: "rephrase", data };
+          }
+          break;
+        default:
+          break;
+      }
+
+      if (!result) {
+        setAiError("AI response was empty. Try again.");
+        setAiStatus("idle");
+        return;
+      }
+
+      setAiResult(result);
+      setAiStatus("idle");
+    } catch (error) {
+      console.error("AI request failed", error);
+      setAiError("Unable to reach the AI assistant.");
+      setAiStatus("idle");
+    }
+  }
+
+  function applyAiResult(result: AIResult) {
+    switch (result.type) {
+      case "outline": {
+        const outline = result.data
+          .map((item) => `## ${item}`)
+          .join("\n\n");
+        const existing = latestState.current.contentMdx.trim();
+        const next = `${existing ? `${existing}\n\n` : ""}${outline}`;
+        updateField("contentMdx", next);
+        setActiveView("write");
+        break;
+      }
+      case "meta": {
+        updateField("title", result.data.title);
+        updateField("summary", result.data.description);
+        break;
+      }
+      case "tags": {
+        const uniqueTags = Array.from(new Set(result.data.map((tag) => tag.trim()).filter(Boolean)));
+        updateField("tags", uniqueTags);
+        break;
+      }
+      case "rephrase": {
+        updateField("contentMdx", result.data);
+        setActiveView("write");
+        break;
+      }
+      default:
+        break;
+    }
+
+    setAiResult(null);
+    setAiError(null);
+  }
+
   function updateField<K extends keyof EditorPost>(key: K, value: EditorPost[K]) {
-    setPost((prev) => ({ ...prev, [key]: value }));
+    setPost((prev) => {
+      const next = { ...prev, [key]: value };
+      latestState.current = next;
+      return next;
+    });
     setAutosaveState("idle");
   }
 
@@ -333,6 +563,7 @@ export function PostEditor({ initialPost, mode }: PostEditorProps) {
     if (!pendingRestore) return;
 
     setPost(pendingRestore.snapshot);
+    latestState.current = pendingRestore.snapshot;
     setLastSavedAt(new Date(pendingRestore.autosavedAt));
     lastSavedSnapshot.current = serialize(pendingRestore.snapshot);
     setPendingRestore(null);
@@ -394,11 +625,15 @@ export function PostEditor({ initialPost, mode }: PostEditorProps) {
         .trim();
       const alt = uploaded.alt ?? (fallbackAlt || "Image");
 
-      setPost((prev) => ({
-        ...prev,
-        coverUrl: uploaded.url,
-        contentMdx: `${prev.contentMdx.trimEnd()}\n\n![${alt}](${uploaded.url})\n`,
-      }));
+      setPost((prev) => {
+        const next = {
+          ...prev,
+          coverUrl: uploaded.url,
+          contentMdx: `${prev.contentMdx.trimEnd()}\n\n![${alt}](${uploaded.url})\n`,
+        };
+        latestState.current = next;
+        return next;
+      });
       setAutosaveState("idle");
       setUploadState("success");
       setUploadMessage("Gambar diunggah. Cover diperbarui dan markdown disisipkan.");
@@ -445,20 +680,30 @@ export function PostEditor({ initialPost, mode }: PostEditorProps) {
             {mode === "edit" ? "Edit post" : "Create a new post"}
           </h1>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant={activeView === "write" ? "default" : "outline"}
+              onClick={() => handleSwitchView("write")}
+            >
+              Write
+            </Button>
+            <Button
+              type="button"
+              variant={activeView === "preview" ? "default" : "outline"}
+              onClick={() => handleSwitchView("preview")}
+            >
+              Preview
+            </Button>
+          </div>
           <Button
             type="button"
-            variant={activeView === "write" ? "default" : "outline"}
-            onClick={() => handleSwitchView("write")}
+            variant={primaryVariant}
+            onClick={() => void handlePrimaryAction()}
+            disabled={isPrimarySaving}
           >
-            Write
-          </Button>
-          <Button
-            type="button"
-            variant={activeView === "preview" ? "default" : "outline"}
-            onClick={() => handleSwitchView("preview")}
-          >
-            Preview
+            {isPrimarySaving ? "Saving…" : primaryLabel}
           </Button>
         </div>
       </div>
@@ -523,6 +768,101 @@ export function PostEditor({ initialPost, mode }: PostEditorProps) {
           </div>
         </div>
         <aside className="space-y-6">
+          <div className="space-y-3 rounded-lg border border-border bg-muted/40 p-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold">AI Assist</h2>
+              <span className="text-xs text-muted-foreground">
+                {!aiAvailable ? "Disabled" : aiStatus === "loading" ? "Generating…" : "Beta"}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Generate outlines, SEO metadata, tags, or rephrase existing content to speed up your workflow.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!aiAvailable || aiStatus === "loading"}
+                onClick={() => void requestAI("outline")}
+              >
+                Outline
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!aiAvailable || aiStatus === "loading"}
+                onClick={() => void requestAI("meta")}
+              >
+                Meta
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!aiAvailable || aiStatus === "loading"}
+                onClick={() => void requestAI("tags")}
+              >
+                Tags
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!aiAvailable || aiStatus === "loading"}
+                onClick={() => void requestAI("rephrase")}
+              >
+                Rephrase
+              </Button>
+            </div>
+            {aiError ? <p className="text-xs text-red-500">{aiError}</p> : null}
+            {aiResult ? (
+              <div className="space-y-3 rounded-md border border-dashed border-border bg-background p-3 text-xs">
+                {aiResult.type === "outline" ? (
+                  <ul className="list-disc space-y-1 pl-4 text-left">
+                    {aiResult.data.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                ) : aiResult.type === "meta" ? (
+                  <div className="space-y-1 text-left">
+                    <p>
+                      <span className="font-medium">Title:</span> {aiResult.data.title}
+                    </p>
+                    <p>
+                      <span className="font-medium">Description:</span> {aiResult.data.description}
+                    </p>
+                  </div>
+                ) : aiResult.type === "tags" ? (
+                  <div className="flex flex-wrap gap-2">
+                    {aiResult.data.map((tag) => (
+                      <Badge key={tag} variant="info">
+                        #{tag}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-md bg-muted/30 p-2 text-left">
+                    {aiResult.data}
+                  </pre>
+                )}
+                <div className="flex items-center gap-2">
+                  <Button type="button" size="sm" onClick={() => applyAiResult(aiResult)}>
+                    Apply
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setAiResult(null)}>
+                    Clear
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+            {!aiAvailable ? (
+              <p className="text-xs text-muted-foreground">
+                Configure <code>AI_PROVIDER</code> to enable AI assistance.
+              </p>
+            ) : null}
+          </div>
           <div className="space-y-2">
             <Label htmlFor="status">Status</Label>
             <Select
@@ -531,7 +871,7 @@ export function PostEditor({ initialPost, mode }: PostEditorProps) {
               value={post.status}
               onChange={(event) => updateField("status", event.target.value as PostStatus)}
             >
-              {postStatusValues.map((status) => (
+              {statusOptions.map((status) => (
                 <option key={status} value={status}>
                   {status}
                 </option>
