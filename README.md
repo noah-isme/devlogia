@@ -182,15 +182,23 @@ Additional scripts:
 Playwright spins up the Next.js dev server automatically. Ensure your PostgreSQL instance is running and populated (migration + seed) before executing:
 
 ```bash
+# one-time browser install
 pnpm exec playwright install
+
+# install missing system libraries on Linux workstations
+npx playwright install-deps
+
+# prepare the database
 pnpm prisma:migrate
 pnpm prisma:seed
+
+# run the spec suite
 pnpm test:e2e
 ```
 
 The E2E spec logs in as the seeded owner, creates a new post via the editor (autosave + publish), and verifies it appears on the public blog.
 
-For CI environments without persistent caches, install system dependencies alongside the browsers with `pnpm exec playwright install --with-deps`.
+CI uses the official `mcr.microsoft.com/playwright:v1.47.0-jammy` image with browsers preinstalled. We cache `~/.cache/ms-playwright` and set `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` to avoid redundant downloads, then run migrations, lint/typecheck/unit/build, and finally launch the app for Playwright.
 
 ## 🛠️ Admin & Editor Workflow
 

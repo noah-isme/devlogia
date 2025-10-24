@@ -20,6 +20,8 @@
 - Vitest coverage for RBAC decisions, AI provider fallbacks, and webhook utilities.
 - Playwright specs for writer restrictions, AI assist panel state, and publish audit logging.
 - Rate limiting helpers expose reset hooks to keep tests deterministic.
+- CI Playwright pipeline now runs inside `mcr.microsoft.com/playwright:v1.47.0-jammy` with cached browsers, seeded Postgres, and env defaults that disable external AI providers.
+- README documents the local E2E workflow (`pnpm exec playwright install`, `npx playwright install-deps`, migrate/seed) so contributors can mirror CI troubleshooting steps.
 
 ## Environment & docs
 - `.env.example` and `.env.ci` document AI and webhook configuration.
