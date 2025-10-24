@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import type { Prisma } from "@prisma/client";
 
 import { PostEditor } from "@/components/editor/Editor";
+import { auth } from "@/lib/auth";
 import { isDatabaseEnabled, prisma } from "@/lib/prisma";
 import { buildMetadata } from "@/lib/seo";
 
@@ -48,6 +49,7 @@ export default async function EditPostPage({ params }: PageProps) {
     );
   }
 
+  const session = await auth();
   let loadError: unknown | null = null;
   type EditablePost = Prisma.PostGetPayload<{ include: { tags: { include: { tag: true } } } }>;
   let post: EditablePost | null = null;
@@ -75,6 +77,10 @@ export default async function EditPostPage({ params }: PageProps) {
     notFound();
   }
 
+  if (session?.user?.role === "writer" && post.authorId !== session.user.id) {
+    notFound();
+  }
+
   const initialPost = {
     id: post.id,
     title: post.title,
@@ -88,5 +94,8 @@ export default async function EditPostPage({ params }: PageProps) {
     updatedAt: post.updatedAt.toISOString(),
   } as const;
 
-  return <PostEditor mode="edit" initialPost={initialPost} />;
+  const role = session?.user?.role ?? "writer";
+  const aiEnabled = (process.env.AI_PROVIDER ?? "none").toLowerCase() !== "none";
+
+  return <PostEditor mode="edit" initialPost={initialPost} role={role} aiEnabled={aiEnabled} />;
 }

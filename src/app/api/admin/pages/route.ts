@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
+import { recordAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { slugify } from "@/lib/utils";
 import { pageSchema } from "@/lib/validations/page";
 
@@ -44,7 +46,7 @@ export async function POST(request: Request) {
   if (!session?.user) {
     return unauthorized();
   }
-  if (session.user.role !== "admin") {
+  if (!can(session.user, "page:create")) {
     return forbidden();
   }
 
@@ -70,6 +72,22 @@ export async function POST(request: Request) {
       published: payload?.published ?? false,
     },
   });
+
+  await recordAuditLog({
+    userId: session.user.id,
+    action: "page:create",
+    targetId: page.id,
+    meta: { published: page.published },
+  });
+
+  if (page.published) {
+    await recordAuditLog({
+      userId: session.user.id,
+      action: "page:publish",
+      targetId: page.id,
+      meta: { slug: page.slug },
+    });
+  }
 
   return NextResponse.json({ page }, { status: 201 });
 }

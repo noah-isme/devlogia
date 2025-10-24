@@ -5,6 +5,7 @@ import bcrypt from "bcrypt";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
+import type { Role } from "@/lib/rbac";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -12,7 +13,7 @@ const credentialsSchema = z.object({
 });
 
 type AuthorizedUser = Pick<User, "id" | "email" | "name"> & {
-  role: string;
+  role: Role;
 };
 
 export const authOptions: NextAuthOptions = {
@@ -52,7 +53,7 @@ export const authOptions: NextAuthOptions = {
           id: user.id,
           email: user.email,
           name: user.email,
-          role: user.role,
+          role: (user.role as Role) ?? "writer",
         };
 
         return authorizedUser;
@@ -72,7 +73,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user && token) {
         session.user.id = token.sub as string;
         session.user.email = token.email;
-        session.user.role = (token.role as string) ?? "admin";
+        session.user.role = (token.role as Role) ?? "writer";
       }
       return session;
     },
@@ -86,6 +87,6 @@ export function auth() {
 export type SessionWithUser = Session & {
   user: Session["user"] & {
     id: string;
-    role: string;
+    role: Role;
   };
 };

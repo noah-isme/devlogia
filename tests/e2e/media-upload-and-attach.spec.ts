@@ -1,14 +1,14 @@
 import { expect, test } from "@playwright/test";
 
-const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@devlogia.test";
-const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "admin123";
+const OWNER_EMAIL = process.env.SEED_OWNER_EMAIL ?? "owner@devlogia.test";
+const OWNER_PASSWORD = process.env.SEED_OWNER_PASSWORD ?? "owner123";
 
 const ONE_BY_ONE_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=";
 
 test("admin can upload media and publish with OG", async ({ page, request }) => {
   await page.goto("/admin/login");
-  await page.getByLabel("Email").fill(ADMIN_EMAIL);
-  await page.getByLabel("Password").fill(ADMIN_PASSWORD);
+  await page.getByLabel("Email").fill(OWNER_EMAIL);
+  await page.getByLabel("Password").fill(OWNER_PASSWORD);
   await page.getByRole("button", { name: /sign in/i }).click();
 
   await expect(page).toHaveURL(/admin\/dashboard/);

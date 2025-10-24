@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
+import { recordAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { slugify } from "@/lib/utils";
 import { pageSchema } from "@/lib/validations/page";
 
@@ -42,7 +44,7 @@ export async function PATCH(
   if (!session?.user) {
     return unauthorized();
   }
-  if (session.user.role !== "admin") {
+  if (!can(session.user, "page:update")) {
     return forbidden();
   }
 
@@ -70,6 +72,31 @@ export async function PATCH(
     },
   });
 
+  await recordAuditLog({
+    userId: session.user.id,
+    action: "page:update",
+    targetId: page.id,
+    meta: { published: page.published },
+  });
+
+  if (!existing.published && page.published) {
+    await recordAuditLog({
+      userId: session.user.id,
+      action: "page:publish",
+      targetId: page.id,
+      meta: { slug: page.slug },
+    });
+  }
+
+  if (existing.published && !page.published) {
+    await recordAuditLog({
+      userId: session.user.id,
+      action: "page:unpublish",
+      targetId: page.id,
+      meta: { slug: page.slug },
+    });
+  }
+
   return NextResponse.json({ page });
 }
 
@@ -82,9 +109,19 @@ export async function DELETE(
   if (!session?.user) {
     return unauthorized();
   }
-  if (session.user.role !== "admin") {
+  if (!can(session.user, "page:delete")) {
     return forbidden();
   }
+  const page = await prisma.page.findUnique({ where: { id } });
+  if (!page) {
+    return notFound();
+  }
   await prisma.page.delete({ where: { id } });
+  await recordAuditLog({
+    userId: session.user.id,
+    action: "page:delete",
+    targetId: id,
+    meta: { slug: page.slug },
+  });
   return NextResponse.json({ success: true });
 }

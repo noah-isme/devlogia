@@ -24,7 +24,7 @@ vi.mock("@/lib/prisma", () => {
         findMany: vi.fn().mockResolvedValue([
           {
             ...mockPost,
-            author: { id: "user_1", email: "admin@test", passwordHash: "", role: "admin", createdAt: new Date() } as User,
+            author: { id: "user_1", email: "owner@test", passwordHash: "", role: "owner", createdAt: new Date() } as User,
             tags: [],
           },
         ]),

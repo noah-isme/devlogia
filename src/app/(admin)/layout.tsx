@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { SignOutButton } from "@/components/forms/sign-out-button";
+import { auth } from "@/lib/auth";
 import { siteConfig } from "@/lib/seo";
 
 type AdminLayoutProps = {
@@ -10,13 +11,19 @@ type AdminLayoutProps = {
 
 export const dynamic = "force-dynamic";
 
-const navItems = [
-  { href: "/admin/dashboard", label: "Dashboard" },
-  { href: "/admin/posts", label: "Posts" },
-  { href: "/admin/pages", label: "Pages" },
-];
+export default async function AdminLayout({ children }: AdminLayoutProps) {
+  const session = await auth();
+  const role = session?.user?.role;
+  const navItems = [
+    { href: "/admin/dashboard", label: "Dashboard" },
+    { href: "/admin/posts", label: "Posts" },
+    { href: "/admin/pages", label: "Pages" },
+  ];
 
-export default function AdminLayout({ children }: AdminLayoutProps) {
+  if (role === "owner") {
+    navItems.push({ href: "/admin/users", label: "Users" });
+  }
+
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pb-10 pt-8 sm:px-6">
       <header className="mb-8 flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-center sm:justify-between">
