@@ -8,6 +8,20 @@ import { formatDate } from "@/lib/utils";
 
 const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
 
+type DashboardLatestPost = {
+  id: string;
+  title: string;
+  status: PostStatus;
+  updatedAt: Date;
+};
+
+type DashboardMetrics = {
+  drafts: number;
+  published: number;
+  scheduled: number;
+  latestPosts: DashboardLatestPost[];
+};
+
 export const metadata: Metadata = buildMetadata({
   title: "Dashboard",
   description: "Overview of Devlogia content health.",
@@ -25,25 +39,15 @@ export default async function DashboardPage() {
     );
   }
 
-  let metrics: {
-    drafts: number;
-    published: number;
-    scheduled: number;
-    latestPosts: Array<{
-      id: string;
-      title: string;
-      status: PostStatus;
-      updatedAt: Date;
-    }>;
-  } | null = null;
+  let metrics: DashboardMetrics | null = null;
 
   try {
-    const { prisma } = await import("@/lib/prisma");
+    const { prisma, safeFindMany } = await import("@/lib/prisma");
     const [drafts, published, scheduled, latestPosts] = await Promise.all([
       prisma.post.count({ where: { status: "DRAFT" } }),
       prisma.post.count({ where: { status: "PUBLISHED" } }),
       prisma.post.count({ where: { status: "SCHEDULED" } }),
-      prisma.post.findMany({
+      safeFindMany<DashboardLatestPost>("post", {
         orderBy: { updatedAt: "desc" },
         take: 5,
         select: {

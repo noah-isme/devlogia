@@ -59,8 +59,37 @@ devlogia/
 ## ✅ Prerequisites
 
 - **Node.js 20+** and **pnpm 8+** (`corepack enable pnpm` recommended)
-- **PostgreSQL 14+** running locally (default credentials below)
+- **PostgreSQL 14+** running locally (default credentials below) — or use the lightweight Docker Compose stack below
 - Recommended: `psql` CLI for managing the database
+
+### Quick start (local stack)
+
+Spin up Postgres, install browsers, and run the checks end-to-end:
+
+```bash
+pnpm install
+
+# Start the local Postgres container
+pnpm db:up
+
+# Apply schema & seed
+pnpm prisma:migrate
+pnpm prisma:seed
+
+# Install Playwright dependencies (browsers + system packages)
+pnpm exec playwright install --with-deps
+
+# Validate the build pipeline
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+
+# Optional: launch E2E specs (requires the dev server)
+pnpm test:e2e
+```
+
+Stop the services afterwards with `pnpm db:down`. To rebuild the database from scratch, run `pnpm db:reset`.
 
 ### Environment Variables
 
@@ -140,6 +169,10 @@ The file pins a local PostgreSQL URL (`devlogia_test`), deterministic secrets, a
 
    Visit [http://localhost:3000](http://localhost:3000) for the public site or [http://localhost:3000/admin/login](http://localhost:3000/admin/login) for the admin portal.
 
+### Database fallback
+
+When `DATABASE_URL` is unset (for example during documentation builds or static previews), Prisma queries invoked during build-time rendering call a `safeFindMany` helper. The helper logs a friendly warning (`[Devlogia] DATABASE_URL missing — skipping query for <model>`) and returns an empty array so `pnpm build` succeeds even without a running database. Runtime mutations in the admin/API routes still require a real PostgreSQL connection.
+
 ### Seeded accounts
 
 The seed script provisions three accounts for testing RBAC:
@@ -182,11 +215,8 @@ Additional scripts:
 Playwright spins up the Next.js dev server automatically. Ensure your PostgreSQL instance is running and populated (migration + seed) before executing:
 
 ```bash
-# one-time browser install
-pnpm exec playwright install
-
-# install missing system libraries on Linux workstations
-npx playwright install-deps
+# one-time browser + dependency install
+pnpm exec playwright install --with-deps
 
 # prepare the database
 pnpm prisma:migrate
@@ -195,6 +225,12 @@ pnpm prisma:seed
 # run the spec suite
 pnpm test:e2e
 ```
+
+Troubleshooting tips:
+
+- Ensure the `postgres` container is healthy (`pnpm db:up` and `docker compose ps`).
+- Delete Playwright's cache if browsers look stale: `rm -rf ~/.cache/ms-playwright`.
+- Rebuild the database if tests rely on a clean slate: `pnpm db:reset`.
 
 The E2E spec logs in as the seeded owner, creates a new post via the editor (autosave + publish), and verifies it appears on the public blog.
 

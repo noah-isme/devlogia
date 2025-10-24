@@ -79,7 +79,7 @@ export default async function PostsPage({ searchParams }: PostsPageProps) {
     allConditions[0],
   );
 
-  const { prisma } = await import("@/lib/prisma");
+  const { prisma, safeFindMany } = await import("@/lib/prisma");
 
   const rows = await prisma.$queryRaw<Array<{ id: string; sortKey: Date }>>(Prisma.sql`
     SELECT p."id", ${sortField} AS "sortKey"
@@ -95,7 +95,7 @@ export default async function PostsPage({ searchParams }: PostsPageProps) {
 
   let posts: AdminPost[] = [];
   if (ids.length > 0) {
-    const fetched = await prisma.post.findMany({
+    const fetched = await safeFindMany<AdminPost>("post", {
       where: { id: { in: ids } },
       include: { tags: { include: { tag: true } } },
     });
@@ -123,7 +123,7 @@ export default async function PostsPage({ searchParams }: PostsPageProps) {
       hasNext = true;
     }
     if (retryIds.length) {
-      const retryFetched = await prisma.post.findMany({
+      const retryFetched = await safeFindMany<AdminPost>("post", {
         where: { id: { in: retryIds } },
         include: { tags: { include: { tag: true } } },
       });

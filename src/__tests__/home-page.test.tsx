@@ -19,17 +19,20 @@ vi.mock("@/lib/prisma", () => {
     updatedAt: new Date("2024-01-02"),
   } satisfies Partial<Post>;
 
+  const posts = [
+    {
+      ...mockPost,
+      author: { id: "user_1", email: "owner@test", passwordHash: "", role: "owner", createdAt: new Date() } as User,
+      tags: [],
+    },
+  ];
+
   return {
     isDatabaseEnabled: true,
+    safeFindMany: vi.fn().mockResolvedValue(posts),
     prisma: {
       post: {
-        findMany: vi.fn().mockResolvedValue([
-          {
-            ...mockPost,
-            author: { id: "user_1", email: "owner@test", passwordHash: "", role: "owner", createdAt: new Date() } as User,
-            tags: [],
-          },
-        ]),
+        findMany: vi.fn().mockResolvedValue(posts),
       },
       tag: {
         findMany: vi.fn().mockResolvedValue([]),

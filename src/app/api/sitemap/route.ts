@@ -4,6 +4,11 @@ import { siteConfig } from "@/lib/seo";
 
 const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
 
+type SitemapEntry = {
+  slug: string;
+  updatedAt: Date;
+};
+
 function formatDate(date: Date) {
   return date.toISOString();
 }
@@ -13,17 +18,17 @@ export async function GET() {
     return buildSitemapResponse([], []);
   }
 
-  let posts: Array<{ slug: string; updatedAt: Date }> = [];
-  let pages: Array<{ slug: string; updatedAt: Date }> = [];
+  let posts: SitemapEntry[] = [];
+  let pages: SitemapEntry[] = [];
 
   try {
-    const { prisma } = await import("@/lib/prisma");
+    const { safeFindMany } = await import("@/lib/prisma");
     [posts, pages] = await Promise.all([
-      prisma.post.findMany({
+      safeFindMany<SitemapEntry>("post", {
         where: { status: "PUBLISHED" },
         select: { slug: true, updatedAt: true },
       }),
-      prisma.page.findMany({
+      safeFindMany<SitemapEntry>("page", {
         where: { published: true },
         select: { slug: true, updatedAt: true },
       }),
@@ -35,10 +40,7 @@ export async function GET() {
   return buildSitemapResponse(posts, pages);
 }
 
-function buildSitemapResponse(
-  posts: Array<{ slug: string; updatedAt: Date }>,
-  pages: Array<{ slug: string; updatedAt: Date }>,
-) {
+function buildSitemapResponse(posts: SitemapEntry[], pages: SitemapEntry[]) {
   const urls = [
     { loc: siteConfig.url, lastmod: formatDate(new Date()) },
     ...posts.map((post) => ({
