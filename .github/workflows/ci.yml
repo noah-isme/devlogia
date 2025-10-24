@@ -46,9 +46,15 @@ jobs:
         run: pnpm install
       - name: Setup env for CI
         run: cp .env.ci .env
-      - name: Prepare database
+      - name: Generate Prisma Client
+        run: pnpm prisma generate
+      - name: Setup test database
         run: |
-          pnpm prisma generate
+          if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+            pnpm db:up || echo "pnpm db:up skipped (already running or unavailable)"
+          else
+            echo "Docker Compose not available; assuming database service is running."
+          fi
           pnpm prisma migrate deploy
           pnpm prisma db seed
       - name: Lint, Typecheck, Test, Build
@@ -57,8 +63,8 @@ jobs:
           pnpm typecheck
           pnpm test
           CI=1 pnpm build
-      - name: Install Playwright Browsers
-        run: pnpm exec playwright install
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps
       - name: Run E2E tests
         env:
           PORT: 3000

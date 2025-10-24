@@ -1,6 +1,6 @@
 {
   "name": "devlogia",
-  "version": "1.0.0-rc",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:full": "(pnpm db:up || echo \"Skipping pnpm db:up (already running or unavailable)\") && pnpm prisma migrate deploy && pnpm prisma db seed && pnpm exec playwright install --with-deps && pnpm test:e2e",
     "e2e": "pnpm test:e2e",
     "format": "prettier --check \"**/*.{ts,tsx,md,mdx,json,yml,yaml}\"",
     "format:write": "prettier --write \"**/*.{ts,tsx,md,mdx,json,yml,yaml}\"",
