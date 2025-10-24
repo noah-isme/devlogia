@@ -3,9 +3,10 @@ import Link from "next/link";
 
 import type { PostStatus } from "@prisma/client";
 
-import { isDatabaseEnabled, prisma } from "@/lib/prisma";
 import { buildMetadata } from "@/lib/seo";
 import { formatDate } from "@/lib/utils";
+
+const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
 
 export const metadata: Metadata = buildMetadata({
   title: "Dashboard",
@@ -37,6 +38,7 @@ export default async function DashboardPage() {
   } | null = null;
 
   try {
+    const { prisma } = await import("@/lib/prisma");
     const [drafts, published, scheduled, latestPosts] = await Promise.all([
       prisma.post.count({ where: { status: "DRAFT" } }),
       prisma.post.count({ where: { status: "PUBLISHED" } }),

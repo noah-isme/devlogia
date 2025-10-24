@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 
 import { ShareButtons } from "@/components/share-buttons";
 import { renderMdx } from "@/lib/mdx";
-import { isDatabaseEnabled, prisma } from "@/lib/prisma";
 import { buildMetadata, buildOgImageUrl, siteConfig } from "@/lib/seo";
 import { estimateReadingTime, formatDate, slugify } from "@/lib/utils";
 
@@ -13,12 +12,15 @@ type PageProps = {
   params: { slug: string };
 };
 
+const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
+
 async function getPost(slug: string) {
-  if (!isDatabaseEnabled) {
+  if (!process.env.DATABASE_URL) {
     return null;
   }
 
   try {
+    const { prisma } = await import("@/lib/prisma");
     return await prisma.post.findFirst({
       where: { slug, status: "PUBLISHED" },
       include: { author: true, tags: { include: { tag: true } } },
@@ -30,7 +32,7 @@ async function getPost(slug: string) {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  if (!isDatabaseEnabled) {
+  if (!process.env.DATABASE_URL) {
     return buildMetadata({ title: "Post unavailable" });
   }
 
@@ -79,11 +81,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export async function generateStaticParams() {
-  if (!isDatabaseEnabled) {
+  if (!process.env.DATABASE_URL) {
     return [];
   }
 
   try {
+    const { prisma } = await import("@/lib/prisma");
     const posts = await prisma.post.findMany({
       where: { status: "PUBLISHED" },
       select: { slug: true },

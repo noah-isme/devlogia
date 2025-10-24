@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
-import { isDatabaseEnabled, prisma } from "@/lib/prisma";
 import { siteConfig } from "@/lib/seo";
+
+const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
 
 function formatDate(date: Date) {
   return date.toISOString();
@@ -16,6 +17,7 @@ export async function GET() {
   let pages: Array<{ slug: string; updatedAt: Date }> = [];
 
   try {
+    const { prisma } = await import("@/lib/prisma");
     [posts, pages] = await Promise.all([
       prisma.post.findMany({
         where: { status: "PUBLISHED" },

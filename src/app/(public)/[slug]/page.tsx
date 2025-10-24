@@ -2,19 +2,21 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { renderMdx } from "@/lib/mdx";
-import { isDatabaseEnabled, prisma } from "@/lib/prisma";
 import { buildMetadata, siteConfig } from "@/lib/seo";
 
 type PageProps = {
   params: { slug: string };
 };
 
+const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
+
 async function getPage(slug: string) {
-  if (!isDatabaseEnabled) {
+  if (!process.env.DATABASE_URL) {
     return null;
   }
 
   try {
+    const { prisma } = await import("@/lib/prisma");
     return await prisma.page.findFirst({ where: { slug, published: true } });
   } catch (error) {
     console.error(`Failed to load page for slug "${slug}":`, error);
@@ -23,7 +25,7 @@ async function getPage(slug: string) {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  if (!isDatabaseEnabled) {
+  if (!process.env.DATABASE_URL) {
     return buildMetadata({ title: "Page unavailable" });
   }
 

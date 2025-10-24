@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
-import { isDatabaseEnabled, prisma } from "@/lib/prisma";
 import { siteConfig } from "@/lib/seo";
+
+const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
 
 function escapeCdata(value: string) {
   return value.replaceAll("]]>", "]]>]]><![CDATA[");
@@ -22,6 +23,7 @@ export async function GET() {
   }> = [];
 
   try {
+    const { prisma } = await import("@/lib/prisma");
     posts = await prisma.post.findMany({
       where: { status: "PUBLISHED" },
       orderBy: { publishedAt: "desc" },
