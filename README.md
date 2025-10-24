@@ -9,8 +9,11 @@
 - **NextAuth credentials** login with protected `/admin` middleware
 - **MDX editor with autosave** (localStorage fallback & live preview)
 - **UploadThing stub** so the app is deploy-ready without external storage
-- **SEO suite**: dynamic sitemap, RSS feed, canonical metadata, OG image
+- **SEO suite**: dynamic sitemap, RSS feed, canonical metadata, enriched OG images
 - **Full-text search** with Postgres tsvector + tag filters on the home page
+- **Cursor-based pagination** on public + admin listings with preserved filters
+- **Accessibility polish**: share buttons, optional table of contents, skip links, focus rings
+- **Analytics & newsletter flags** controlled via environment variables
 - **Vitest + Playwright** test harness with GitHub Actions-friendly scripts
 
 ## 🧱 Tech Stack
@@ -74,6 +77,16 @@ UPLOADTHING_SECRET="stub-dev"
 UPLOADER_PROVIDER="stub"
 SEED_ADMIN_EMAIL="admin@devlogia.test"
 SEED_ADMIN_PASSWORD="admin123"
+
+# Optional analytics & newsletter flags
+ANALYTICS_PROVIDER=""
+ANALYTICS_DOMAIN=""
+ANALYTICS_SCRIPT_URL=""
+ANALYTICS_WEBSITE_ID=""
+NEWSLETTER_PROVIDER=""
+BUTTONDOWN_API_KEY=""
+RESEND_API_KEY=""
+RESEND_AUDIENCE_ID=""
 ```
 
 ## 🚀 Local Development
@@ -187,10 +200,16 @@ The E2E spec logs in as the seeded admin, creates a new post via the editor (aut
 
 UploadThing is configured with a **stub provider** for local development and test environments. The `/api/uploadthing` route authenticates the admin, stores metadata in the `Media` table, and returns a deterministic fake URL (e.g. `/uploads/{id}.png`). Swap `UPLOADER_PROVIDER` when wiring a real provider (R2/S3) in future phases.
 
+## 📊 Analytics & Newsletter
+
+- Toggle analytics by setting `ANALYTICS_PROVIDER` to `plausible` or `umami`. Scripts load after hydration and respect the browser’s Do-Not-Track preference.
+- Configure `ANALYTICS_DOMAIN`, `ANALYTICS_SCRIPT_URL`, and `ANALYTICS_WEBSITE_ID` as required by your provider.
+- The `/subscribe` page surfaces a Buttondown or Resend form when `NEWSLETTER_PROVIDER` and credentials are present; otherwise the UI displays a “coming soon” callout.
+
 ## 🧪 Testing Details
 
 - **Unit tests**: Vitest + Testing Library cover key flows (Home page rendering, admin login form validation, utility functions)
-- **E2E tests**: Playwright script validates the core publishing workflow
+- **E2E tests**: Playwright scripts now cover publishing, media uploads, OG rendering, and search/pagination flows
 - **CI ready**: lint → typecheck → test → build flow suitable for GitHub Actions
 
 ## 📄 License

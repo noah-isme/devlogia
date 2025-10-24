@@ -1,61 +1,60 @@
 name: CI
-
 on:
   push:
-    branches: [main, work]
+    branches:
+      - main
+      - "**"
   pull_request:
 
 jobs:
-  build:
+  build-test:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        image: postgres:15
+        ports:
+          - "5432:5432"
         env:
+          POSTGRES_DB: devlogia_ci
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: devlogia
-        ports:
-          - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/devlogia
-      NEXTAUTH_SECRET: ci-secret
-      NEXTAUTH_URL: http://localhost:3000
-      UPLOADER_PROVIDER: stub
-      UPLOADTHING_SECRET: stub
-      SEED_ADMIN_EMAIL: admin@devlogia.test
-      SEED_ADMIN_PASSWORD: admin123
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/devlogia_ci?schema=public
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v3
         with:
-          version: 8
+          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Generate Prisma client
-        run: pnpm prisma generate
-      - name: Apply migrations
-        run: pnpm prisma migrate deploy
-      - name: Seed database
-        run: pnpm prisma:seed
-      - name: Lint
-        run: pnpm lint
-      - name: Typecheck
-        run: pnpm typecheck
-      - name: Unit tests
-        run: pnpm test
-      - name: Build
-        run: pnpm build
-      - name: Install Playwright browsers
+        run: pnpm install
+      - name: Setup env for CI
+        run: cp .env.ci .env
+      - name: Prepare database
+        run: |
+          pnpm prisma generate
+          pnpm prisma migrate deploy
+          pnpm prisma db seed
+      - name: Lint, Typecheck, Test, Build
+        run: |
+          pnpm lint
+          pnpm typecheck
+          pnpm test
+          CI=1 pnpm build
+      - name: Install Playwright Browsers
         run: pnpm exec playwright install --with-deps
-      - name: E2E tests
-        run: pnpm test:e2e
+      - name: Run E2E tests
+        env:
+          PORT: 3000
+        run: |
+          pnpm start &
+          npx wait-on http://localhost:3000
+          pnpm test:e2e

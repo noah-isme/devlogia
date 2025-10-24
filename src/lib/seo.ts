@@ -3,11 +3,44 @@ import type { Metadata } from "next";
 const defaultUrl =
   process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
-function createOgUrl(title?: string) {
+type OgImageOptions =
+  | string
+  | {
+      title?: string;
+      slug?: string;
+      tags?: string[];
+      publishedAt?: Date | string | null;
+    };
+
+function createOgUrl(options?: OgImageOptions) {
   const ogUrl = new URL("/api/og", defaultUrl);
+  if (!options) {
+    return ogUrl.toString();
+  }
+
+  if (typeof options === "string") {
+    if (options) {
+      ogUrl.searchParams.set("title", options);
+    }
+    return ogUrl.toString();
+  }
+
+  const { title, slug, tags, publishedAt } = options;
   if (title) {
     ogUrl.searchParams.set("title", title);
   }
+  if (slug) {
+    ogUrl.searchParams.set("slug", slug);
+  }
+  const primaryTag = tags?.[0];
+  if (primaryTag) {
+    ogUrl.searchParams.set("tag", primaryTag);
+  }
+  if (publishedAt) {
+    const iso = typeof publishedAt === "string" ? publishedAt : publishedAt.toISOString();
+    ogUrl.searchParams.set("date", iso);
+  }
+
   return ogUrl.toString();
 }
 
@@ -17,12 +50,12 @@ export const siteConfig = {
     "Devlogia is a developer-first personal blog CMS with MDX, autosave, and production-ready workflows.",
   url: defaultUrl,
   author: "Devlogia",
-  ogImage: createOgUrl("Devlogia"),
+  ogImage: createOgUrl({ title: "Devlogia" }),
   twitter: "@devlogia",
 };
 
-export function buildOgImageUrl(title?: string) {
-  return createOgUrl(title);
+export function buildOgImageUrl(options?: OgImageOptions) {
+  return createOgUrl(options);
 }
 
 export function buildMetadata(overrides: Metadata = {}): Metadata {

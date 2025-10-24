@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { Analytics } from "@/components/analytics";
 import { siteConfig } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +21,9 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
             <Link href="/" className="transition hover:text-foreground">
               Home
             </Link>
+            <Link href="/subscribe" className="transition hover:text-foreground">
+              Subscribe
+            </Link>
             <Link
               href="/admin/posts"
               className={cn("transition hover:text-foreground")}
@@ -33,8 +37,19 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
         {children}
       </main>
       <footer className="mt-12 border-t border-border pt-6 text-sm text-muted-foreground">
-        © {new Date().getFullYear()} {siteConfig.name}. Built for deep writing.
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p>© {new Date().getFullYear()} {siteConfig.name}. Built for deep writing.</p>
+          <div className="flex flex-wrap items-center gap-4">
+            <Link href="/subscribe" className="underline-offset-4 hover:underline">
+              Join the newsletter
+            </Link>
+            <Link href="/rss" className="underline-offset-4 hover:underline">
+              RSS
+            </Link>
+          </div>
+        </div>
       </footer>
+      <Analytics />
     </div>
   );
 }
