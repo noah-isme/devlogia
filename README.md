@@ -91,6 +91,26 @@ pnpm test:e2e
 
 Stop the services afterwards with `pnpm db:down`. To rebuild the database from scratch, run `pnpm db:reset`.
 
+To automate the entire E2E workflow — including Docker Compose startup, migrations, seeding, browser installation, and the Playwright suite — run:
+
+```bash
+pnpm test:e2e:full
+```
+
+The script is idempotent: `pnpm db:up` is skipped automatically when the containers are already healthy or Docker Compose is not available (e.g., inside CI where a PostgreSQL service is provided).
+
+### E2E auto-seed behavior
+
+Both the GitHub Actions pipeline and the `pnpm test:e2e:full` script ensure the database is migrated and seeded immediately before Playwright executes. This guarantees RBAC fixtures, webhook subscribers, and AI-assist content are present for every run without manual intervention.
+
+1. `pnpm prisma migrate deploy` applies the latest schema to the target database.
+2. `pnpm prisma db seed` repopulates deterministic users, posts, and supporting data.
+3. The seeding step is safe to rerun — existing data is updated when necessary so parallel environments stay in sync.
+
+### Running tests locally with Docker Compose
+
+When Docker Compose is available, `pnpm db:up` launches the Postgres stack defined in `docker-compose.yml`. The command is automatically invoked by `pnpm test:e2e:full`, but you can run it manually to develop against the same containerized database used in CI. Shut the stack down with `pnpm db:down` once you finish testing.
+
 ### Environment Variables
 
 Copy the template and adjust as needed:
@@ -235,6 +255,17 @@ Troubleshooting tips:
 The E2E spec logs in as the seeded owner, creates a new post via the editor (autosave + publish), and verifies it appears on the public blog.
 
 CI uses the official `mcr.microsoft.com/playwright:v1.47.0-jammy` image with browsers preinstalled. We cache `~/.cache/ms-playwright` and set `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` to avoid redundant downloads, then run migrations, lint/typecheck/unit/build, and finally launch the app for Playwright.
+
+### Upgrade path from v1.0.0-rc → v1.0.0
+
+Upgrading from the release candidate is seamless — configuration keys remain the same and the schema changes are already captured in migrations. To adopt the stable tag:
+
+1. Pull the `v1.0.0` tag (or merge the `release/v1.0.0` branch) and rerun `pnpm install` to ensure lockfile parity.
+2. Apply the production schema with `pnpm prisma migrate deploy`.
+3. Seed the deterministic accounts and demo content using `pnpm prisma db seed` (safe to rerun in place).
+4. Optionally execute `pnpm test:e2e:full` to validate RBAC, webhook, and AI-assist flows under the new seeding automation.
+
+Refer to `docs/release-notes/v1.0.0.md` for the complete changelog.
 
 ## 🛠️ Admin & Editor Workflow
 
