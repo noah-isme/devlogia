@@ -5,19 +5,21 @@ import type { Prisma } from "@prisma/client";
 
 import { PostEditor } from "@/components/editor/Editor";
 import { auth } from "@/lib/auth";
-import { isDatabaseEnabled, prisma } from "@/lib/prisma";
 import { buildMetadata } from "@/lib/seo";
 
 type PageProps = {
   params: { id: string };
 };
 
+const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  if (!isDatabaseEnabled) {
+  if (!process.env.DATABASE_URL) {
     return buildMetadata({ title: "Post unavailable" });
   }
 
   try {
+    const { prisma } = await import("@/lib/prisma");
     const post = await prisma.post.findUnique({
       where: { id: params.id },
       select: { title: true },
@@ -53,6 +55,8 @@ export default async function EditPostPage({ params }: PageProps) {
   let loadError: unknown | null = null;
   type EditablePost = Prisma.PostGetPayload<{ include: { tags: { include: { tag: true } } } }>;
   let post: EditablePost | null = null;
+
+  const { prisma } = await import("@/lib/prisma");
 
   try {
     post = await prisma.post.findUnique({

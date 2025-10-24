@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 
 import { PageManager, type PageSummary } from "@/components/forms/page-manager";
-import { isDatabaseEnabled, prisma } from "@/lib/prisma";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
   title: "Pages",
   description: "Manage static pages for your site.",
 });
+
+const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
 
 export default async function PagesPage() {
   if (!isDatabaseEnabled) {
@@ -24,6 +25,7 @@ export default async function PagesPage() {
   let summaries: PageSummary[] | null = null;
 
   try {
+    const { prisma } = await import("@/lib/prisma");
     const pages = await prisma.page.findMany({ orderBy: { updatedAt: "desc" } });
     summaries = pages.map((page) => ({
       id: page.id,

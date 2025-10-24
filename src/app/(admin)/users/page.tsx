@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { UserRoleManager } from "@/components/admin/UserRoleManager";
 import type { Role } from "@/lib/rbac";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
@@ -12,20 +11,51 @@ export const metadata: Metadata = buildMetadata({
   description: "Manage team roles and permissions for Devlogia.",
 });
 
+const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
+
 export default async function UsersPage() {
   const session = await auth();
   if (!session?.user || session.user.role !== "owner") {
     redirect("/admin/dashboard");
   }
 
-  const users = await prisma.user.findMany({
-    orderBy: { createdAt: "asc" },
-    select: { id: true, email: true, role: true, createdAt: true },
-  });
+  if (!isDatabaseEnabled) {
+    return (
+      <div className="space-y-6 rounded-md border border-dashed border-border bg-muted/40 p-6 text-sm text-muted-foreground">
+        <p className="font-medium">Users unavailable</p>
+        <p>
+          Configure the <code>DATABASE_URL</code> environment variable to view and manage workspace members.
+        </p>
+      </div>
+    );
+  }
+
+  const { prisma } = await import("@/lib/prisma");
+
+  let users: Array<{ id: string; email: string; role: Role; createdAt: Date }> = [];
+
+  try {
+    const records = await prisma.user.findMany({
+      orderBy: { createdAt: "asc" },
+      select: { id: true, email: true, role: true, createdAt: true },
+    });
+
+    users = records.map((user) => ({
+      ...user,
+      role: user.role as Role,
+    }));
+  } catch (error) {
+    console.error("Failed to load users for admin view", error);
+    return (
+      <div className="space-y-6 rounded-md border border-dashed border-border bg-muted/40 p-6 text-sm text-muted-foreground">
+        <p className="font-medium">Users unavailable</p>
+        <p>We couldn&apos;t load team members. Verify your database connection and try again.</p>
+      </div>
+    );
+  }
 
   const serialized = users.map((user) => ({
     ...user,
-    role: user.role as Role,
     createdAt: user.createdAt.toISOString(),
   }));
 

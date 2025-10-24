@@ -15,7 +15,6 @@ import {
   parseStackParam,
   serializeStack,
 } from "@/lib/pagination";
-import { isDatabaseEnabled, prisma } from "@/lib/prisma";
 import { buildMetadata } from "@/lib/seo";
 import { formatDate } from "@/lib/utils";
 
@@ -40,6 +39,8 @@ type PostsPageProps = {
 type AdminPost = Prisma.PostGetPayload<{
   include: { tags: { include: { tag: true } } };
 }>;
+
+const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
 
 export default async function PostsPage({ searchParams }: PostsPageProps) {
   const statusParam = (searchParams?.status as string) ?? "all";
@@ -77,6 +78,8 @@ export default async function PostsPage({ searchParams }: PostsPageProps) {
     (acc, condition) => Prisma.sql`${acc} AND ${condition}`,
     allConditions[0],
   );
+
+  const { prisma } = await import("@/lib/prisma");
 
   const rows = await prisma.$queryRaw<Array<{ id: string; sortKey: Date }>>(Prisma.sql`
     SELECT p."id", ${sortField} AS "sortKey"

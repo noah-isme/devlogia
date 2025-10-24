@@ -102,6 +102,16 @@ RESEND_API_KEY=""
 RESEND_AUDIENCE_ID=""
 ```
 
+### Test environment variables
+
+Use the provided `.env.test` template when running the automated test suites. It mirrors the CI defaults:
+
+```bash
+cp .env.test .env
+```
+
+The file pins a local PostgreSQL URL (`devlogia_test`), deterministic secrets, and disables external AI/webhook providers so unit and E2E tests run in isolation.
+
 ## 🚀 Local Development
 
 1. **Install dependencies**
@@ -146,8 +156,8 @@ The project follows a strict `lint → test → build` pipeline. Run all checks 
 
 ```bash
 pnpm lint
-pnpm test
 pnpm typecheck
+pnpm test
 pnpm build
 ```
 
@@ -172,12 +182,15 @@ Additional scripts:
 Playwright spins up the Next.js dev server automatically. Ensure your PostgreSQL instance is running and populated (migration + seed) before executing:
 
 ```bash
+pnpm exec playwright install
 pnpm prisma:migrate
 pnpm prisma:seed
 pnpm test:e2e
 ```
 
 The E2E spec logs in as the seeded owner, creates a new post via the editor (autosave + publish), and verifies it appears on the public blog.
+
+For CI environments without persistent caches, install system dependencies alongside the browsers with `pnpm exec playwright install --with-deps`.
 
 ## 🛠️ Admin & Editor Workflow
 
