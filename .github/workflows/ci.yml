@@ -9,6 +9,8 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.47.0-jammy
     services:
       postgres:
         image: postgres:15
@@ -24,7 +26,8 @@ jobs:
           --health-timeout=5s
           --health-retries=10
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/devlogia_ci?schema=public
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/devlogia_ci?schema=public
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v3
@@ -34,6 +37,11 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
+      - name: Restore Playwright cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-v1
       - name: Install dependencies
         run: pnpm install
       - name: Setup env for CI
@@ -50,11 +58,13 @@ jobs:
           pnpm test
           CI=1 pnpm build
       - name: Install Playwright Browsers
-        run: pnpm exec playwright install --with-deps
+        run: pnpm exec playwright install
       - name: Run E2E tests
         env:
           PORT: 3000
         run: |
           pnpm start &
-          npx wait-on http://localhost:3000
+          APP_PID=$!
+          trap "kill $APP_PID" EXIT
+          npx wait-on http://127.0.0.1:3000
           pnpm test:e2e
