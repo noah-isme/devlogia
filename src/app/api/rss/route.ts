@@ -4,6 +4,15 @@ import { siteConfig } from "@/lib/seo";
 
 const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
 
+type RssPost = {
+  title: string;
+  slug: string;
+  summary: string | null;
+  contentMdx: string;
+  publishedAt: Date | null;
+  updatedAt: Date;
+};
+
 function escapeCdata(value: string) {
   return value.replaceAll("]]>", "]]>]]><![CDATA[");
 }
@@ -13,18 +22,11 @@ export async function GET() {
     return buildRssResponse([]);
   }
 
-  let posts: Array<{
-    title: string;
-    slug: string;
-    summary: string | null;
-    contentMdx: string;
-    publishedAt: Date | null;
-    updatedAt: Date;
-  }> = [];
+  let posts: RssPost[] = [];
 
   try {
-    const { prisma } = await import("@/lib/prisma");
-    posts = await prisma.post.findMany({
+    const { safeFindMany } = await import("@/lib/prisma");
+    posts = await safeFindMany<RssPost>("post", {
       where: { status: "PUBLISHED" },
       orderBy: { publishedAt: "desc" },
       take: 20,
@@ -44,16 +46,7 @@ export async function GET() {
   return buildRssResponse(posts);
 }
 
-function buildRssResponse(
-  posts: Array<{
-    title: string;
-    slug: string;
-    summary: string | null;
-    contentMdx: string;
-    publishedAt: Date | null;
-    updatedAt: Date;
-  }>,
-) {
+function buildRssResponse(posts: RssPost[]) {
   const items = posts
     .map((post) => {
       const url = `${siteConfig.url}/blog/${post.slug}`;

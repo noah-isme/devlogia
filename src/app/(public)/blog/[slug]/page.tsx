@@ -14,6 +14,10 @@ type PageProps = {
 
 const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
 
+type PublishedSlug = {
+  slug: string;
+};
+
 async function getPost(slug: string) {
   if (!process.env.DATABASE_URL) {
     return null;
@@ -86,8 +90,8 @@ export async function generateStaticParams() {
   }
 
   try {
-    const { prisma } = await import("@/lib/prisma");
-    const posts = await prisma.post.findMany({
+    const { safeFindMany } = await import("@/lib/prisma");
+    const posts = await safeFindMany<PublishedSlug>("post", {
       where: { status: "PUBLISHED" },
       select: { slug: true },
     });

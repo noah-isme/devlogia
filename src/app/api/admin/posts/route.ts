@@ -4,11 +4,15 @@ import type { PostStatus, Prisma } from "@prisma/client";
 
 import { auth } from "@/lib/auth";
 import { recordAuditLog } from "@/lib/audit";
-import { prisma } from "@/lib/prisma";
+import { prisma, safeFindMany } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { triggerOutbound } from "@/lib/webhooks";
 import { slugify } from "@/lib/utils";
 import { createPostSchema, postStatusValues } from "@/lib/validations/post";
+
+type AdminPostWithTags = Prisma.PostGetPayload<{
+  include: { tags: { include: { tag: true } } };
+}>;
 
 function unauthorizedResponse() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -56,7 +60,7 @@ export async function GET(request: Request) {
     filters.authorId = user.id;
   }
 
-  const posts = await prisma.post.findMany({
+  const posts = await safeFindMany<AdminPostWithTags>("post", {
     where: Object.keys(filters).length ? filters : undefined,
     orderBy: { updatedAt: "desc" },
     include: { tags: { include: { tag: true } } },

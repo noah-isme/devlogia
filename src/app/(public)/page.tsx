@@ -69,7 +69,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   let hasNext = false;
   let loadError: unknown | null = null;
 
-  const { prisma } = await import("@/lib/prisma");
+  const { prisma, safeFindMany } = await import("@/lib/prisma");
 
   const tagsPromise = prisma.tag
     .findMany({
@@ -116,7 +116,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     const ids = trimmed.map((row) => row.id);
 
     if (ids.length > 0) {
-      const fetched = await prisma.post.findMany({
+      const fetched = await safeFindMany<PublishedPost>("post", {
         where: { id: { in: ids } },
         include: { author: true, tags: { include: { tag: true } } },
       });
@@ -144,7 +144,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       const retryIds = retryRows.map((row) => row.id);
       hasNext = retryRows.length === limit;
       if (retryIds.length > 0) {
-        const retryFetched = await prisma.post.findMany({
+        const retryFetched = await safeFindMany<PublishedPost>("post", {
           where: { id: { in: retryIds } },
           include: { author: true, tags: { include: { tag: true } } },
         });
