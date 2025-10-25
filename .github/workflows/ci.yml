@@ -53,21 +53,8 @@ jobs:
         run: pnpm install
       - name: Setup env for CI
         run: cp .env.ci .env
-      - name: Wait for Postgres ready
-        run: |
-          for i in {1..20}; do
-            if pg_isready -h postgres -U postgres; then
-              echo "Postgres is ready."
-              ready=1
-              break
-            fi
-            echo "Waiting for Postgres..."
-            sleep 3
-          done
-          if [ "${ready:-0}" -ne 1 ]; then
-            echo "Postgres is not ready after waiting."
-            exit 1
-          fi
+      - name: Wait for Postgres (TCP)
+        run: npx wait-on tcp:postgres:5432 --timeout 30000
       - name: Generate Prisma Client
         run: pnpm prisma generate
       - name: Setup test database
