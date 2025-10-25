@@ -9,10 +9,10 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: "pnpm dev --hostname 0.0.0.0 --port 3000",
-    port: 3000,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
+    command: "pnpm start",
+    url: "http://127.0.0.1:3000",
+    reuseExistingServer: true,
+    timeout: 120_000,
     env: {
       ...process.env,
       NEXTAUTH_URL: "http://127.0.0.1:3000",

@@ -75,11 +75,4 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps
       - name: Run E2E tests
-        env:
-          PORT: 3000
-        run: |
-          pnpm start &
-          APP_PID=$!
-          trap "kill $APP_PID" EXIT
-          npx wait-on http://127.0.0.1:3000
-          pnpm test:e2e
+        run: pnpm test:e2e
