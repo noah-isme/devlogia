@@ -11,15 +11,15 @@ type PageProps = {
   params: { id: string };
 };
 
-const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
-
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  if (!process.env.DATABASE_URL) {
+  const prismaModule = await import("@/lib/prisma");
+  const { prisma, isDatabaseEnabled } = prismaModule;
+
+  if (!isDatabaseEnabled) {
     return buildMetadata({ title: "Post unavailable" });
   }
 
   try {
-    const { prisma } = await import("@/lib/prisma");
     const post = await prisma.post.findUnique({
       where: { id: params.id },
       select: { title: true },
@@ -40,6 +40,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function EditPostPage({ params }: PageProps) {
+  const prismaModule = await import("@/lib/prisma");
+  const { prisma, isDatabaseEnabled } = prismaModule;
+
   if (!isDatabaseEnabled) {
     return (
       <div className="space-y-6 rounded-md border border-dashed border-border bg-muted/40 p-6 text-sm text-muted-foreground">
@@ -55,8 +58,6 @@ export default async function EditPostPage({ params }: PageProps) {
   let loadError: unknown | null = null;
   type EditablePost = Prisma.PostGetPayload<{ include: { tags: { include: { tag: true } } } }>;
   let post: EditablePost | null = null;
-
-  const { prisma } = await import("@/lib/prisma");
 
   try {
     post = await prisma.post.findUnique({

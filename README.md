@@ -99,6 +99,11 @@ pnpm test:e2e:full
 
 The script is idempotent: `pnpm db:up` is skipped automatically when the containers are already healthy or Docker Compose is not available (e.g., inside CI where a PostgreSQL service is provided).
 
+## 🛠️ Local Troubleshooting
+
+- **E2E specs exit early?** Ensure Docker Desktop (or your container runtime) is running, then execute `pnpm db:up` before retrying.
+- **Prisma shows a build-time warning?** That message is safe to ignore when building static assets without a live database connection.
+
 ### E2E auto-seed behavior
 
 Both the GitHub Actions pipeline and the `pnpm test:e2e:full` script ensure the database is migrated and seeded immediately before Playwright executes. This guarantees RBAC fixtures, webhook subscribers, and AI-assist content are present for every run without manual intervention.

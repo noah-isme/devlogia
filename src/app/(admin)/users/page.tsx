@@ -11,13 +11,14 @@ export const metadata: Metadata = buildMetadata({
   description: "Manage team roles and permissions for Devlogia.",
 });
 
-const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
-
 export default async function UsersPage() {
   const session = await auth();
   if (!session?.user || session.user.role !== "owner") {
     redirect("/admin/dashboard");
   }
+
+  const prismaModule = await import("@/lib/prisma");
+  const { isDatabaseEnabled, prisma } = prismaModule;
 
   if (!isDatabaseEnabled) {
     return (
@@ -29,8 +30,6 @@ export default async function UsersPage() {
       </div>
     );
   }
-
-  const { prisma } = await import("@/lib/prisma");
 
   let users: Array<{ id: string; email: string; role: Role; createdAt: Date }> = [];
 

@@ -12,19 +12,19 @@ type PageProps = {
   params: { slug: string };
 };
 
-const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
-
 type PublishedSlug = {
   slug: string;
 };
 
-async function getPost(slug: string) {
-  if (!process.env.DATABASE_URL) {
+async function getPost(slug: string, prismaModule?: typeof import("@/lib/prisma")) {
+  const moduleRef = prismaModule ?? (await import("@/lib/prisma"));
+  const { prisma, isDatabaseEnabled } = moduleRef;
+
+  if (!isDatabaseEnabled) {
     return null;
   }
 
   try {
-    const { prisma } = await import("@/lib/prisma");
     return await prisma.post.findFirst({
       where: { slug, status: "PUBLISHED" },
       include: { author: true, tags: { include: { tag: true } } },
@@ -36,11 +36,13 @@ async function getPost(slug: string) {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  if (!process.env.DATABASE_URL) {
+  const prismaModule = await import("@/lib/prisma");
+
+  if (!prismaModule.isDatabaseEnabled) {
     return buildMetadata({ title: "Post unavailable" });
   }
 
-  const post = await getPost(params.slug);
+  const post = await getPost(params.slug, prismaModule);
   if (!post) {
     return buildMetadata({ title: "Post not found" });
   }
@@ -85,13 +87,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export async function generateStaticParams() {
-  if (!process.env.DATABASE_URL) {
+  const prismaModule = await import("@/lib/prisma");
+
+  if (!prismaModule.isDatabaseEnabled) {
     return [];
   }
 
   try {
-    const { safeFindMany } = await import("@/lib/prisma");
-    const posts = await safeFindMany<PublishedSlug>("post", {
+    const posts = await prismaModule.safeFindMany<PublishedSlug>("post", {
       where: { status: "PUBLISHED" },
       select: { slug: true },
     });
@@ -104,10 +107,11 @@ export async function generateStaticParams() {
 }
 
 export default async function BlogPostPage({ params }: PageProps) {
-  const post = await getPost(params.slug);
+  const prismaModule = await import("@/lib/prisma");
+  const post = await getPost(params.slug, prismaModule);
 
   if (!post) {
-    if (!isDatabaseEnabled) {
+    if (!prismaModule.isDatabaseEnabled) {
       return (
         <article className="prose prose-neutral dark:prose-invert">
           <header className="not-prose mb-6 space-y-2">

@@ -6,8 +6,6 @@ import type { PostStatus } from "@prisma/client";
 import { buildMetadata } from "@/lib/seo";
 import { formatDate } from "@/lib/utils";
 
-const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
-
 type DashboardLatestPost = {
   id: string;
   title: string;
@@ -28,6 +26,9 @@ export const metadata: Metadata = buildMetadata({
 });
 
 export default async function DashboardPage() {
+  const prismaModule = await import("@/lib/prisma");
+  const { isDatabaseEnabled, prisma, safeFindMany } = prismaModule;
+
   if (!isDatabaseEnabled) {
     return (
       <div className="space-y-6 rounded-md border border-dashed border-border bg-muted/40 p-6 text-sm text-muted-foreground">
@@ -42,7 +43,6 @@ export default async function DashboardPage() {
   let metrics: DashboardMetrics | null = null;
 
   try {
-    const { prisma, safeFindMany } = await import("@/lib/prisma");
     const [drafts, published, scheduled, latestPosts] = await Promise.all([
       prisma.post.count({ where: { status: "DRAFT" } }),
       prisma.post.count({ where: { status: "PUBLISHED" } }),

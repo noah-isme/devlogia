@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "framework": "nextjs",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm build",
+  "outputDirectory": ".next",
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 10,
+      "memory": 1024
+    }
+  },
+  "routes": [
+    { "src": "/api/health", "dest": "/api/health" }
+  ]
+}
