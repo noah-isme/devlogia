@@ -1,14 +1,12 @@
 import { expect, test } from "@playwright/test";
 
+import { loginAs } from "./utils/auth";
+
 const OWNER_EMAIL = process.env.SEED_OWNER_EMAIL ?? "owner@devlogia.test";
 const OWNER_PASSWORD = process.env.SEED_OWNER_PASSWORD ?? "owner123";
 
 test("admin can create and publish a post", async ({ page }) => {
-  await page.goto("/admin/login");
-
-  await page.getByLabel("Email").fill(OWNER_EMAIL);
-  await page.getByLabel("Password").fill(OWNER_PASSWORD);
-  await page.getByRole("button", { name: /sign in/i }).click();
+  await loginAs(page, { email: OWNER_EMAIL, password: OWNER_PASSWORD });
 
   await expect(page).toHaveURL(/admin\/dashboard/);
   await expect(page.getByRole("heading", { name: /content health/i })).toBeVisible();

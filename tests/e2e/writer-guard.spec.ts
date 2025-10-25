@@ -1,13 +1,12 @@
 import { expect, test } from "@playwright/test";
 
+import { loginAs } from "./utils/auth";
+
 const WRITER_EMAIL = process.env.SEED_WRITER_EMAIL ?? "writer@devlogia.test";
 const WRITER_PASSWORD = process.env.SEED_WRITER_PASSWORD ?? "writer123";
 
 test("writer can only save drafts", async ({ page }) => {
-  await page.goto("/admin/login");
-  await page.getByLabel("Email").fill(WRITER_EMAIL);
-  await page.getByLabel("Password").fill(WRITER_PASSWORD);
-  await page.getByRole("button", { name: /sign in/i }).click();
+  await loginAs(page, { email: WRITER_EMAIL, password: WRITER_PASSWORD });
 
   await expect(page).toHaveURL(/admin\/dashboard/);
 
