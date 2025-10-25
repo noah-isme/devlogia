@@ -1,18 +1,42 @@
 import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+const databaseUrl = process.env.DATABASE_URL ?? "";
+const isFakeDatabaseUrl = databaseUrl.startsWith("fake://");
+const fallbackPrismaUrl = "postgresql://stub:stub@127.0.0.1:6543/devlogia_static?schema=public";
+let loggedSkipMessage = false;
+
+const logSkipMessage = () => {
+  if (!loggedSkipMessage) {
+    console.warn("Skipping DB connect for static build");
+    loggedSkipMessage = true;
+  }
+};
 
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
     log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+    datasources: isFakeDatabaseUrl ? { db: { url: fallbackPrismaUrl } } : undefined,
   });
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
 
-export const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
+void (async () => {
+  try {
+    if (isFakeDatabaseUrl) {
+      throw new Error("fake-database-url");
+    }
+
+    await prisma.$connect();
+  } catch {
+    logSkipMessage();
+  }
+})();
+
+export const isDatabaseEnabled = Boolean(databaseUrl) && !isFakeDatabaseUrl;
 
 type FindManyDelegate<T> = {
   findMany: (args?: unknown) => Promise<T[]>;
@@ -22,8 +46,9 @@ export async function safeFindMany<T = unknown>(
   model: keyof PrismaClient,
   args?: unknown,
 ): Promise<T[]> {
-  if (!process.env.DATABASE_URL) {
-    console.warn(`[Devlogia] DATABASE_URL missing — skipping query for ${String(model)}`);
+  if (!isDatabaseEnabled) {
+    const reason = isFakeDatabaseUrl ? "static fallback" : "missing";
+    console.warn(`[Devlogia] DATABASE_URL ${reason} — skipping query for ${String(model)}`);
     return [] as T[];
   }
 

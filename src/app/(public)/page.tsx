@@ -20,8 +20,6 @@ import { estimateReadingTime, formatDate } from "@/lib/utils";
 const DEFAULT_POSTS_PER_PAGE = 10;
 const MAX_POSTS_PER_PAGE = 25;
 
-const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
-
 type HomePageProps = {
   searchParams?: Record<string, string | string[] | undefined>;
 };
@@ -42,6 +40,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const cursorParam = parseCursorParam(searchParams?.cursor);
   const cursor = decodeCursor(cursorParam);
   const stack = parseStackParam(searchParams?.stack);
+
+  const prismaModule = await import("@/lib/prisma");
+  const { prisma, safeFindMany, isDatabaseEnabled } = prismaModule;
 
   if (!isDatabaseEnabled) {
     return (
@@ -68,8 +69,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   let posts: PublishedPost[] = [];
   let hasNext = false;
   let loadError: unknown | null = null;
-
-  const { prisma, safeFindMany } = await import("@/lib/prisma");
 
   const tagsPromise = prisma.tag
     .findMany({

@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 
 import { siteConfig } from "@/lib/seo";
 
-const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
-
 type SitemapEntry = {
   slug: string;
   updatedAt: Date;
@@ -14,7 +12,9 @@ function formatDate(date: Date) {
 }
 
 export async function GET() {
-  if (!isDatabaseEnabled) {
+  const prismaModule = await import("@/lib/prisma");
+
+  if (!prismaModule.isDatabaseEnabled) {
     return buildSitemapResponse([], []);
   }
 
@@ -22,13 +22,12 @@ export async function GET() {
   let pages: SitemapEntry[] = [];
 
   try {
-    const { safeFindMany } = await import("@/lib/prisma");
     [posts, pages] = await Promise.all([
-      safeFindMany<SitemapEntry>("post", {
+      prismaModule.safeFindMany<SitemapEntry>("post", {
         where: { status: "PUBLISHED" },
         select: { slug: true, updatedAt: true },
       }),
-      safeFindMany<SitemapEntry>("page", {
+      prismaModule.safeFindMany<SitemapEntry>("page", {
         where: { published: true },
         select: { slug: true, updatedAt: true },
       }),

@@ -8,9 +8,10 @@ export const metadata: Metadata = buildMetadata({
   description: "Manage static pages for your site.",
 });
 
-const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
-
 export default async function PagesPage() {
+  const prismaModule = await import("@/lib/prisma");
+  const { isDatabaseEnabled, prisma } = prismaModule;
+
   if (!isDatabaseEnabled) {
     return (
       <div className="space-y-6 rounded-md border border-dashed border-border bg-muted/40 p-6 text-sm text-muted-foreground">
@@ -25,7 +26,6 @@ export default async function PagesPage() {
   let summaries: PageSummary[] | null = null;
 
   try {
-    const { prisma } = await import("@/lib/prisma");
     const pages = await prisma.page.findMany({ orderBy: { updatedAt: "desc" } });
     summaries = pages.map((page) => ({
       id: page.id,

@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 
 import { siteConfig } from "@/lib/seo";
 
-const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
-
 type RssPost = {
   title: string;
   slug: string;
@@ -18,15 +16,16 @@ function escapeCdata(value: string) {
 }
 
 export async function GET() {
-  if (!isDatabaseEnabled) {
+  const prismaModule = await import("@/lib/prisma");
+
+  if (!prismaModule.isDatabaseEnabled) {
     return buildRssResponse([]);
   }
 
   let posts: RssPost[] = [];
 
   try {
-    const { safeFindMany } = await import("@/lib/prisma");
-    posts = await safeFindMany<RssPost>("post", {
+    posts = await prismaModule.safeFindMany<RssPost>("post", {
       where: { status: "PUBLISHED" },
       orderBy: { publishedAt: "desc" },
       take: 20,

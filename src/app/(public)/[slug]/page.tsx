@@ -8,15 +8,15 @@ type PageProps = {
   params: { slug: string };
 };
 
-const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
+async function getPage(slug: string, prismaModule?: typeof import("@/lib/prisma")) {
+  const moduleRef = prismaModule ?? (await import("@/lib/prisma"));
+  const { prisma, isDatabaseEnabled } = moduleRef;
 
-async function getPage(slug: string) {
-  if (!process.env.DATABASE_URL) {
+  if (!isDatabaseEnabled) {
     return null;
   }
 
   try {
-    const { prisma } = await import("@/lib/prisma");
     return await prisma.page.findFirst({ where: { slug, published: true } });
   } catch (error) {
     console.error(`Failed to load page for slug "${slug}":`, error);
@@ -25,11 +25,13 @@ async function getPage(slug: string) {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  if (!process.env.DATABASE_URL) {
+  const prismaModule = await import("@/lib/prisma");
+
+  if (!prismaModule.isDatabaseEnabled) {
     return buildMetadata({ title: "Page unavailable" });
   }
 
-  const page = await getPage(params.slug);
+  const page = await getPage(params.slug, prismaModule);
   if (!page) {
     return buildMetadata({ title: "Page not found" });
   }
@@ -44,9 +46,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function StaticPage({ params }: PageProps) {
-  const page = await getPage(params.slug);
+  const prismaModule = await import("@/lib/prisma");
+  const page = await getPage(params.slug, prismaModule);
   if (!page) {
-    if (!isDatabaseEnabled) {
+    if (!prismaModule.isDatabaseEnabled) {
       return (
         <article className="prose prose-neutral dark:prose-invert">
           <header className="not-prose mb-6 space-y-2">

@@ -40,8 +40,6 @@ type AdminPost = Prisma.PostGetPayload<{
   include: { tags: { include: { tag: true } } };
 }>;
 
-const isDatabaseEnabled = Boolean(process.env.DATABASE_URL);
-
 export default async function PostsPage({ searchParams }: PostsPageProps) {
   const statusParam = (searchParams?.status as string) ?? "all";
   const activeStatus = statusOptions.some((option) => option.value === statusParam)
@@ -54,6 +52,9 @@ export default async function PostsPage({ searchParams }: PostsPageProps) {
   const stack = parseStackParam(searchParams?.stack);
 
   const where: Prisma.Sql[] = [];
+
+  const prismaModule = await import("@/lib/prisma");
+  const { prisma, safeFindMany, isDatabaseEnabled } = prismaModule;
 
   if (!isDatabaseEnabled) {
     return (
@@ -78,8 +79,6 @@ export default async function PostsPage({ searchParams }: PostsPageProps) {
     (acc, condition) => Prisma.sql`${acc} AND ${condition}`,
     allConditions[0],
   );
-
-  const { prisma, safeFindMany } = await import("@/lib/prisma");
 
   const rows = await prisma.$queryRaw<Array<{ id: string; sortKey: Date }>>(Prisma.sql`
     SELECT p."id", ${sortField} AS "sortKey"
