@@ -14,11 +14,11 @@ async function upsertUser(email: string, password: string, role: string) {
 
 async function main() {
   const ownerEmail = process.env.SEED_OWNER_EMAIL ?? "owner@devlogia.test";
-  const ownerPassword = process.env.SEED_OWNER_PASSWORD ?? "owner123";
+  const ownerPassword = process.env.SEED_OWNER_PASSWORD ?? "owner123!";
   const editorEmail = process.env.SEED_EDITOR_EMAIL ?? "editor@devlogia.test";
-  const editorPassword = process.env.SEED_EDITOR_PASSWORD ?? "editor123";
+  const editorPassword = process.env.SEED_EDITOR_PASSWORD ?? "editor123!";
   const writerEmail = process.env.SEED_WRITER_EMAIL ?? "writer@devlogia.test";
-  const writerPassword = process.env.SEED_WRITER_PASSWORD ?? "writer123";
+  const writerPassword = process.env.SEED_WRITER_PASSWORD ?? "writer123!";
 
   const owner = await upsertUser(ownerEmail, ownerPassword, "owner");
   await Promise.all([

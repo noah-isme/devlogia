@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { loginAs } from "./utils/auth";
 
 const OWNER_EMAIL = process.env.SEED_OWNER_EMAIL ?? "owner@devlogia.test";
-const OWNER_PASSWORD = process.env.SEED_OWNER_PASSWORD ?? "owner123";
+const OWNER_PASSWORD = process.env.SEED_OWNER_PASSWORD ?? "owner123!";
 
 test("ai assist panel is disabled without provider", async ({ page }) => {
   await loginAs(page, { email: OWNER_EMAIL, password: OWNER_PASSWORD });
