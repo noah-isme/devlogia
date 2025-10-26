@@ -1,9 +1,9 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { SignOutButton } from "@/components/forms/sign-out-button";
 import { auth } from "@/lib/auth";
 import { siteConfig } from "@/lib/seo";
+import { AdminNav, type AdminNavItem } from "@/components/admin/admin-nav";
 
 type AdminLayoutProps = {
   children: ReactNode;
@@ -14,14 +14,14 @@ export const dynamic = "force-dynamic";
 export default async function AdminLayout({ children }: AdminLayoutProps) {
   const session = await auth();
   const role = session?.user?.role;
-  const navItems = [
-    { href: "/admin/dashboard", label: "Dashboard" },
-    { href: "/admin/posts", label: "Posts" },
-    { href: "/admin/pages", label: "Pages" },
+  const navItems: AdminNavItem[] = [
+    { href: "/admin/dashboard", label: "Dashboard", slug: "dashboard" },
+    { href: "/admin/posts", label: "Posts", slug: "posts" },
+    { href: "/admin/pages", label: "Pages", slug: "pages" },
   ];
 
   if (role === "owner") {
-    navItems.push({ href: "/admin/users", label: "Users" });
+    navItems.push({ href: "/admin/users", label: "Users", slug: "users" });
   }
 
   return (
@@ -34,26 +34,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
           </p>
         </div>
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-          <nav
-            aria-label="Admin navigation"
-            className="flex flex-wrap items-center gap-3 text-sm font-medium text-muted-foreground"
-            data-testid="admin-nav"
-          >
-            {navItems.map((item) => {
-              const testId = `admin-nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`;
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="transition hover:text-foreground"
-                  data-testid={testId}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
+          <AdminNav items={navItems} />
           <SignOutButton />
         </div>
       </header>
