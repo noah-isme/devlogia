@@ -74,6 +74,8 @@ jobs:
           pnpm prisma migrate deploy
           pnpm prisma db seed
       - name: Verify seeded users
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
         run: pnpm exec tsx scripts/verify-seed.ts
       - name: Lint, Typecheck, Test, Build
         run: |

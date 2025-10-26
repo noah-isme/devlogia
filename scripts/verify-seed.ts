@@ -1,5 +1,12 @@
 import { PrismaClient } from "@prisma/client";
 
+const databaseUrl = process.env.DATABASE_URL;
+
+if (!databaseUrl || databaseUrl.startsWith("fake://")) {
+  console.error("[verify-seed] Invalid DATABASE_URL:", databaseUrl ?? "<undefined>");
+  process.exit(1);
+}
+
 const prisma = new PrismaClient();
 
 const ownerEmail = process.env.SEED_OWNER_EMAIL ?? "owner@devlogia.test";
@@ -13,6 +20,8 @@ const expectedUsers = [
 ] as const;
 
 async function main() {
+  console.log("[verify-seed] Using DATABASE_URL:", databaseUrl);
+
   const users = await prisma.user.findMany({
     where: { email: { in: expectedUsers.map((user) => user.email) } },
     select: { email: true, role: true },
@@ -30,20 +39,17 @@ async function main() {
 
   if (missing.length > 0) {
     console.error("[verify-seed] Missing or mismatched users:", missing);
-    process.exitCode = 1;
-    return;
+    console.error("[verify-seed] Users found:", users);
+    process.exit(1);
   }
 
-  console.log(
-    "[verify-seed] Seeded users:",
-    expectedUsers.map((user) => user.email).join(", "),
-  );
+  console.log("[verify-seed] Seeded users:", users);
 }
 
 main()
   .catch((error) => {
     console.error("[verify-seed] Failed to verify seeded users:", error);
-    process.exitCode = 1;
+    process.exit(1);
   })
   .finally(async () => {
     await prisma.$disconnect();
