@@ -33,10 +33,15 @@ if (!process.env.NEXT_PUBLIC_APP_URL) {
 export default defineConfig({
   testDir: "tests/e2e",
   fullyParallel: true,
+  workers: process.env.CI ? 1 : undefined,
   retries: process.env.CI ? 2 : 0,
+  expect: {
+    timeout: 10_000,
+  },
   use: {
     baseURL,
     trace: "on-first-retry",
+    viewport: { width: 1366, height: 900 },
   },
   webServer: {
     command: "pnpm start",

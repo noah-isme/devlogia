@@ -34,12 +34,25 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
           </p>
         </div>
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-          <nav className="flex flex-wrap items-center gap-3 text-sm font-medium text-muted-foreground">
-            {navItems.map((item) => (
-              <Link key={item.href} href={item.href} className="transition hover:text-foreground">
-                {item.label}
-              </Link>
-            ))}
+          <nav
+            aria-label="Admin navigation"
+            className="flex flex-wrap items-center gap-3 text-sm font-medium text-muted-foreground"
+            data-testid="admin-nav"
+          >
+            {navItems.map((item) => {
+              const testId = `admin-nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`;
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="transition hover:text-foreground"
+                  data-testid={testId}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
           <SignOutButton />
         </div>
