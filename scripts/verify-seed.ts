@@ -1,11 +1,13 @@
 import { PrismaClient } from "@prisma/client";
 
-const databaseUrl = process.env.DATABASE_URL;
+const rawDatabaseUrl = process.env.DATABASE_URL;
 
-if (!databaseUrl || databaseUrl.startsWith("fake://")) {
-  console.error("[verify-seed] Invalid DATABASE_URL:", databaseUrl ?? "<undefined>");
+if (!rawDatabaseUrl || rawDatabaseUrl.startsWith("fake://")) {
+  console.error("[verify-seed] Invalid DATABASE_URL:", rawDatabaseUrl ?? "<undefined>");
   process.exit(1);
 }
+
+const databaseUrl = rawDatabaseUrl;
 
 const prisma = new PrismaClient();
 
@@ -20,7 +22,8 @@ const expectedUsers = [
 ] as const;
 
 async function main() {
-  console.log("[verify-seed] Using DATABASE_URL:", databaseUrl);
+  const maskedUrl = databaseUrl.replace(/:\/\/[^@]+@/, "://***@");
+  console.log("[verify-seed] Using DATABASE_URL:", maskedUrl);
 
   const users = await prisma.user.findMany({
     where: { email: { in: expectedUsers.map((user) => user.email) } },

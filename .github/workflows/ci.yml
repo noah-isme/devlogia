@@ -26,7 +26,7 @@ jobs:
           --health-timeout=5s
           --health-retries=10
     env:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/devlogia_ci?schema=public
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/devlogia_ci
       PORT: 3000
       NEXTAUTH_URL: http://localhost:3000
       NEXTAUTH_URL_INTERNAL: http://localhost:3000
@@ -64,18 +64,14 @@ jobs:
         run: npx wait-on tcp:postgres:5432 --timeout 30000
       - name: Generate Prisma Client
         run: pnpm prisma generate
-      - name: Setup test database
+      - name: Prepare database schema and data
+        env:
+          PRISMA_SEED: tsx prisma/seed.ts
         run: |
-          if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-            pnpm db:up || echo "pnpm db:up skipped (already running or unavailable)"
-          else
-            echo "Docker Compose not available; assuming database service is running."
-          fi
+          set -euo pipefail
           pnpm prisma migrate deploy
           pnpm prisma db seed
       - name: Verify seeded users
-        env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
         run: pnpm exec tsx scripts/verify-seed.ts
       - name: Lint, Typecheck, Test, Build
         run: |

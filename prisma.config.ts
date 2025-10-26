@@ -9,6 +9,8 @@ export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
+    // @ts-expect-error Prisma 6.18.0 typings do not yet expose the `seed` option.
+    seed: "tsx prisma/seed.ts",
   },
   engine: "classic",
   datasource: {
