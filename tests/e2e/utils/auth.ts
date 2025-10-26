@@ -76,8 +76,23 @@ export async function loginAs(page: Page, options: LoginOptions) {
         throw new Error(`Login failed with HTTP ${status}`);
       }
 
-      if (maybeJson && typeof maybeJson.url === "string") {
-        await page.goto(maybeJson.url);
+      if (maybeJson && typeof maybeJson === "object") {
+        const responseBody = maybeJson as Record<string, unknown>;
+        const error = responseBody.error;
+
+        if (typeof error === "string" && error.length > 0) {
+          await dumpDiagnostics(page, "login-error-payload", {
+            error,
+            consoleErrors,
+          });
+          throw new Error(`Login failed with error payload: ${error}`);
+        }
+
+        const redirectUrl = responseBody.url;
+
+        if (typeof redirectUrl === "string" && redirectUrl.length > 0) {
+          await page.goto(redirectUrl);
+        }
       }
     }
 

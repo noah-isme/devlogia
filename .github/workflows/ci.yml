@@ -32,6 +32,8 @@ jobs:
       NEXTAUTH_URL_INTERNAL: http://localhost:3000
       AUTH_TRUST_HOST: "true"
       NEXTAUTH_SECRET: ci-secret
+      NEXTAUTH_DEBUG: "true"
+      AI_PROVIDER: "none"
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
     steps:
       - uses: actions/checkout@v4
@@ -71,6 +73,8 @@ jobs:
           fi
           pnpm prisma migrate deploy
           pnpm prisma db seed
+      - name: Verify seeded users
+        run: pnpm exec tsx scripts/verify-seed.ts
       - name: Lint, Typecheck, Test, Build
         run: |
           pnpm lint
