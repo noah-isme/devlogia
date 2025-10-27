@@ -7,18 +7,18 @@ async function upsertUser(email: string, password: string, role: string) {
   const passwordHash = await bcrypt.hash(password, 10);
   return prisma.user.upsert({
     where: { email },
-    update: { role },
+    update: { role, passwordHash },
     create: { email, passwordHash, role },
   });
 }
 
 async function main() {
   const ownerEmail = process.env.SEED_OWNER_EMAIL ?? "owner@devlogia.test";
-  const ownerPassword = process.env.SEED_OWNER_PASSWORD ?? "owner123";
+  const ownerPassword = process.env.SEED_OWNER_PASSWORD ?? "owner123!";
   const editorEmail = process.env.SEED_EDITOR_EMAIL ?? "editor@devlogia.test";
-  const editorPassword = process.env.SEED_EDITOR_PASSWORD ?? "editor123";
+  const editorPassword = process.env.SEED_EDITOR_PASSWORD ?? "editor123!";
   const writerEmail = process.env.SEED_WRITER_EMAIL ?? "writer@devlogia.test";
-  const writerPassword = process.env.SEED_WRITER_PASSWORD ?? "writer123";
+  const writerPassword = process.env.SEED_WRITER_PASSWORD ?? "writer123!";
 
   const owner = await upsertUser(ownerEmail, ownerPassword, "owner");
   await Promise.all([
@@ -132,6 +132,51 @@ async function main() {
       contentMdx: `# Content ops\n\n## Templates\nAutomate your post skeletons with MDX components.\n\n## Distribution\nBatch schedule posts and repurpose highlights.`,
       status: PostStatus.PUBLISHED,
       publishedAtOffset: 10,
+      tags: ["product"],
+    },
+    {
+      slug: "shipping-design-systems",
+      title: "Shipping design systems without slowing teams down",
+      summary: "Audit tokens, rollout strategies, and guardrails for velocity.",
+      contentMdx: `# Design systems at speed\n\n## Adoption\nPair documentation with office hours and code-alongs.\n\n## Governance\nAutomate lint rules to enforce primitives and accessibility.`,
+      status: PostStatus.PUBLISHED,
+      publishedAtOffset: 12,
+      tags: ["product"],
+    },
+    {
+      slug: "feature-flags-for-content-teams",
+      title: "Feature flags for content teams",
+      summary: "Launch experiments with confidence across editorial workflows.",
+      contentMdx: `# Feature flag playbook\n\n## Gradual rollout\nExpose new layouts to a subset of readers first.\n\n## Cleanup\nSchedule flag removal to keep codebases lean.`,
+      status: PostStatus.PUBLISHED,
+      publishedAtOffset: 13,
+      tags: ["devops"],
+    },
+    {
+      slug: "managing-editorial-calendars",
+      title: "Managing editorial calendars with automations",
+      summary: "Integrate CMS metadata with calendar tools to reduce back-and-forth.",
+      contentMdx: `# Editorial automation\n\n## Source of truth\nSync deadlines from your CMS into shared calendars.\n\n## Alerts\nUse scheduled digests to highlight upcoming reviews.`,
+      status: PostStatus.PUBLISHED,
+      publishedAtOffset: 14,
+      tags: ["product"],
+    },
+    {
+      slug: "sql-tuning-checklist",
+      title: "SQL tuning checklist for analytics-heavy blogs",
+      summary: "Explain plans, indexes, and caching patterns for editorial data.",
+      contentMdx: `# SQL tuning\n\n## Explain plans\nReview execution plans for slow dashboards.\n\n## Index hygiene\nDrop unused indexes and monitor bloat to keep writes fast.`,
+      status: PostStatus.PUBLISHED,
+      publishedAtOffset: 15,
+      tags: ["prisma"],
+    },
+    {
+      slug: "state-of-content-platforms",
+      title: "State of content platforms in 2024",
+      summary: "Key capabilities teams expect when evaluating editorial tooling.",
+      contentMdx: `# Content platform landscape\n\n## Collaboration\nLive co-editing and granular permissions are table stakes.\n\n## Distribution\nAPIs, webhooks, and scheduling unlock multichannel ops.`,
+      status: PostStatus.PUBLISHED,
+      publishedAtOffset: 16,
       tags: ["product"],
     },
     {

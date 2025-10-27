@@ -129,15 +129,17 @@ Defaults assume a local PostgreSQL server:
 ```
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/devlogia"
 NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_URL_INTERNAL="http://localhost:3000"
+AUTH_TRUST_HOST="true"
 NEXTAUTH_SECRET="changeme"
 UPLOADTHING_SECRET="stub-dev"
 UPLOADER_PROVIDER="stub"
 SEED_OWNER_EMAIL="owner@devlogia.test"
-SEED_OWNER_PASSWORD="owner123"
+SEED_OWNER_PASSWORD="owner123!"
 SEED_EDITOR_EMAIL="editor@devlogia.test"
-SEED_EDITOR_PASSWORD="editor123"
+SEED_EDITOR_PASSWORD="editor123!"
 SEED_WRITER_EMAIL="writer@devlogia.test"
-SEED_WRITER_PASSWORD="writer123"
+SEED_WRITER_PASSWORD="writer123!"
 AI_PROVIDER="none" # "openai" | "hf" | "none"
 OPENAI_API_KEY=""
 HF_API_KEY=""
@@ -202,9 +204,9 @@ When `DATABASE_URL` is unset (for example during documentation builds or static 
 
 The seed script provisions three accounts for testing RBAC:
 
-- **Owner:** `owner@devlogia.test` / `owner123`
-- **Editor:** `editor@devlogia.test` / `editor123`
-- **Writer:** `writer@devlogia.test` / `writer123`
+- **Owner:** `owner@devlogia.test` / `owner123!`
+- **Editor:** `editor@devlogia.test` / `editor123!`
+- **Writer:** `writer@devlogia.test` / `writer123!`
 
 Override these via `SEED_OWNER_*`, `SEED_EDITOR_*`, and `SEED_WRITER_*` before seeding.
 

@@ -126,6 +126,7 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
   const primaryLabel = canPublish ? (post.status === "PUBLISHED" ? "Update post" : "Publish") : "Save draft";
   const isPrimarySaving = actionState === "saving";
   const primaryVariant = actionState === "error" ? "destructive" : "default";
+  const primaryActionTestId = canPublish ? "post-publish" : "post-save-draft";
 
   useEffect(() => {
     latestState.current = post;
@@ -645,7 +646,7 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
   }
 
   return (
-    <div className="space-y-6">
+    <main className="space-y-6" data-testid="post-editor">
       <div className="rounded-lg border border-dashed border-border bg-muted/50 px-4 py-3">
         <div className="flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between">
           <p className="font-medium">Draft tersimpan otomatis</p>
@@ -676,7 +677,10 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1
+            className="text-2xl font-semibold tracking-tight"
+            data-testid="post-editor-heading"
+          >
             {mode === "edit" ? "Edit post" : "Create a new post"}
           </h1>
         </div>
@@ -702,6 +706,7 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
             variant={primaryVariant}
             onClick={() => void handlePrimaryAction()}
             disabled={isPrimarySaving}
+            data-testid={primaryActionTestId}
           >
             {isPrimarySaving ? "Saving…" : primaryLabel}
           </Button>
@@ -717,6 +722,7 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
               name="title"
               placeholder="A compelling headline"
               value={post.title}
+              data-testid="post-title"
               onChange={(event) => {
                 const nextTitle = event.target.value;
                 updateField("title", nextTitle);
@@ -940,7 +946,7 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
           </div>
         </aside>
       </div>
-    </div>
+    </main>
   );
 }
 

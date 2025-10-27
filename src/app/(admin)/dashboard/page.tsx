@@ -76,7 +76,7 @@ export default async function DashboardPage() {
   const { drafts, published, scheduled, latestPosts } = metrics;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-10" data-testid="dashboard-root">
       <section>
         <h2 className="text-lg font-semibold">Content health</h2>
         <dl className="mt-4 grid gap-4 sm:grid-cols-3">

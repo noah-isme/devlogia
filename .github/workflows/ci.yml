@@ -26,7 +26,14 @@ jobs:
           --health-timeout=5s
           --health-retries=10
     env:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/devlogia_ci?schema=public
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/devlogia_ci
+      PORT: 3000
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_URL_INTERNAL: http://localhost:3000
+      AUTH_TRUST_HOST: "true"
+      NEXTAUTH_SECRET: ci-secret
+      NEXTAUTH_DEBUG: "true"
+      AI_PROVIDER: "none"
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
     steps:
       - uses: actions/checkout@v4
@@ -53,32 +60,20 @@ jobs:
         run: pnpm install
       - name: Setup env for CI
         run: cp .env.ci .env
-      - name: Wait for Postgres ready
-        run: |
-          for i in {1..20}; do
-            if pg_isready -h postgres -U postgres; then
-              echo "Postgres is ready."
-              ready=1
-              break
-            fi
-            echo "Waiting for Postgres..."
-            sleep 3
-          done
-          if [ "${ready:-0}" -ne 1 ]; then
-            echo "Postgres is not ready after waiting."
-            exit 1
-          fi
+      - name: Wait for Postgres (TCP)
+        run: npx wait-on tcp:postgres:5432 --timeout 30000
       - name: Generate Prisma Client
         run: pnpm prisma generate
-      - name: Setup test database
+      - name: Prepare database schema and data
+        shell: bash
+        env:
+          PRISMA_SEED: tsx prisma/seed.ts
         run: |
-          if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-            pnpm db:up || echo "pnpm db:up skipped (already running or unavailable)"
-          else
-            echo "Docker Compose not available; assuming database service is running."
-          fi
+          set -euo pipefail
           pnpm prisma migrate deploy
           pnpm prisma db seed
+      - name: Verify seeded users
+        run: pnpm exec tsx scripts/verify-seed.ts
       - name: Lint, Typecheck, Test, Build
         run: |
           pnpm lint
@@ -88,11 +83,4 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps
       - name: Run E2E tests
-        env:
-          PORT: 3000
-        run: |
-          pnpm start &
-          APP_PID=$!
-          trap "kill $APP_PID" EXIT
-          npx wait-on http://127.0.0.1:3000
-          pnpm test:e2e
+        run: pnpm test:e2e
