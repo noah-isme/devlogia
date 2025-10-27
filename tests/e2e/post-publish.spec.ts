@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { loginAs } from "./utils/auth";
+import { openNewPost } from "./utils/admin";
 import { openAdminNavLink } from "./utils/navigation";
 
 const OWNER_EMAIL = process.env.SEED_OWNER_EMAIL ?? "owner@devlogia.test";
@@ -10,12 +11,13 @@ test("admin can create and publish a post", async ({ page }) => {
   await loginAs(page, { email: OWNER_EMAIL, password: OWNER_PASSWORD });
 
   await expect(page).toHaveURL(/admin\/dashboard/);
-  await expect(page.locator("main")).toBeVisible({ timeout: 10_000 });
+  await page.waitForLoadState("networkidle");
 
   await openAdminNavLink(page, "posts");
   await expect(page).toHaveURL(/admin\/posts/);
 
-  await page.getByRole("link", { name: /new post/i }).click();
+  await openNewPost(page);
+  await expect(page).toHaveURL(/admin\/posts\/new/);
   await expect(page.getByRole("heading", { name: /create a new post/i })).toBeVisible();
 
   const title = `Playwright Post ${Date.now()}`;

@@ -7,14 +7,17 @@ test("public readers can paginate and filter", async ({ page }) => {
   await expect(olderLink).toBeVisible();
   await expect(olderLink).not.toHaveAttribute("aria-disabled", "true");
 
+  const newerLink = page.getByRole("link", { name: "Newer" });
+  await expect(newerLink).toBeVisible();
+
   await olderLink.click();
   await expect(page).toHaveURL(/cursor=/);
 
-  const newerLink = page.getByRole("link", { name: "Newer" });
-  await expect(newerLink).toBeVisible();
-  await expect(newerLink).not.toHaveAttribute("aria-disabled", "true");
+  const returnLink = page.getByRole("link", { name: "Newer" });
+  await expect(returnLink).toBeVisible();
+  await expect(returnLink).not.toHaveAttribute("aria-disabled", "true");
 
-  await newerLink.click();
+  await returnLink.click();
   await expect(page).not.toHaveURL(/cursor=/);
 
   await page.getByPlaceholder("Search posts…").fill("Prisma");

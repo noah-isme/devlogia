@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { loginAs } from "./utils/auth";
+import { openNewPost } from "./utils/admin";
 import { openAdminNavLink } from "./utils/navigation";
 
 const WRITER_EMAIL = process.env.SEED_WRITER_EMAIL ?? "writer@devlogia.test";
@@ -12,7 +13,8 @@ test("writer can only save drafts", async ({ page }) => {
   await expect(page).toHaveURL(/admin\/dashboard/);
 
   await openAdminNavLink(page, "posts");
-  await page.getByRole("link", { name: /new post/i }).click();
+  await openNewPost(page);
+  await expect(page).toHaveURL(/admin\/posts\/new/);
   await expect(page.getByRole("heading", { name: /create a new post/i })).toBeVisible();
 
   await expect(page.getByRole("button", { name: /save draft/i })).toBeVisible();
