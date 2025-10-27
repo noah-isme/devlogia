@@ -646,7 +646,7 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
   }
 
   return (
-    <div className="space-y-6" data-testid="post-editor">
+    <main className="space-y-6" data-testid="post-editor">
       <div className="rounded-lg border border-dashed border-border bg-muted/50 px-4 py-3">
         <div className="flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between">
           <p className="font-medium">Draft tersimpan otomatis</p>
@@ -722,6 +722,7 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
               name="title"
               placeholder="A compelling headline"
               value={post.title}
+              data-testid="post-title"
               onChange={(event) => {
                 const nextTitle = event.target.value;
                 updateField("title", nextTitle);
@@ -945,7 +946,7 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
           </div>
         </aside>
       </div>
-    </div>
+    </main>
   );
 }
 
