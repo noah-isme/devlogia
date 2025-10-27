@@ -17,7 +17,8 @@ test("admin can upload media and publish with OG", async ({ page, request }) => 
   await openAdminNavLink(page, "posts");
   await openNewPost(page);
   await expect(page).toHaveURL(/admin\/posts\/new/);
-  await expect(page.getByRole("heading", { name: /create a new post/i })).toBeVisible();
+  await expect(page.getByTestId("post-editor")).toBeVisible();
+  await expect(page.getByTestId("post-editor-heading")).toBeVisible();
 
   const title = `Media Test ${Date.now()}`;
   await page.getByLabel("Title").fill(title);

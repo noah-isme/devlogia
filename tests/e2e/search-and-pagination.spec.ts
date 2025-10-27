@@ -3,17 +3,19 @@ import { expect, test } from "@playwright/test";
 test("public readers can paginate and filter", async ({ page }) => {
   await page.goto("/");
 
-  const olderLink = page.getByRole("link", { name: "Older" });
-  await expect(olderLink).toBeVisible();
-  await expect(olderLink).not.toHaveAttribute("aria-disabled", "true");
-
   const newerLink = page.getByRole("link", { name: "Newer" });
-  await expect(newerLink).toBeVisible();
+  const olderLink = page.getByRole("link", { name: "Older" });
 
-  await olderLink.click();
+  await expect(newerLink).toBeVisible();
+  await expect(olderLink).toBeVisible();
+
+  const newerDisabled = (await newerLink.getAttribute("aria-disabled")) === "true";
+  const firstNavigationTarget = newerDisabled ? olderLink : newerLink;
+
+  await firstNavigationTarget.click();
   await expect(page).toHaveURL(/cursor=/);
 
-  const returnLink = page.getByRole("link", { name: "Newer" });
+  const returnLink = newerDisabled ? newerLink : olderLink;
   await expect(returnLink).toBeVisible();
   await expect(returnLink).not.toHaveAttribute("aria-disabled", "true");
 

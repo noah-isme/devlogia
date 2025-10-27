@@ -174,7 +174,11 @@ export default async function PostsPage({ searchParams }: PostsPageProps) {
             Draft, schedule, and publish posts from a single view.
           </p>
         </div>
-        <Link href="/admin/posts/new" className={buttonVariants()}>
+        <Link
+          href="/admin/posts/new"
+          className={buttonVariants()}
+          data-testid="new-post"
+        >
           New post
         </Link>
       </div>

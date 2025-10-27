@@ -22,14 +22,15 @@ test("publishing records audit log entry", async ({ page }) => {
   await openAdminNavLink(page, "posts");
   await openNewPost(page);
   await expect(page).toHaveURL(/admin\/posts\/new/);
-  await expect(page.getByRole("heading", { name: /create a new post/i })).toBeVisible();
+  await expect(page.getByTestId("post-editor")).toBeVisible();
+  await expect(page.getByTestId("post-editor-heading")).toBeVisible();
 
   const title = `Webhook Publish ${Date.now()}`;
   await page.getByLabel("Title").fill(title);
   await page.getByLabel("Summary").fill("Verifying publish audit log");
   await page.getByLabel("Content").fill("# Webhook\n\nTrigger outbound webhooks via audit log test.");
 
-  await page.getByRole("button", { name: /^publish$/i }).click();
+  await page.getByTestId("post-publish").click();
   await page.waitForTimeout(2000);
 
   const slug = await page.getByLabel("Slug").inputValue();

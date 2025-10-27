@@ -1,3 +1,4 @@
+import { expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
 const NEW_POST_URL = "/admin/posts/new";
@@ -26,6 +27,7 @@ export async function openNewPost(page: Page) {
   await page.waitForLoadState("domcontentloaded");
 
   if (await clickIfVisible(page, page.getByTestId("new-post"))) {
+    await expect(page.getByTestId("post-editor")).toBeVisible({ timeout: 10_000 });
     return;
   }
 
@@ -35,6 +37,7 @@ export async function openNewPost(page: Page) {
       page.locator('a[href="/admin/posts/new"]').first()
     )
   ) {
+    await expect(page.getByTestId("post-editor")).toBeVisible({ timeout: 10_000 });
     return;
   }
 
@@ -46,6 +49,7 @@ export async function openNewPost(page: Page) {
       page.getByRole("link", { name: fuzzyLabel }).first()
     )
   ) {
+    await expect(page.getByTestId("post-editor")).toBeVisible({ timeout: 10_000 });
     return;
   }
 
@@ -55,10 +59,12 @@ export async function openNewPost(page: Page) {
       page.getByRole("button", { name: fuzzyLabel }).first()
     )
   ) {
+    await expect(page.getByTestId("post-editor")).toBeVisible({ timeout: 10_000 });
     return;
   }
 
   await page.goto(NEW_POST_URL);
   await page.waitForURL(NEW_POST_URL_PATTERN, { timeout: 10_000 });
   await page.waitForLoadState("networkidle");
+  await expect(page.getByTestId("post-editor")).toBeVisible({ timeout: 10_000 });
 }

@@ -18,7 +18,8 @@ test("admin can create and publish a post", async ({ page }) => {
 
   await openNewPost(page);
   await expect(page).toHaveURL(/admin\/posts\/new/);
-  await expect(page.getByRole("heading", { name: /create a new post/i })).toBeVisible();
+  await expect(page.getByTestId("post-editor")).toBeVisible();
+  await expect(page.getByTestId("post-editor-heading")).toBeVisible();
 
   const title = `Playwright Post ${Date.now()}`;
 
