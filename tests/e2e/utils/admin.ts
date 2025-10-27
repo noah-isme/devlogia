@@ -3,6 +3,7 @@ import type { Locator, Page } from "@playwright/test";
 
 const NEW_POST_URL = "/admin/posts/new";
 const NEW_POST_URL_PATTERN = /\/admin\/posts\/new(?:[/?]|$)/;
+const MAX_HTML_SNAPSHOT = 4000;
 
 async function clickIfVisible(page: Page, locator: Locator) {
   const isVisible = await locator.isVisible().catch(() => false);
@@ -38,6 +39,8 @@ async function waitForEditor(page: Page) {
   await page.waitForLoadState("domcontentloaded");
   await page.waitForLoadState("networkidle");
 
+  await logEditorStatus(page);
+
   const candidates: Locator[] = [
     page.getByTestId("post-editor"),
     page.getByTestId("post-title"),
@@ -53,7 +56,40 @@ async function waitForEditor(page: Page) {
     }
   }
 
+  await dumpEditorDiagnostics(page, "post-editor-missing");
   await expect(page.getByTestId("post-editor")).toBeVisible({ timeout: 15_000 });
+}
+
+async function logEditorStatus(page: Page) {
+  try {
+    const response = await page.request.get(NEW_POST_URL, {
+      failOnStatusCode: false,
+    });
+    const status = response.status();
+    const contentType = response.headers()["content-type"] ?? "";
+
+    console.log(
+      `[e2e:editor-status] url=${page.url()} status=${status} content-type=${contentType}`,
+    );
+  } catch (error) {
+    console.log(
+      `[e2e:editor-status] url=${page.url()} status=<request-error> error=${String(error)}`,
+    );
+  }
+}
+
+async function dumpEditorDiagnostics(page: Page, tag: string) {
+  let html = "";
+  try {
+    html = await page.content();
+  } catch (error) {
+    html = `<error>${String(error)}`;
+  }
+
+  const snippet = html.slice(0, MAX_HTML_SNAPSHOT);
+
+  console.log(`[e2e:${tag}] url=${page.url()}`);
+  console.log(`[e2e:${tag}] snippet=${snippet}`);
 }
 
 export async function openNewPost(page: Page) {
