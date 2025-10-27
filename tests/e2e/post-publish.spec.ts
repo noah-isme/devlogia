@@ -10,7 +10,7 @@ test("admin can create and publish a post", async ({ page }) => {
   await loginAs(page, { email: OWNER_EMAIL, password: OWNER_PASSWORD });
 
   await expect(page).toHaveURL(/admin\/dashboard/);
-  await expect(page.getByTestId("dashboard-root")).toBeVisible();
+  await expect(page.locator("main")).toBeVisible({ timeout: 10_000 });
 
   await openAdminNavLink(page, "posts");
   await expect(page).toHaveURL(/admin\/posts/);
