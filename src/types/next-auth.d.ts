@@ -1,6 +1,6 @@
 import type { DefaultSession } from "next-auth";
 
-type Role = "superadmin" | "admin" | "editor" | "writer";
+import type { Role } from "@/lib/rbac";
 
 declare module "next-auth" {
   interface Session {

@@ -84,7 +84,7 @@ export const authOptions: NextAuthOptions = {
 
         if (!dbUser) {
           token.isActive = false;
-          token.role = "writer";
+          token.role = "viewer";
         } else {
           token.isActive = dbUser.isActive;
           token.role = resolveHighestRole(roleNamesFromUser(dbUser.roles));
@@ -98,7 +98,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user && token.sub) {
         session.user.id = token.sub as string;
         session.user.email = (token.email as string | undefined) ?? session.user.email ?? "";
-        session.user.role = (token.role as Role) ?? "writer";
+        session.user.role = (token.role as Role) ?? "viewer";
         session.user.isActive = token.isActive !== false;
       }
 
@@ -109,7 +109,7 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (!dbUser) {
-          session.user.role = "writer";
+          session.user.role = "viewer";
           session.user.isActive = false;
         } else {
           session.user.role = resolveHighestRole(roleNamesFromUser(dbUser.roles));

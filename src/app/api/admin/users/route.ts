@@ -9,7 +9,7 @@ import { toRoleName } from "@/lib/roles";
 const createSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
-  role: z.enum(["admin", "editor", "writer"] as const),
+  role: z.enum(["tenantAdmin", "admin", "editor", "writer", "viewer"] as const),
 });
 
 export async function GET() {

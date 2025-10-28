@@ -15,9 +15,11 @@ enum PostStatus {
 
 enum RoleName {
   SUPERADMIN
+  TENANTADMIN
   ADMIN
   EDITOR
   WRITER
+  VIEWER
 }
 
 model User {
@@ -32,6 +34,7 @@ model User {
   aiUsage      AIUsage[]
   aiAuditLogs  AIAuditLog[]
   profile      UserProfile?
+  ownedTenants Tenant[]   @relation("TenantOwner")
 }
 
 model Role {
@@ -76,6 +79,7 @@ model Post {
   aiUsage          AIUsage[]
   aiAuditLogs      AIAuditLog[]
   contentVector    ContentVector?
+  federationIndex  FederationIndex?
 
   @@index([status, publishedAt])
 }
@@ -288,4 +292,45 @@ model PostTopic {
 
   @@unique([postId, topicId])
   @@index([topicId])
+}
+
+model Tenant {
+  id                String            @id @default(cuid()) @db.VarChar(191)
+  name              String            @db.VarChar(191)
+  slug              String            @unique @db.VarChar(191)
+  plan              String            @default("free") @db.VarChar(32)
+  ownerId           String?           @db.VarChar(191)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  owner             User?             @relation("TenantOwner", fields: [ownerId], references: [id])
+  settings          TenantSettings?
+  federationEntries FederationIndex[]
+
+  @@index([ownerId])
+}
+
+model TenantSettings {
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  tenantId  String   @unique @db.VarChar(191)
+  domain    String?  @db.VarChar(191)
+  limits    Json     @default("{}")
+  planId    String?  @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+model FederationIndex {
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  postId    String   @unique @db.VarChar(191)
+  tenantId  String   @db.VarChar(191)
+  title     String?  @db.VarChar(191)
+  tags      Json     @default("[]")
+  embedding Json?
+  score     Float?   @default(0)
+  updatedAt DateTime @updatedAt
+  post      Post     @relation(fields: [postId], references: [id])
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, updatedAt])
 }
