@@ -20,7 +20,8 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
     { href: "/admin/pages", label: "Pages" },
   ];
 
-  if (role === "owner") {
+  if (role === "superadmin") {
+    navItems.splice(1, 0, { href: "/admin/analytics", label: "Analytics" });
     navItems.push({ href: "/admin/users", label: "Users" });
   }
 

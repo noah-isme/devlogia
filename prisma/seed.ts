@@ -1,29 +1,65 @@
 import bcrypt from "bcrypt";
-import { PrismaClient, PostStatus } from "@prisma/client";
+import { PrismaClient, PostStatus, RoleName } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-async function upsertUser(email: string, password: string, role: string) {
+async function ensureRole(name: RoleName, description: string) {
+  await prisma.role.upsert({
+    where: { name },
+    update: { description },
+    create: { name, description },
+  });
+}
+
+async function upsertUser(email: string, password: string, role: RoleName) {
   const passwordHash = await bcrypt.hash(password, 10);
+  const normalizedEmail = email.toLowerCase();
+
   return prisma.user.upsert({
-    where: { email },
-    update: { role },
-    create: { email, passwordHash, role },
+    where: { email: normalizedEmail },
+    update: {
+      passwordHash,
+      isActive: true,
+      roles: {
+        deleteMany: {},
+        create: { role: { connect: { name: role } } },
+      },
+    },
+    create: {
+      email: normalizedEmail,
+      passwordHash,
+      isActive: true,
+      roles: {
+        create: { role: { connect: { name: role } } },
+      },
+    },
   });
 }
 
 async function main() {
-  const ownerEmail = process.env.SEED_OWNER_EMAIL ?? "owner@devlogia.test";
-  const ownerPassword = process.env.SEED_OWNER_PASSWORD ?? "owner123";
+  await Promise.all([
+    ensureRole(RoleName.SUPERADMIN, "Full control over Devlogia"),
+    ensureRole(RoleName.ADMIN, "Manage content and system settings"),
+    ensureRole(RoleName.EDITOR, "Edit all posts and pages"),
+    ensureRole(RoleName.WRITER, "Draft and manage own posts"),
+  ]);
+
+  const superadminEmail =
+    process.env.SEED_SUPERADMIN_EMAIL ?? process.env.SEED_OWNER_EMAIL ?? "owner@devlogia.test";
+  const superadminPassword =
+    process.env.SEED_SUPERADMIN_PASSWORD ?? process.env.SEED_OWNER_PASSWORD ?? "owner123";
+  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? "admin@devlogia.test";
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "admin123";
   const editorEmail = process.env.SEED_EDITOR_EMAIL ?? "editor@devlogia.test";
   const editorPassword = process.env.SEED_EDITOR_PASSWORD ?? "editor123";
   const writerEmail = process.env.SEED_WRITER_EMAIL ?? "writer@devlogia.test";
   const writerPassword = process.env.SEED_WRITER_PASSWORD ?? "writer123";
 
-  const owner = await upsertUser(ownerEmail, ownerPassword, "owner");
+  const superadmin = await upsertUser(superadminEmail, superadminPassword, RoleName.SUPERADMIN);
   await Promise.all([
-    upsertUser(editorEmail, editorPassword, "editor"),
-    upsertUser(writerEmail, writerPassword, "writer"),
+    upsertUser(adminEmail, adminPassword, RoleName.ADMIN),
+    upsertUser(editorEmail, editorPassword, RoleName.EDITOR),
+    upsertUser(writerEmail, writerPassword, RoleName.WRITER),
   ]);
 
   const tags = [
@@ -179,7 +215,7 @@ async function main() {
         contentMdx: data.contentMdx,
         status: data.status,
         publishedAt,
-        authorId: owner.id,
+        authorId: superadmin.id,
       },
       create: {
         title: data.title,
@@ -188,7 +224,7 @@ async function main() {
         contentMdx: data.contentMdx,
         status: data.status,
         publishedAt,
-        authorId: owner.id,
+        authorId: superadmin.id,
       },
     });
 
@@ -199,36 +235,19 @@ async function main() {
           deleteMany: {},
           create: data.tags?.map((slug) => ({
             tag: { connect: { slug } },
-          })) ?? [],
+          })),
         },
       },
     });
   }
-
-  await prisma.page.upsert({
-    where: { slug: "about" },
-    update: {},
-    create: {
-      title: "About",
-      slug: "about",
-      contentMdx:
-        "# About Devlogia\n\nDevlogia is a focused writing experience for developers who love shipping fast.",
-      published: true,
-    },
-  });
-
-  console.log(`Seed completed.`);
-  console.log(`Owner credentials: ${ownerEmail} / ${ownerPassword}`);
-  console.log(`Editor credentials: ${editorEmail} / ${editorPassword}`);
-  console.log(`Writer credentials: ${writerEmail} / ${writerPassword}`);
-  console.log(`Seeded ${postsSeed.length} posts and ${tags.length} tags.`);
 }
 
 main()
-  .catch((error) => {
-    console.error("Seed failed", error);
-    process.exit(1);
-  })
-  .finally(async () => {
+  .then(async () => {
     await prisma.$disconnect();
+  })
+  .catch(async (error) => {
+    console.error(error);
+    await prisma.$disconnect();
+    process.exit(1);
   });

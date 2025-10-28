@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import type { Role } from "@/lib/rbac";
+import { resolveHighestRole } from "@/lib/rbac";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -14,7 +15,11 @@ const credentialsSchema = z.object({
 
 type AuthorizedUser = Pick<User, "id" | "email" | "name"> & {
   role: Role;
+  isActive: boolean;
 };
+
+const roleNamesFromUser = (userRoles: Array<{ role: { name: string } }>) =>
+  userRoles.map((entry) => entry.role.name.toLowerCase());
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -38,9 +43,10 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({
           where: { email: result.data.email.toLowerCase() },
+          include: { roles: { include: { role: true } } },
         });
 
-        if (!user) {
+        if (!user || !user.isActive) {
           return null;
         }
 
@@ -53,7 +59,8 @@ export const authOptions: NextAuthOptions = {
           id: user.id,
           email: user.email,
           name: user.email,
-          role: (user.role as Role) ?? "writer",
+          role: resolveHighestRole(roleNamesFromUser(user.roles)),
+          isActive: user.isActive,
         };
 
         return authorizedUser;
@@ -66,15 +73,51 @@ export const authOptions: NextAuthOptions = {
         token.sub = user.id;
         token.email = user.email;
         token.role = (user as AuthorizedUser).role;
+        token.isActive = (user as AuthorizedUser).isActive;
       }
+
+      if (token.sub) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.sub },
+          include: { roles: { include: { role: true } } },
+        });
+
+        if (!dbUser) {
+          token.isActive = false;
+          token.role = "writer";
+        } else {
+          token.isActive = dbUser.isActive;
+          token.role = resolveHighestRole(roleNamesFromUser(dbUser.roles));
+          token.email = dbUser.email;
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {
-      if (session.user && token) {
+      if (session.user && token.sub) {
         session.user.id = token.sub as string;
-        session.user.email = token.email;
+        session.user.email = (token.email as string | undefined) ?? session.user.email ?? "";
         session.user.role = (token.role as Role) ?? "writer";
+        session.user.isActive = token.isActive !== false;
       }
+
+      if (session.user && token.sub) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.sub as string },
+          include: { roles: { include: { role: true } } },
+        });
+
+        if (!dbUser) {
+          session.user.role = "writer";
+          session.user.isActive = false;
+        } else {
+          session.user.role = resolveHighestRole(roleNamesFromUser(dbUser.roles));
+          session.user.isActive = dbUser.isActive;
+          session.user.email = dbUser.email;
+        }
+      }
+
       return session;
     },
   },
@@ -88,5 +131,6 @@ export type SessionWithUser = Session & {
   user: Session["user"] & {
     id: string;
     role: Role;
+    isActive: boolean;
   };
 };

@@ -9,8 +9,8 @@
 - **NextAuth credentials** login with protected `/admin` middleware
 - **MDX editor with autosave** (localStorage fallback & live preview)
 - **AI Assist panel** for outlines, metadata, tags, and rephrasing (provider agnostic)
-- **UploadThing stub** so the app is deploy-ready without external storage
-- **Role-based admin** (owner/editor/writer) with audit logging and user management
+- **UploadThing stub** with optional S3/R2 cloud uploads
+- **Role-based admin** (superadmin/admin/editor/writer) with audit logging and user management
 - **SEO suite**: dynamic sitemap, RSS feed, canonical metadata, enriched OG images
 - **Full-text search** with Postgres tsvector + tag filters on the home page
 - **Cursor-based pagination** on public + admin listings with preserved filters
@@ -131,9 +131,17 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/devlogia"
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="changeme"
 UPLOADTHING_SECRET="stub-dev"
-UPLOADER_PROVIDER="stub"
-SEED_OWNER_EMAIL="owner@devlogia.test"
-SEED_OWNER_PASSWORD="owner123"
+UPLOADTHING_PROVIDER="stub"
+S3_BUCKET=""
+S3_REGION=""
+S3_ACCESS_KEY=""
+S3_SECRET_KEY=""
+S3_ENDPOINT=""
+S3_PUBLIC_URL=""
+SEED_SUPERADMIN_EMAIL="owner@devlogia.test"
+SEED_SUPERADMIN_PASSWORD="owner123"
+SEED_ADMIN_EMAIL="admin@devlogia.test"
+SEED_ADMIN_PASSWORD="admin123"
 SEED_EDITOR_EMAIL="editor@devlogia.test"
 SEED_EDITOR_PASSWORD="editor123"
 SEED_WRITER_EMAIL="writer@devlogia.test"
@@ -180,7 +188,7 @@ The file pins a local PostgreSQL URL (`devlogia_test`), deterministic secrets, a
    pnpm prisma:migrate
    ```
 
-3. **Seed the database** (creates owner/editor/writer accounts & sample content)
+3. **Seed the database** (creates superadmin/admin/editor/writer accounts & sample content)
 
    ```bash
    pnpm prisma:seed
@@ -200,13 +208,14 @@ When `DATABASE_URL` is unset (for example during documentation builds or static 
 
 ### Seeded accounts
 
-The seed script provisions three accounts for testing RBAC:
+The seed script provisions four accounts for testing RBAC:
 
-- **Owner:** `owner@devlogia.test` / `owner123`
+- **Superadmin:** `owner@devlogia.test` / `owner123`
+- **Admin:** `admin@devlogia.test` / `admin123`
 - **Editor:** `editor@devlogia.test` / `editor123`
 - **Writer:** `writer@devlogia.test` / `writer123`
 
-Override these via `SEED_OWNER_*`, `SEED_EDITOR_*`, and `SEED_WRITER_*` before seeding.
+Override these via `SEED_SUPERADMIN_*`, `SEED_ADMIN_*`, `SEED_EDITOR_*`, and `SEED_WRITER_*` before seeding.
 
 ## 🧪 Quality Gates & Scripts
 
@@ -257,7 +266,7 @@ Troubleshooting tips:
 - Delete Playwright's cache if browsers look stale: `rm -rf ~/.cache/ms-playwright`.
 - Rebuild the database if tests rely on a clean slate: `pnpm db:reset`.
 
-The E2E spec logs in as the seeded owner, creates a new post via the editor (autosave + publish), and verifies it appears on the public blog.
+The E2E spec logs in as the seeded superadmin, creates a new post via the editor (autosave + publish), and verifies it appears on the public blog.
 
 CI uses the official `mcr.microsoft.com/playwright:v1.47.0-jammy` image with browsers preinstalled. We cache `~/.cache/ms-playwright` and set `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` to avoid redundant downloads, then run migrations, lint/typecheck/unit/build, and finally launch the app for Playwright.
 
@@ -280,7 +289,8 @@ Refer to `docs/release-notes/v1.0.0.md` for the complete changelog.
 - `/admin/posts/new` — MDX editor with autosave (1500 ms debounce, offline-safe)
 - `/admin/posts/[id]` — Edit existing posts with tag management & status changes
 - `/admin/pages` — Minimal CRUD for static pages with live preview on `/<slug>`
-- `/admin/users` — Owner-only user management with role assignments
+- `/admin/users` — Superadmin-only user management with RBAC roles and status controls
+- `/admin/analytics` — Superadmin analytics dashboard with live refresh charts
 
 ### Editor Features
 
@@ -307,7 +317,7 @@ Refer to `docs/release-notes/v1.0.0.md` for the complete changelog.
 
 ## ♻️ Uploads
 
-UploadThing is configured with a **stub provider** for local development and test environments. The `/api/uploadthing` route authenticates the admin, stores metadata in the `Media` table, and returns a deterministic fake URL (e.g. `/uploads/{id}.png`). Swap `UPLOADER_PROVIDER` when wiring a real provider (R2/S3) in future phases.
+UploadThing defaults to a **stub provider** for local development and CI. When `UPLOADTHING_PROVIDER` is set to `s3` or `r2` and credentials are present, `/api/uploadthing` streams uploads to your bucket, stores a public URL in the `Media` table, and falls back to the stub automatically if configuration is incomplete.
 
 ## 📊 Analytics & Newsletter
 
