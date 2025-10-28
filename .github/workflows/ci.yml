@@ -9,21 +9,20 @@ jobs:
   build:
     runs-on: ubuntu-latest
     services:
-      postgres:
-        image: postgres:16
+      mysql:
+        image: mysql:8
         env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: devlogia
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: devlogia
         ports:
-          - 5432:5432
+          - 3306:3306
         options: >-
-          --health-cmd "pg_isready -U postgres"
+          --health-cmd "mysqladmin ping -h localhost -u root -proot"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/devlogia
+      DATABASE_URL: mysql://root:root@localhost:3306/devlogia
       NEXTAUTH_SECRET: ci-secret
       NEXTAUTH_URL: http://localhost:3000
       UPLOADER_PROVIDER: stub
