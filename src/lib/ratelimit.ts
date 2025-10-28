@@ -6,6 +6,12 @@ export type RateLimitResult = {
   reset: number;
 };
 
+export type RateLimitHeaders = {
+  "x-ratelimit-limit": string;
+  "x-ratelimit-remaining": string;
+  "x-ratelimit-reset": string;
+};
+
 export function checkRateLimit(
   identifier: string,
   limit: number,
@@ -39,4 +45,25 @@ export function parseRateLimit(value: string | undefined, fallback: number) {
 
 export function resetRateLimits() {
   buckets.clear();
+}
+
+export function resolveRateLimitKey(request: Request, fallback = "anonymous") {
+  const header =
+    request.headers.get("x-forwarded-for") ??
+    request.headers.get("x-real-ip") ??
+    request.headers.get("cf-connecting-ip");
+
+  if (!header) {
+    return fallback;
+  }
+
+  return header.split(",")[0].trim() || fallback;
+}
+
+export function buildRateLimitHeaders(result: RateLimitResult, limit: number): RateLimitHeaders {
+  return {
+    "x-ratelimit-limit": String(limit),
+    "x-ratelimit-remaining": String(Math.max(result.remaining, 0)),
+    "x-ratelimit-reset": String(result.reset),
+  };
 }

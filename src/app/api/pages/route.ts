@@ -2,8 +2,12 @@ import { unstable_cache } from "next/cache";
 import { NextResponse } from "next/server";
 
 import { siteConfig } from "@/lib/seo";
+import { buildRateLimitHeaders, checkRateLimit, parseRateLimit, resolveRateLimitKey } from "@/lib/ratelimit";
 
 export const revalidate = 60;
+
+const pagesRateLimit = parseRateLimit(process.env.PAGES_RATE_LIMIT, 120);
+const pagesRateWindow = parseRateLimit(process.env.PAGES_RATE_LIMIT_WINDOW_MS, 60_000);
 
 type PublicPage = {
   id: string;
@@ -45,13 +49,25 @@ const getPages = unstable_cache(
   { revalidate: 60 },
 );
 
-export async function GET() {
+export async function GET(request: Request) {
+  const identifier = resolveRateLimitKey(request, "pages-anonymous");
+  const rateKey = `pages:${identifier}`;
+  const rateResult = checkRateLimit(rateKey, pagesRateLimit, pagesRateWindow);
+
+  if (!rateResult.success) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: buildRateLimitHeaders(rateResult, pagesRateLimit) },
+    );
+  }
+
   const pages = await getPages();
   return NextResponse.json(
     { pages },
     {
       headers: {
         "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+        ...buildRateLimitHeaders(rateResult, pagesRateLimit),
       },
     },
   );

@@ -1,89 +1,63 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
 
 import type { PrismaClient } from "@prisma/client";
 
 import { auth } from "@/lib/auth";
+import { logger } from "@/lib/logger";
+import { configureStorage, getStorageConfig, isSupabaseStorageEnabled, uploadBuffer } from "@/lib/storage";
 
-const DEFAULT_PROVIDER = "stub";
-
-function getCloudConfig() {
-  return {
-    provider: process.env.UPLOADTHING_PROVIDER ?? DEFAULT_PROVIDER,
-    bucket: process.env.S3_BUCKET ?? "",
-    region: process.env.S3_REGION ?? "",
-    accessKey: process.env.S3_ACCESS_KEY ?? "",
-    secretKey: process.env.S3_SECRET_KEY ?? "",
-    endpoint: process.env.S3_ENDPOINT ?? "",
-    publicUrl: process.env.S3_PUBLIC_URL ?? "",
-  };
+function normalizeFileName(originalName: string) {
+  return originalName.replace(/\.[^/.]+$/, "").replace(/[-_]+/g, " ").trim() || "Uploaded media";
 }
 
-function buildFileKey(originalName: string) {
-  const extension = originalName.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") ?? "bin";
-  const date = new Date();
-  const directory = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
-  return `uploads/${directory}/${crypto.randomUUID()}.${extension}`;
-}
-
-async function handleStubUpload(prismaClient: PrismaClient, sessionUserId: string, file: File, altText: string) {
-  const fakePath = `/uploads/${crypto.randomUUID()}.${file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") ?? "png"}`;
-
-  const media = await prismaClient.media.create({
-    data: {
-      url: fakePath,
-      alt: altText,
-      ownerId: sessionUserId,
-    },
-    select: { id: true, url: true, alt: true, createdAt: true },
-  });
-
-  return NextResponse.json({
-    success: true,
-    files: [
-      {
-        id: media.id,
-        url: media.url,
-        alt: media.alt,
-        createdAt: media.createdAt,
-      },
-    ],
-    provider: DEFAULT_PROVIDER,
-  });
-}
-
-async function uploadToS3(config: ReturnType<typeof getCloudConfig>, key: string, file: File) {
-  const client = new S3Client({
-    region: config.region,
-    endpoint: config.endpoint || undefined,
-    forcePathStyle: Boolean(config.endpoint),
-    credentials: {
-      accessKeyId: config.accessKey,
-      secretAccessKey: config.secretKey,
+async function persistMedia(
+  prisma: PrismaClient,
+  data: {
+    path: string;
+    mimeType: string;
+    sizeBytes: number;
+    checksum: string;
+    publicUrl: string;
+    alt: string;
+    ownerId: string;
+  },
+) {
+  return prisma.media.create({
+    data,
+    select: {
+      id: true,
+      path: true,
+      mimeType: true,
+      sizeBytes: true,
+      checksum: true,
+      publicUrl: true,
+      alt: true,
+      createdAt: true,
     },
   });
-
-  const body = Buffer.from(await file.arrayBuffer());
-
-  await client.send(
-    new PutObjectCommand({
-      Bucket: config.bucket,
-      Key: key,
-      Body: body,
-      ContentType: file.type || "application/octet-stream",
-    }),
-  );
 }
 
-function resolvePublicUrl(config: ReturnType<typeof getCloudConfig>, key: string) {
-  if (config.publicUrl) {
-    return `${config.publicUrl.replace(/\/$/, "")}/${key}`;
+async function uploadWithFallback(buffer: Buffer, filename: string, mimeType: string | undefined) {
+  const originalConfig = getStorageConfig();
+
+  try {
+    return await uploadBuffer(buffer, filename, mimeType);
+  } catch (error) {
+    if (isSupabaseStorageEnabled()) {
+      logger.error({ err: error }, "Supabase upload failed, switching to stub storage");
+      configureStorage({ supabaseUrl: "", supabaseBucket: "", supabaseServiceRoleKey: "" });
+      try {
+        return await uploadBuffer(buffer, filename, mimeType);
+      } finally {
+        configureStorage(originalConfig);
+      }
+    }
+
+    throw error;
   }
-  return `https://${config.bucket}.s3.${config.region}.amazonaws.com/${key}`;
 }
 
 export async function POST(request: Request) {
-  const config = getCloudConfig();
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -104,26 +78,21 @@ export async function POST(request: Request) {
 
   const asFile = file as File;
   const originalName = typeof asFile.name === "string" && asFile.name ? asFile.name : "upload.bin";
-  const altText = originalName.replace(/\.[^/.]+$/, "").replace(/[-_]+/g, " ").trim() || "Uploaded media";
+  const altText = normalizeFileName(originalName);
 
-  const hasCloudCredentials =
-    config.provider !== DEFAULT_PROVIDER && config.bucket && config.region && config.accessKey && config.secretKey;
-
-  if (!hasCloudCredentials) {
-    return handleStubUpload(prisma, session.user.id, asFile, altText);
-  }
+  const buffer = Buffer.from(await asFile.arrayBuffer());
 
   try {
-    const key = buildFileKey(originalName);
-    await uploadToS3(config, key, asFile);
+    const uploadResult = await uploadWithFallback(buffer, originalName, asFile.type);
 
-    const media = await prisma.media.create({
-      data: {
-        url: resolvePublicUrl(config, key),
-        alt: altText,
-        ownerId: session.user.id,
-      },
-      select: { id: true, url: true, alt: true, createdAt: true },
+    const media = await persistMedia(prisma, {
+      path: uploadResult.path,
+      mimeType: uploadResult.mimeType,
+      sizeBytes: uploadResult.sizeBytes,
+      checksum: uploadResult.checksum,
+      publicUrl: uploadResult.publicUrl,
+      alt: altText,
+      ownerId: session.user.id,
     });
 
     return NextResponse.json({
@@ -131,15 +100,19 @@ export async function POST(request: Request) {
       files: [
         {
           id: media.id,
-          url: media.url,
+          url: media.publicUrl,
+          path: media.path,
+          mimeType: media.mimeType,
+          sizeBytes: media.sizeBytes,
+          checksum: media.checksum,
           alt: media.alt,
           createdAt: media.createdAt,
         },
       ],
-      provider: config.provider,
+      provider: uploadResult.provider,
     });
   } catch (error) {
-    console.error("Cloud upload failed, falling back to stub", error);
-    return handleStubUpload(prisma, session.user.id, asFile, altText);
+    logger.error({ err: error }, "Upload failed");
+    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
   }
 }

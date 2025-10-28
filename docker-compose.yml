@@ -1,15 +1,15 @@
 version: '3.9'
 services:
-  postgres:
-    image: postgres:15
+  mysql:
+    image: mysql:8
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: devlogia_local
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: devlogia
+    command: ["mysqld", "--default-authentication-plugin=mysql_native_password", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - mysql-data:/var/lib/mysql
 volumes:
-  pgdata:
+  mysql-data:

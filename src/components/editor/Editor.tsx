@@ -640,7 +640,7 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
     } catch (error) {
       console.error("Upload failed", error);
       setUploadState("error");
-      setUploadMessage("Gagal mengunggah gambar stub.");
+      setUploadMessage("Gagal mengunggah media.");
     }
   }
 
