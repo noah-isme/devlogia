@@ -20,6 +20,8 @@ export type StorageConfig = {
   supabaseBucket: string;
   supabaseServiceRoleKey: string;
   localUploadDir: string;
+  maxFileSizeBytes: number;
+  allowedMimeTypes: string[];
 };
 
 const defaultConfig: StorageConfig = {
@@ -28,6 +30,12 @@ const defaultConfig: StorageConfig = {
     process.env.SUPABASE_STORAGE_BUCKET ?? process.env.NEXT_PUBLIC_SUPABASE_BUCKET ?? "",
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
   localUploadDir: process.env.LOCAL_UPLOAD_DIR ?? path.join(process.cwd(), "public", "uploads"),
+  maxFileSizeBytes:
+    Number.parseInt(process.env.SUPABASE_MAX_FILE_SIZE_MB ?? "10", 10) * 1024 * 1024 || 10 * 1024 * 1024,
+  allowedMimeTypes: (process.env.SUPABASE_ALLOWED_MIME_TYPES ?? "image/*,video/*,audio/*,application/pdf,text/plain")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean),
 };
 
 let supabaseClient: SupabaseClient | null = null;
@@ -76,16 +84,84 @@ async function ensureLocalDir(dir: string) {
   await mkdir(dir, { recursive: true });
 }
 
+function inferMimeType(filename: string) {
+  const extension = filename.split(".").pop()?.toLowerCase();
+  if (!extension) {
+    return "application/octet-stream";
+  }
+
+  const lookup: Record<string, string> = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+    gif: "image/gif",
+    svg: "image/svg+xml",
+    mp4: "video/mp4",
+    mov: "video/quicktime",
+    mp3: "audio/mpeg",
+    wav: "audio/wav",
+    pdf: "application/pdf",
+    txt: "text/plain",
+  };
+
+  return lookup[extension] ?? "application/octet-stream";
+}
+
+function isMimeAllowed(mimeType: string, allowed: string[]) {
+  const [type, subtype] = mimeType.toLowerCase().split("/");
+  if (!type || !subtype) {
+    return false;
+  }
+
+  return allowed.some((pattern) => {
+    if (pattern === "*") {
+      return true;
+    }
+    const [allowedType, allowedSubType] = pattern.split("/");
+    if (!allowedType) {
+      return false;
+    }
+    if (allowedType === "*") {
+      return true;
+    }
+    if (allowedType !== type) {
+      return false;
+    }
+    if (!allowedSubType || allowedSubType === "*") {
+      return true;
+    }
+    return allowedSubType === subtype;
+  });
+}
+
+function validateUpload(buffer: Buffer, filename: string, mimeType: string, config: StorageConfig) {
+  if (!filename || !filename.trim()) {
+    throw new Error("Filename is required for uploads");
+  }
+
+  if (buffer.byteLength > config.maxFileSizeBytes) {
+    throw new Error(
+      `File exceeds maximum size of ${Math.round(config.maxFileSizeBytes / (1024 * 1024))}MB`,
+    );
+  }
+
+  if (!isMimeAllowed(mimeType, config.allowedMimeTypes)) {
+    throw new Error(`Mime type ${mimeType} is not permitted`);
+  }
+}
+
 export async function uploadBuffer(buffer: Buffer, filename: string, mimeType?: string): Promise<UploadResult> {
   const config = getStorageConfig();
+  const resolvedMimeType = mimeType && mimeType.trim() ? mimeType : inferMimeType(filename || "upload.bin");
+  validateUpload(buffer, filename, resolvedMimeType, config);
   const checksum = createHash("sha256").update(buffer).digest("hex");
   const objectPath = buildObjectPath(filename || "upload.bin");
-  const contentType = mimeType && mimeType.trim() ? mimeType : "application/octet-stream";
 
   if (isSupabaseStorageEnabled()) {
     const client = getSupabaseClient();
     const upload = await client.storage.from(config.supabaseBucket).upload(objectPath, buffer, {
-      contentType,
+      contentType: resolvedMimeType,
       upsert: false,
     });
 
@@ -98,7 +174,7 @@ export async function uploadBuffer(buffer: Buffer, filename: string, mimeType?: 
 
     return {
       path: objectPath,
-      mimeType: contentType,
+      mimeType: resolvedMimeType,
       sizeBytes: buffer.byteLength,
       checksum,
       publicUrl: data.publicUrl,
@@ -113,7 +189,7 @@ export async function uploadBuffer(buffer: Buffer, filename: string, mimeType?: 
 
   return {
     path: objectPath,
-    mimeType: contentType,
+    mimeType: resolvedMimeType,
     sizeBytes: buffer.byteLength,
     checksum,
     publicUrl: `/uploads/${objectPath.split("/").slice(1).join("/")}`,

@@ -1,8 +1,16 @@
+import { createHash } from "node:crypto";
+
 import { unstable_cache } from "next/cache";
 import { NextResponse } from "next/server";
 
 import { siteConfig } from "@/lib/seo";
-import { buildRateLimitHeaders, checkRateLimit, parseRateLimit, resolveRateLimitKey } from "@/lib/ratelimit";
+import {
+  buildRateLimitHeaders,
+  checkRateLimit,
+  isRateLimitBypassed,
+  parseRateLimit,
+  resolveRateLimitKey,
+} from "@/lib/ratelimit";
 
 export const revalidate = 60;
 
@@ -57,23 +65,32 @@ const getPublishedPosts = unstable_cache(
 export async function GET(request: Request) {
   const identifier = resolveRateLimitKey(request, "posts-anonymous");
   const rateKey = `posts:${identifier}`;
-  const rateResult = checkRateLimit(rateKey, postsRateLimit, postsRateWindow);
+  const bypass = isRateLimitBypassed(request);
+  const rateResult = await checkRateLimit(rateKey, postsRateLimit, postsRateWindow, { bypass });
+  const rateHeaders = buildRateLimitHeaders(rateResult, postsRateLimit);
 
   if (!rateResult.success) {
-    return NextResponse.json(
-      { error: "Too many requests" },
-      { status: 429, headers: buildRateLimitHeaders(rateResult, postsRateLimit) },
-    );
+    return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: rateHeaders });
   }
 
   const posts = await getPublishedPosts();
-  return NextResponse.json(
-    { posts },
-    {
-      headers: {
-        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
-        ...buildRateLimitHeaders(rateResult, postsRateLimit),
-      },
+  const payload = { posts };
+  const json = JSON.stringify(payload);
+  const hash = createHash("sha256").update(json).digest("hex");
+  const latest = posts[0]?.updatedAt ?? null;
+
+  const response = new NextResponse(json, {
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+      ...rateHeaders,
     },
-  );
+  });
+
+  response.headers.set("ETag", hash);
+  if (latest) {
+    response.headers.set("Last-Modified", new Date(latest).toUTCString());
+  }
+
+  return response;
 }

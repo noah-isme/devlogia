@@ -15,6 +15,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminLayout({ children }: AdminLayoutProps) {
   const session = await auth();
   const role = session?.user?.role;
+  const maintenanceMode = process.env.MAINTENANCE_MODE === "true";
   const navItems = [
     { href: "/admin/dashboard", label: "Dashboard" },
     { href: "/admin/posts", label: "Posts" },
@@ -56,6 +57,15 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
           id="main-content"
           className="flex-1 rounded-3xl border border-border/60 bg-background/90 p-4 shadow-sm sm:p-6 lg:p-8"
         >
+          {maintenanceMode && (
+            <div className="mb-6 rounded-2xl border border-amber-300/50 bg-amber-100/80 p-4 text-amber-950 shadow-sm">
+              <p className="text-sm font-semibold">Maintenance mode enabled</p>
+              <p className="mt-1 text-sm text-amber-900/80">
+                Public traffic is routed to the maintenance page. Complete validation and switch traffic using the
+                rollout playbook before disabling maintenance mode.
+              </p>
+            </div>
+          )}
           <header className="mb-8 flex flex-col gap-4 border-b border-border/60 pb-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-xl font-semibold tracking-tight text-foreground">

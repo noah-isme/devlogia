@@ -1,13 +1,14 @@
 import crypto from "crypto";
 import { revalidatePath } from "next/cache";
 
-import { checkRateLimit } from "@/lib/ratelimit";
+import { buildRateLimitHeaders, checkRateLimit } from "@/lib/ratelimit";
 
 export async function POST(req: Request) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const rate = checkRateLimit(`webhook:${ip}`, 60, 60_000);
+  const rate = await checkRateLimit(`webhook:${ip}`, 60, 60_000);
+  const rateHeaders = buildRateLimitHeaders(rate, 60);
   if (!rate.success) {
-    return new Response("Rate limit exceeded", { status: 429 });
+    return new Response("Rate limit exceeded", { status: 429, headers: rateHeaders });
   }
 
   const sig = req.headers.get("x-devlogia-signature");
@@ -35,5 +36,5 @@ export async function POST(req: Request) {
   } else {
     revalidatePath(`/`);
   }
-  return Response.json({ revalidated: true });
+  return Response.json({ revalidated: true }, { headers: rateHeaders });
 }

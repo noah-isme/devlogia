@@ -1,15 +1,38 @@
 import pino from "pino";
 
-const level = process.env.LOG_LEVEL ?? (process.env.NODE_ENV === "production" ? "info" : "debug");
+const service = process.env.LOG_SERVICE_NAME ?? "devlogia";
+const environment = process.env.NODE_ENV ?? "development";
+const level = process.env.LOG_LEVEL ?? (environment === "production" ? "info" : "debug");
+
+const logtailToken = process.env.LOGTAIL_TOKEN;
+
+const transport = (() => {
+  if (environment === "production") {
+    if (logtailToken) {
+      return {
+        target: "@/lib/logtail-transport",
+        options: { token: logtailToken },
+      } as const;
+    }
+    return undefined;
+  }
+
+  return {
+    target: "pino-pretty",
+    options: { colorize: true, singleLine: true },
+  } as const;
+})();
 
 export const logger = pino({
   level,
-  base: undefined,
-  transport:
-    process.env.NODE_ENV === "production"
-      ? undefined
-      : {
-          target: "pino-pretty",
-          options: { colorize: true, singleLine: true },
-        },
+  base: { service, environment },
+  timestamp: () => `,"ts":"${new Date().toISOString()}"`,
+  formatters: {
+    level: (label) => ({ level: label }),
+  },
+  transport,
 });
+
+export function createRequestLogger(context: { reqId: string; route?: string; method?: string; ip?: string }) {
+  return logger.child(context);
+}

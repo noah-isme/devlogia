@@ -37,6 +37,14 @@ jobs:
       SUPABASE_ANON_KEY: ${{ matrix.storage == 'supabase' && secrets.SUPABASE_ANON_KEY || '' }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ matrix.storage == 'supabase' && secrets.SUPABASE_SERVICE_ROLE_KEY || '' }}
       SUPABASE_STORAGE_BUCKET: devlogia-media
+      SUPABASE_MAX_FILE_SIZE_MB: 15
+      SUPABASE_ALLOWED_MIME_TYPES: image/*,video/*,audio/*,application/pdf
+      LOGTAIL_TOKEN: test-logtail-token
+      RATE_LIMIT_REDIS_URL: redis://localhost:6379/0
+      RATE_LIMIT_ALLOWLIST: 127.0.0.1
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      MAINTENANCE_MODE: "false"
+      CSP_REPORT_URI: ""
       NEXT_PUBLIC_SUPABASE_URL: ${{ matrix.storage == 'supabase' && secrets.SUPABASE_URL || '' }}
       NEXT_PUBLIC_SUPABASE_BUCKET: devlogia-media
       SEED_SUPERADMIN_EMAIL: owner@devlogia.test
@@ -83,12 +91,25 @@ jobs:
             echo "Docker Compose not available; assuming database service is running."
           fi
           pnpm db:reset
-      - name: Lint, Typecheck, Test, Build
-        run: |
-          pnpm lint
-          pnpm typecheck
-          pnpm test
-          CI=1 pnpm build
+      - name: Run lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests with coverage
+        run: pnpm test -- --coverage
+
+      - name: Build
+        env:
+          CI: 1
+        run: pnpm build
+
+      - name: Validate OpenAPI
+        run: pnpm openapi:validate
+
+      - name: Capture CI database backup
+        run: pnpm db:backup -- --out backups/ci
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps
       - name: Run E2E tests
@@ -100,6 +121,18 @@ jobs:
           trap "kill $APP_PID" EXIT
           npx wait-on http://127.0.0.1:3000
           pnpm test:e2e
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.node }}-${{ matrix.storage }}
+          path: coverage
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ matrix.node }}-${{ matrix.storage }}
+          path: backups/ci
 
   upload-openapi:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'

@@ -31,6 +31,8 @@ describe("storage", () => {
       supabaseBucket: "",
       supabaseServiceRoleKey: "",
       localUploadDir: tmpDir,
+      maxFileSizeBytes: 1024,
+      allowedMimeTypes: ["text/plain"],
     });
 
     const buffer = Buffer.from("hello world");
@@ -57,4 +59,32 @@ describe("storage", () => {
 
     await rm(tmpDir, { recursive: true, force: true });
   });
+});
+
+test("uploadBuffer rejects disallowed mime types", async () => {
+  configureStorage({
+    supabaseUrl: "",
+    supabaseBucket: "",
+    supabaseServiceRoleKey: "",
+    localUploadDir: path.join(os.tmpdir(), "devlogia-invalid"),
+    allowedMimeTypes: ["image/png"],
+    maxFileSizeBytes: 1024,
+  });
+
+  const buffer = Buffer.from("data");
+  await expect(uploadBuffer(buffer, "note.txt", "text/plain")).rejects.toThrow(/not permitted/);
+});
+
+test("uploadBuffer enforces size limits", async () => {
+  configureStorage({
+    supabaseUrl: "",
+    supabaseBucket: "",
+    supabaseServiceRoleKey: "",
+    localUploadDir: path.join(os.tmpdir(), "devlogia-size"),
+    allowedMimeTypes: ["text/plain"],
+    maxFileSizeBytes: 4,
+  });
+
+  const buffer = Buffer.from("too large");
+  await expect(uploadBuffer(buffer, "large.txt", "text/plain")).rejects.toThrow(/maximum size/);
 });
