@@ -33,6 +33,9 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",
+    "embeddings:generate": "tsx scripts/generate-embeddings.ts",
+    "insights:ai-report": "tsx scripts/ai-report.ts",
+    "insights:daily": "tsx scripts/insights-daily.ts",
     "deploy:staging": "node scripts/deploy-staging.mjs",
     "deploy:promote": "node scripts/deploy-promote.mjs"
   },

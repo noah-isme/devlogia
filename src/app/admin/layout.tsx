@@ -23,8 +23,12 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   ];
 
   if (role === "superadmin") {
-    navItems.splice(1, 0, { href: "/admin/analytics", label: "Analytics" });
+    navItems.splice(1, 0, { href: "/admin/insights", label: "Insights" });
+    navItems.splice(2, 0, { href: "/admin/analytics", label: "Analytics" });
+    navItems.push({ href: "/admin/topics", label: "Topics" });
     navItems.push({ href: "/admin/users", label: "Users" });
+  } else if (role === "editor") {
+    navItems.push({ href: "/admin/topics", label: "Topics" });
   }
 
   return (
