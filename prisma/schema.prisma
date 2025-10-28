@@ -31,6 +31,7 @@ model User {
   roles        UserRole[]
   aiUsage      AIUsage[]
   aiAuditLogs  AIAuditLog[]
+  profile      UserProfile?
 }
 
 model Role {
@@ -74,6 +75,7 @@ model Post {
   headlineVariants HeadlineVariant[]
   aiUsage          AIUsage[]
   aiAuditLogs      AIAuditLog[]
+  contentVector    ContentVector?
 
   @@index([status, publishedAt])
 }
@@ -212,6 +214,58 @@ model RecommendationSnapshot {
   embedding    Embedding @relation(fields: [embeddingId], references: [id])
 
   @@index([embeddingId])
+}
+
+model UserProfile {
+  id                     String   @id @default(cuid()) @db.VarChar(191)
+  userId                 String   @unique @db.VarChar(191)
+  topics                 Json     @default("{}")
+  preferences            Json     @default("{}")
+  featureVector          Json?
+  avgReadTimeSeconds     Int      @default(0)
+  sessionCount           Int      @default(0)
+  viewCount              Int      @default(0)
+  tonePreference         String?  @db.VarChar(64)
+  segment                String?  @db.VarChar(64)
+  personalizationOptOut  Boolean  @default(false)
+  analyticsOptOut        Boolean  @default(false)
+  lastActiveAt           DateTime?
+  lastInsightRefresh     DateTime?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  user                   User     @relation(fields: [userId], references: [id])
+  affinities             UserContentAffinity[]
+}
+
+model ContentVector {
+  id               String   @id @default(cuid()) @db.VarChar(191)
+  postId           String   @unique @db.VarChar(191)
+  embedding        Json
+  topicTags        Json     @default("[]")
+  engagementScore  Float    @default(0)
+  freshnessScore   Float    @default(0)
+  highlights       Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  post             Post     @relation(fields: [postId], references: [id])
+  affinities       UserContentAffinity[]
+}
+
+model UserContentAffinity {
+  id              String   @id @default(cuid()) @db.VarChar(191)
+  userProfileId   String   @db.VarChar(191)
+  contentVectorId String   @db.VarChar(191)
+  affinity        Float    @default(0)
+  reason          Json?
+  lastEngagedAt   DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  userProfile     UserProfile   @relation(fields: [userProfileId], references: [id])
+  contentVector   ContentVector @relation(fields: [contentVectorId], references: [id])
+
+  @@unique([userProfileId, contentVectorId])
+  @@index([contentVectorId])
+  @@map("user_content_affinity")
 }
 
 model TopicCluster {

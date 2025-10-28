@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/json-ld";
 import { PostShareSection } from "@/components/post-share-section";
 import { FeedbackForm } from "@/components/feedback-form";
+import { KeyHighlights } from "@/components/personalization/KeyHighlights";
+import { PersonalizedFeedSection } from "@/components/personalization/PersonalizedFeedSection";
 import { renderMdx } from "@/lib/mdx";
 import {
   buildBlogPostingJsonLd,
@@ -199,10 +201,14 @@ export default async function BlogPostPage({ params }: PageProps) {
         </aside>
       ) : null}
       <PostShareSection url={shareUrl} title={post.title} />
+      <KeyHighlights slug={post.slug} />
       <div className="prose-headings:scroll-mt-24 prose-a:text-foreground prose-pre:bg-muted/60">
         {content}
       </div>
       <FeedbackForm slug={post.slug} />
+      <div className="not-prose mt-10">
+        <PersonalizedFeedSection contextPostId={post.id} title="More for you" />
+      </div>
       <JsonLd id="breadcrumbs-jsonld" data={breadcrumbs} />
       <JsonLd id="blogposting-jsonld" data={blogPosting} />
     </article>

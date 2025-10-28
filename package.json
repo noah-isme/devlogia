@@ -39,6 +39,9 @@
     "ai:purge-cache": "tsx scripts/ai-purge-cache.ts",
     "ai:audit-export": "tsx scripts/ai-audit-export.ts",
     "insights:daily": "tsx scripts/insights-daily.ts",
+    "insights:refresh": "tsx scripts/insights-refresh.ts",
+    "feed:simulate": "tsx scripts/feed-simulate.ts",
+    "profile:rebuild": "tsx scripts/profile-rebuild.ts",
     "deploy:staging": "node scripts/deploy-staging.mjs",
     "deploy:promote": "node scripts/deploy-promote.mjs"
   },

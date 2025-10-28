@@ -106,6 +106,13 @@ export type HeadlineVariantsWithUsage = {
   usage: AICompletionUsage;
 };
 
+export type SummaryWithUsage = {
+  summary: string;
+  highlights: string[];
+  usage: AICompletionUsage;
+  model?: string;
+};
+
 export type SEOValidation = {
   slugAvailable: boolean;
   conflictingTitles: Array<{ id: string; title: string; similarity: number }>;

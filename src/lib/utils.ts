@@ -30,3 +30,13 @@ export function estimateReadingTime(content: string) {
   return text;
 }
 
+export function clamp(value: number, min: number, max: number) {
+  if (Number.isNaN(value) || Number.isNaN(min) || Number.isNaN(max)) {
+    return min;
+  }
+  if (min > max) {
+    return clamp(value, max, min);
+  }
+  return Math.min(Math.max(value, min), max);
+}
+

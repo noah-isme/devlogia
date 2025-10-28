@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
@@ -25,6 +26,14 @@ export default async function InsightsPage() {
           Monitor behavioral analytics, sentiment shifts, and generate weekly AI summaries for your editorial team.
         </p>
       </header>
+      <nav className="flex gap-4 text-sm">
+        <Link href="/admin/insights" className="font-medium text-foreground">
+          Overview
+        </Link>
+        <Link href="/admin/insights/ai" className="text-muted-foreground hover:text-foreground">
+          AI predictions
+        </Link>
+      </nav>
       <InsightsDashboard range={30} />
       <InsightsReportGenerator range={30} />
     </div>

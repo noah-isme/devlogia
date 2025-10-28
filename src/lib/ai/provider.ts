@@ -5,6 +5,7 @@ import {
   type OutlineResult,
   type OutlineResultWithUsage,
   type RelatedPost,
+  type SummaryWithUsage,
   type SeoSuggestionResult,
   type ToneAnalysis,
   type ToneAnalysisResult,
@@ -37,6 +38,13 @@ export interface AIProvider {
     tags?: string[];
     count: number;
   }): Promise<HeadlineVariantsWithUsage>;
+  summarize(options: {
+    title: string;
+    content: string;
+    language?: string;
+    paragraphs?: number;
+    highlights?: number;
+  }): Promise<SummaryWithUsage>;
 }
 
 const DEFAULT_USAGE: AICompletionUsage = {
@@ -120,6 +128,34 @@ function deterministicHeadlines(baseTitle: string, count: number): string[] {
   ];
   const unique = Array.from(new Set(variations.map((item) => item.trim()).filter(Boolean)));
   return unique.slice(0, Math.max(1, Math.min(count, unique.length)));
+}
+
+function fallbackSummary(options: { title: string; content: string; paragraphs: number; highlights: number }) {
+  const normalized = options.content
+    .replace(/\s+/g, " ")
+    .replace(/[#*_`>]/g, "")
+    .trim();
+  if (!normalized) {
+    const summary = `${options.title}`;
+    return { summary, highlights: [options.title] };
+  }
+  const sentences = normalized.split(/(?<=[.!?])\s+/).filter((sentence) => sentence.length >= 12);
+  const paragraphs: string[] = [];
+  const chunkSize = Math.max(1, Math.ceil(sentences.length / options.paragraphs));
+  for (let index = 0; index < sentences.length && paragraphs.length < options.paragraphs; index += chunkSize) {
+    const chunk = sentences.slice(index, index + chunkSize).join(" ");
+    paragraphs.push(chunk.trim());
+  }
+  if (!paragraphs.length) {
+    paragraphs.push(sentences.slice(0, Math.max(1, Math.min(sentences.length, 3))).join(" "));
+  }
+  const summary = paragraphs.join("\n\n");
+  const highlights = paragraphs
+    .flatMap((paragraph) => paragraph.split(/(?<=[.!?])\s+/))
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length >= 12)
+    .slice(0, options.highlights);
+  return { summary, highlights: highlights.length ? highlights : paragraphs.slice(0, options.highlights) };
 }
 
 export class NullProvider implements AIProvider {
@@ -214,6 +250,24 @@ export class NullProvider implements AIProvider {
       usage: DEFAULT_USAGE,
     } satisfies HeadlineVariantsWithUsage;
   }
+
+  async summarize(options: {
+    title: string;
+    content: string;
+    language?: string;
+    paragraphs?: number;
+    highlights?: number;
+  }): Promise<SummaryWithUsage> {
+    const paragraphs = Math.max(1, Math.min(options.paragraphs ?? 3, 6));
+    const highlightCount = Math.max(3, Math.min(options.highlights ?? 5, 8));
+    const fallback = fallbackSummary({
+      title: options.title,
+      content: options.content,
+      paragraphs,
+      highlights: highlightCount,
+    });
+    return { summary: fallback.summary, highlights: fallback.highlights, usage: DEFAULT_USAGE, model: "null" } satisfies SummaryWithUsage;
+  }
 }
 
 export class OpenAIProvider implements AIProvider {
@@ -231,9 +285,11 @@ export class OpenAIProvider implements AIProvider {
     responseFormat?: "json" | "text";
     temperature?: number;
     maxTokens?: number;
-  }): Promise<{ text: string; usage: AICompletionUsage }> {
+    model?: string;
+  }): Promise<{ text: string; usage: AICompletionUsage; model: string }> {
+    const model = options.model ?? this.model;
     const body = {
-      model: this.model,
+      model,
       input: options.prompt,
       system: options.system,
       temperature: options.temperature ?? Number(process.env.AI_TEMPERATURE ?? "0.6"),
@@ -270,7 +326,7 @@ export class OpenAIProvider implements AIProvider {
       tokensOut: data.usage?.output_tokens ?? 0,
       costUsd: Number(data.usage?.total_cost ?? 0),
     };
-    return { text: text.trim(), usage };
+    return { text: text.trim(), usage, model };
   }
 
   async writer(request: WriterRequest): Promise<AICompletionResult> {
@@ -341,6 +397,57 @@ export class OpenAIProvider implements AIProvider {
     });
     const parsed = parseHeadlineJson(text, options.count, options.baseTitle);
     return { variants: parsed, usage } satisfies HeadlineVariantsWithUsage;
+  }
+
+  async summarize(options: {
+    title: string;
+    content: string;
+    language?: string;
+    paragraphs?: number;
+    highlights?: number;
+  }): Promise<SummaryWithUsage> {
+    const paragraphs = Math.max(1, Math.min(options.paragraphs ?? 3, 6));
+    const highlightCount = Math.max(3, Math.min(options.highlights ?? 5, 8));
+    const summarizerModel = process.env.AI_MODEL_SUMMARIZER?.trim() || this.model;
+    const prompt = `Summarize the following article in ${paragraphs} paragraphs (separated by two newlines). ` +
+      `Return JSON with keys summary (string) and highlights (array of ${highlightCount} bullet sentences).` +
+      ` Focus on actionable developer insights. Article title: ${options.title}. Language: ${options.language ?? "en"}.` +
+      ` Article body:\n"""\n${truncate(options.content, 6000)}\n"""`;
+    try {
+      const { text, usage, model } = await this.request({
+        prompt,
+        responseFormat: "json",
+        temperature: 0.2,
+        maxTokens: 900,
+        model: summarizerModel,
+      });
+      const parsed = JSON.parse(text) as Partial<{ summary: string; highlights: string[] }>;
+      const fallback = fallbackSummary({
+        title: options.title,
+        content: options.content,
+        paragraphs,
+        highlights: highlightCount,
+      });
+      const summary = parsed.summary?.trim()?.replace(/\n{3,}/g, "\n\n") || fallback.summary;
+      const highlights = Array.isArray(parsed.highlights)
+        ? parsed.highlights.map((item) => String(item).trim()).filter(Boolean).slice(0, highlightCount)
+        : fallback.highlights;
+      return {
+        summary,
+        highlights: highlights.length ? highlights : fallback.highlights,
+        usage,
+        model,
+      } satisfies SummaryWithUsage;
+    } catch (error) {
+      console.warn("OpenAI summary request failed", error);
+      const fallback = fallbackSummary({
+        title: options.title,
+        content: options.content,
+        paragraphs,
+        highlights: highlightCount,
+      });
+      return { summary: fallback.summary, highlights: fallback.highlights, usage: DEFAULT_USAGE, model: summarizerModel } satisfies SummaryWithUsage;
+    }
   }
 }
 
@@ -439,6 +546,47 @@ export class HFProvider implements AIProvider {
     const text = await this.request(prompt);
     const variants = parseHeadlineJson(text, options.count, options.baseTitle);
     return { variants, usage: estimateUsage(prompt, text) } satisfies HeadlineVariantsWithUsage;
+  }
+
+  async summarize(options: {
+    title: string;
+    content: string;
+    language?: string;
+    paragraphs?: number;
+    highlights?: number;
+  }): Promise<SummaryWithUsage> {
+    const paragraphs = Math.max(1, Math.min(options.paragraphs ?? 3, 6));
+    const highlightCount = Math.max(3, Math.min(options.highlights ?? 5, 8));
+    const fallback = fallbackSummary({
+      title: options.title,
+      content: options.content,
+      paragraphs,
+      highlights: highlightCount,
+    });
+    const prompt =
+      `Summarize the article "${options.title}" in ${paragraphs} paragraphs separated by blank lines, ` +
+      `followed by a section starting with 'Highlights:' containing ${highlightCount} bullet lines.\n\n${truncate(options.content, 4000)}`;
+    try {
+      const text = await this.request(prompt);
+      const usage = estimateUsage(prompt, text);
+      const [summaryPart, highlightPartRaw] = text.split(/Highlights:/i);
+      const summary = summaryPart?.trim().replace(/\n{3,}/g, "\n\n") || fallback.summary;
+      const highlightPart = highlightPartRaw?.trim() ?? "";
+      const highlights = highlightPart
+        .split(/\n|•|-/)
+        .map((line) => line.trim())
+        .filter((line) => line.length >= 8)
+        .slice(0, highlightCount);
+      return {
+        summary,
+        highlights: highlights.length ? highlights : fallback.highlights,
+        usage,
+        model: this.model,
+      } satisfies SummaryWithUsage;
+    } catch (error) {
+      console.warn("HF summary request failed", error);
+      return { summary: fallback.summary, highlights: fallback.highlights, usage: DEFAULT_USAGE, model: this.model } satisfies SummaryWithUsage;
+    }
   }
 }
 
