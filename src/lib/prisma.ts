@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 const databaseUrl = process.env.DATABASE_URL ?? "";
 const isFakeDatabaseUrl = databaseUrl.startsWith("fake://");
-const fallbackPrismaUrl = "postgresql://stub:stub@127.0.0.1:6543/devlogia_static?schema=public";
+const fallbackPrismaUrl = "mysql://stub:stub@127.0.0.1:3306/devlogia_static";
 let loggedSkipMessage = false;
 
 const logSkipMessage = () => {

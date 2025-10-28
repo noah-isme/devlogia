@@ -2,7 +2,7 @@ import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
 const rawDatabaseUrl = process.env.DATABASE_URL ?? "fake://stub";
-const fallbackDatasourceUrl = "postgresql://stub:stub@127.0.0.1:6543/devlogia_static?schema=public";
+const fallbackDatasourceUrl = "mysql://stub:stub@127.0.0.1:3306/devlogia_static";
 const datasourceUrl = rawDatabaseUrl.startsWith("fake://") ? fallbackDatasourceUrl : rawDatabaseUrl;
 
 export default defineConfig({

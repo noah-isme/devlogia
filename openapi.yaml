@@ -246,6 +246,20 @@ components:
           type: string
           format: uri
           example: https://cdn.devlogia.test/uploads/2024-04-01/header.png
+        path:
+          type: string
+          example: uploads/2024-04-01/header.png
+        mimeType:
+          type: string
+          example: image/png
+        sizeBytes:
+          type: integer
+          example: 24576
+        checksum:
+          type: string
+          minLength: 64
+          maxLength: 64
+          example: 0f343b0931126a20f133d67c2b018a3b
         alt:
           type: string
           example: Team photo
@@ -255,6 +269,10 @@ components:
       required:
         - id
         - url
+        - path
+        - mimeType
+        - sizeBytes
+        - checksum
         - alt
         - createdAt
     UploadResponse:
@@ -264,7 +282,9 @@ components:
           type: boolean
         provider:
           type: string
-          example: stub
+          enum:
+            - supabase
+            - stub
         files:
           type: array
           items:

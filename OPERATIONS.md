@@ -1,0 +1,123 @@
+# 🛠️ Devlogia Operations Runbook
+
+This runbook documents the day-two operations for Devlogia's MySQL + Supabase Storage stack. Keep it alongside your infrastructure repo and update it whenever the deployment topology changes.
+
+## 📦 Environment Overview
+
+| Component | Provider | Notes |
+| --------- | -------- | ----- |
+| Database  | Managed MySQL (e.g. PlanetScale, Aurora, RDS) | Prisma connects via the `DATABASE_URL` string. |
+| Storage   | Supabase Storage bucket (`SUPABASE_STORAGE_BUCKET`) | Public read, authenticated write with RLS policies below. |
+| Runtime   | Next.js 16 | Deployed via Vercel/Fly/Container runtime. |
+| Logging   | `pino` structured logs to stdout | Ship to Logtail/DataDog via platform log drains. |
+| Observability | Sentry (`SENTRY_DSN`) | Optional — init happens in `src/instrumentation.ts`. |
+
+## 🔐 Secrets Matrix
+
+| Secret | Rotation Cadence | Where to Update |
+| ------ | ---------------- | --------------- |
+| `DATABASE_URL` | Rotate when credentials change or cluster is reprovisioned. | GitHub Actions, deployment platform, `.env.production`. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Treat as highly privileged (server-only). Rotate quarterly. | CI secrets, serverless runtime env vars. |
+| `SUPABASE_ANON_KEY` | Public clients. Rotate annually or on leak. | `NEXT_PUBLIC_SUPABASE_URL/BUCKET`, web runtime. |
+| `NEXTAUTH_SECRET` | Rotate annually or on incident. | CI/deployment env. |
+| `SENTRY_DSN` | On demand. | Deployment env + CI (optional). |
+
+## 🗄️ MySQL Operations
+
+### Backups
+
+1. **Managed snapshots (recommended):**
+   - Enable automated daily snapshots with a 7–14 day retention policy on your managed MySQL provider.
+   - For PlanetScale, enable [backup scheduling](https://planetscale.com/docs/concepts/backups). For Aurora/RDS, configure automated backups with PITR.
+2. **Ad-hoc logical backup:**
+   - Run `mysqldump --single-transaction --column-statistics=0 --routines --triggers --databases devlogia > devlogia-$(date +%F).sql`.
+   - Store dumps in an encrypted bucket (e.g. AWS S3 with SSE).
+
+### Restores
+
+1. Provision a new MySQL instance (or temporary clone) with the target backup/snapshot.
+2. Update `DATABASE_URL` in CI/CD and application secrets to point at the restored endpoint.
+3. Run `pnpm prisma migrate deploy` to ensure schema parity, followed by `pnpm prisma db seed` if deterministic data is required.
+4. Validate with `pnpm test:e2e` or the shadow comparison tool (`pnpm shadow:compare`).
+
+### Scaling & Maintenance
+
+- Monitor slow queries via your provider's performance insights. Prisma logs queries in development when `LOG_LEVEL=debug`.
+- Keep connection pooling enabled (PlanetScale handles this automatically; for Aurora use ProxySQL/RDS Proxy if needed).
+- Always run schema changes through Prisma migrations checked into git.
+
+## 🪣 Supabase Storage
+
+### Bucket Provisioning
+
+```sql
+-- Run inside the Supabase SQL editor
+insert into storage.buckets (id, name, public) values ('devlogia-media', 'devlogia-media', true)
+on conflict (id) do update set public = true;
+```
+
+### Row-Level Security Policies
+
+```sql
+-- Allow anyone to read objects
+create policy "Public read"
+  on storage.objects for select
+  using (bucket_id = 'devlogia-media');
+
+-- Allow authenticated users to insert/delete
+create policy "Authenticated write"
+  on storage.objects for all
+  using (
+    bucket_id = 'devlogia-media'
+    and auth.role() = 'authenticated'
+  )
+  with check (bucket_id = 'devlogia-media');
+```
+
+Server-side uploads use the service role key and bypass RLS; client-side previews rely on the public bucket flag.
+
+### Key Rotation
+
+1. Generate a new service-role key in the Supabase dashboard (`Settings → API`).
+2. Update CI secrets (`SUPABASE_SERVICE_ROLE_KEY`) and deployment environment variables.
+3. Redeploy the application.
+4. Revoke the old key once the rollout is confirmed.
+
+## 🩺 Health & Monitoring
+
+- The `/api/health` endpoint reports database latency and storage status. Hook this into uptime monitoring (Pingdom, Better Uptime, etc.).
+- Logs are structured JSON via `pino`. Configure your platform's log drain to forward to Logtail, DataDog, or CloudWatch.
+- Enable Sentry by setting `SENTRY_DSN`, `SENTRY_TRACES_SAMPLE_RATE`, and `SENTRY_PROFILES_SAMPLE_RATE`. Adjust sampling for production traffic.
+
+## 🔁 Data Migration Aids
+
+- `pnpm etl` — ETL script for migrating data from the legacy PostgreSQL database to MySQL.
+- `pnpm shadow:compare` — Compare JSON hashes between the legacy API and the new stack for parity verification.
+- Always run migrations in a staging environment before touching production data.
+
+## 📋 Incident Checklist
+
+1. **Service degradation detected** (alerts or `/api/health` non-`ok`):
+   - Inspect recent deploys, DB metrics, and Supabase status.
+   - Fail open by toggling `SUPABASE_*` env vars off to fall back to stub storage if necessary.
+2. **Database outage:**
+   - Promote a replica or restore the latest snapshot. Update `DATABASE_URL`.
+   - Run smoke tests (`pnpm test:e2e`, admin CRUD) before reopening traffic.
+3. **Storage outage:**
+   - Switch to stub mode by clearing `SUPABASE_*` vars. Communicate reduced functionality to content editors.
+4. **Credential leak:**
+   - Rotate affected secrets immediately. Audit access logs.
+5. **Post-incident:**
+   - Document RCA, update runbooks, and schedule follow-up tasks.
+
+## ✅ Maintenance Cadence
+
+| Task | Frequency |
+| ---- | --------- |
+| Rotate Supabase service key | Quarterly |
+| Review MySQL slow query log | Weekly |
+| Verify backups & restore drill | Quarterly |
+| Audit Sentry alert thresholds | Monthly |
+| Update dependencies (`pnpm outdated`) | Monthly |
+
+Keep this runbook version-controlled. PRs that alter infrastructure should update this file with the new operational procedures.

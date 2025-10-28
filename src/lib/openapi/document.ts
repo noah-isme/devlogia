@@ -113,6 +113,10 @@ const UploadFileSchema = registry.register(
   z.object({
     id: z.string().openapi({ example: "media_123" }),
     url: z.string().url().openapi({ example: "https://cdn.devlogia.test/uploads/2024-04-01/header.png" }),
+    path: z.string().openapi({ example: "uploads/2024-04-01/header.png" }),
+    mimeType: z.string().openapi({ example: "image/png" }),
+    sizeBytes: z.number().openapi({ example: 24576 }),
+    checksum: z.string().length(64).openapi({ example: "0f343b0931126a20f133d67c2b018a3b" }),
     alt: z.string().openapi({ example: "Team photo" }),
     createdAt: z.string().datetime(),
   }),
@@ -122,7 +126,7 @@ const UploadResponseSchema = registry.register(
   "UploadResponse",
   z.object({
     success: z.boolean(),
-    provider: z.string().openapi({ example: "stub" }),
+    provider: z.enum(["supabase", "stub"]),
     files: z.array(UploadFileSchema),
   }),
 );

@@ -248,7 +248,7 @@ function describeCategory(id: (typeof categories)[number]["id"]) {
     case "Analytics":
       return "Summarise content performance and engagement metrics (requires admin session).";
     case "Uploads":
-      return "Upload media assets to the configured cloud storage provider.";
+      return "Upload media assets to Supabase Storage (with a local stub fallback for development).";
     default:
       return "";
   }

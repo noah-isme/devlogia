@@ -5,15 +5,15 @@
 ## ✨ Highlights
 
 - **Next.js 16 App Router** with MDX-powered publishing
-- **Prisma + PostgreSQL** schema for users, posts, pages, media, and tags
+- **Prisma + MySQL** schema for users, posts, pages, media, and tags
 - **NextAuth credentials** login with protected `/admin` middleware
 - **MDX editor with autosave** (localStorage fallback & live preview)
 - **AI Assist panel** for outlines, metadata, tags, and rephrasing (provider agnostic)
-- **UploadThing stub** with optional S3/R2 cloud uploads
+- **Supabase Storage integration** with a local stub fallback for CI and offline development
 - **Role-based admin** (superadmin/admin/editor/writer) with audit logging and user management
 - **Unified admin workspace** with sticky sidebar navigation, WCAG AA contrast, and a persistent dark/light theme toggle
 - **SEO suite**: dynamic sitemap, RSS feed, canonical metadata, enriched OG images
-- **Full-text search** with Postgres tsvector + tag filters on the home page
+- **Full-text search** powered by Prisma filters and tag metadata (MySQL-compatible)
 - **Cursor-based pagination** on public + admin listings with preserved filters
 - **Accessibility polish**: share buttons, optional table of contents, skip links, focus rings
 - **Analytics & newsletter flags** controlled via environment variables
@@ -28,9 +28,9 @@
 | Frontend   | Next.js 16, React 19, Tailwind CSS 4 |
 | Backend    | App Router route handlers + Prisma ORM |
 | Auth       | NextAuth (JWT sessions, email/password) |
-| Database   | PostgreSQL |
+| Database   | MySQL |
 | Editor     | MDX (remark/rehype), custom Callout component |
-| Uploads    | UploadThing (stub provider) |
+| Uploads    | Supabase Storage (stub fallback) |
 | Testing    | Vitest, Testing Library, Playwright |
 | CI/CD      | GitHub Actions template (lint → typecheck → test → build) |
 
@@ -61,8 +61,8 @@ devlogia/
 ## ✅ Prerequisites
 
 - **Node.js 20+** and **pnpm 8+** (`corepack enable pnpm` recommended)
-- **PostgreSQL 14+** running locally (default credentials below) — or use the lightweight Docker Compose stack below
-- Recommended: `psql` CLI for managing the database
+- **MySQL 8+** running locally (default credentials below) — or use the lightweight Docker Compose stack below
+- Recommended: `mysql` CLI for managing the database
 
 ### 3-step local setup
 
@@ -120,7 +120,7 @@ Both the GitHub Actions pipeline and the `pnpm test:e2e:full` script ensure the 
 
 ### Running tests locally with Docker Compose
 
-When Docker Compose is available, `pnpm db:up` launches the Postgres stack defined in `docker-compose.yml`. The command is automatically invoked by `pnpm test:e2e:full`, but you can run it manually to develop against the same containerized database used in CI. Shut the stack down with `pnpm db:down` once you finish testing.
+When Docker Compose is available, `pnpm db:up` launches the MySQL stack defined in `docker-compose.yml`. The command is automatically invoked by `pnpm test:e2e:full`, but you can run it manually to develop against the same containerized database used in CI. Shut the stack down with `pnpm db:down` once you finish testing.
 
 ## 📘 Developer API documentation
 
@@ -136,20 +136,18 @@ Copy the template and adjust as needed:
 cp .env.example .env
 ```
 
-Defaults assume a local PostgreSQL server:
+Defaults assume a local MySQL server:
 
 ```
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/devlogia"
+DATABASE_URL="mysql://root:root@localhost:3306/devlogia"
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="changeme"
-UPLOADTHING_SECRET="stub-dev"
-UPLOADTHING_PROVIDER="stub"
-S3_BUCKET=""
-S3_REGION=""
-S3_ACCESS_KEY=""
-S3_SECRET_KEY=""
-S3_ENDPOINT=""
-S3_PUBLIC_URL=""
+SUPABASE_URL="https://<project-id>.supabase.co"
+SUPABASE_ANON_KEY=""
+SUPABASE_SERVICE_ROLE_KEY=""
+SUPABASE_STORAGE_BUCKET="devlogia-media"
+NEXT_PUBLIC_SUPABASE_URL="${SUPABASE_URL}"
+NEXT_PUBLIC_SUPABASE_BUCKET="${SUPABASE_STORAGE_BUCKET}"
 SEED_SUPERADMIN_EMAIL="owner@devlogia.test"
 SEED_SUPERADMIN_PASSWORD="owner123"
 SEED_ADMIN_EMAIL="admin@devlogia.test"
@@ -174,6 +172,15 @@ NEWSLETTER_PROVIDER=""
 BUTTONDOWN_API_KEY=""
 RESEND_API_KEY=""
 RESEND_AUDIENCE_ID=""
+SUBSCRIBE_RATE_LIMIT="10"
+SUBSCRIBE_RATE_LIMIT_WINDOW_MS="60000"
+POSTS_RATE_LIMIT="120"
+POSTS_RATE_LIMIT_WINDOW_MS="60000"
+PAGES_RATE_LIMIT="120"
+PAGES_RATE_LIMIT_WINDOW_MS="60000"
+SENTRY_DSN=""
+SENTRY_TRACES_SAMPLE_RATE="0.1"
+SENTRY_PROFILES_SAMPLE_RATE="0"
 ```
 
 ### Test environment variables
@@ -184,7 +191,7 @@ Use the provided `.env.test` template when running the automated test suites. It
 cp .env.test .env
 ```
 
-The file pins a local PostgreSQL URL (`devlogia_test`), deterministic secrets, and disables external AI/webhook providers so unit and E2E tests run in isolation.
+The file pins a local MySQL URL (`devlogia_test`), deterministic secrets, and disables external AI/webhook providers so unit and E2E tests run in isolation.
 
 ## 🚀 Local Development
 
@@ -216,7 +223,7 @@ The file pins a local PostgreSQL URL (`devlogia_test`), deterministic secrets, a
 
 ### Database fallback
 
-When `DATABASE_URL` is unset (for example during documentation builds or static previews), Prisma queries invoked during build-time rendering call a `safeFindMany` helper. The helper logs a friendly warning (`[Devlogia] DATABASE_URL missing — skipping query for <model>`) and returns an empty array so `pnpm build` succeeds even without a running database. Runtime mutations in the admin/API routes still require a real PostgreSQL connection.
+When `DATABASE_URL` is unset (for example during documentation builds or static previews), Prisma queries invoked during build-time rendering call a `safeFindMany` helper. The helper logs a friendly warning (`[Devlogia] DATABASE_URL missing — skipping query for <model>`) and returns an empty array so `pnpm build` succeeds even without a running database. Runtime mutations in the admin/API routes still require a real MySQL connection.
 
 ### Seeded accounts
 
@@ -249,7 +256,7 @@ Additional scripts:
 | `pnpm typecheck` | TypeScript `tsc --noEmit` |
 | `pnpm test` | Vitest unit tests (jsdom) |
 | `pnpm test:watch` | Vitest in watch mode |
-| `pnpm test:e2e` | Playwright E2E tests (requires running PostgreSQL) |
+| `pnpm test:e2e` | Playwright E2E tests (requires running MySQL) |
 | `pnpm build` | Production Next.js build |
 | `pnpm prisma:migrate` | Apply migrations interactively |
 | `pnpm prisma:seed` | Seed the database via `tsx prisma/seed.ts` |
@@ -258,7 +265,7 @@ Additional scripts:
 
 ### Running Playwright Tests
 
-Playwright spins up the Next.js dev server automatically. Ensure your PostgreSQL instance is running and populated (migration + seed) before executing:
+Playwright spins up the Next.js dev server automatically. Ensure your MySQL instance is running and populated (migration + seed) before executing:
 
 ```bash
 # one-time browser + dependency install
@@ -274,7 +281,7 @@ pnpm test:e2e
 
 Troubleshooting tips:
 
-- Ensure the `postgres` container is healthy (`pnpm db:up` and `docker compose ps`).
+- Ensure the `mysql` container is healthy (`pnpm db:up` and `docker compose ps`).
 - Delete Playwright's cache if browsers look stale: `rm -rf ~/.cache/ms-playwright`.
 - Rebuild the database if tests rely on a clean slate: `pnpm db:reset`.
 
@@ -323,13 +330,13 @@ Refer to `docs/release-notes/v1.0.0.md` for the complete changelog.
 
 ## 🔍 Search & Discovery
 
-- Home page search uses Postgres `tsvector` + `plainto_tsquery` for relevance-ranked results
+- Home page search uses Prisma `contains` filters with case-insensitive comparisons for MySQL compatibility
 - Tag filters are encoded in the query string and combinable with full-text search
 - Pagination preserves active filters to keep the browsing context intact
 
 ## ♻️ Uploads
 
-UploadThing defaults to a **stub provider** for local development and CI. When `UPLOADTHING_PROVIDER` is set to `s3` or `r2` and credentials are present, `/api/uploadthing` streams uploads to your bucket, stores a public URL in the `Media` table, and falls back to the stub automatically if configuration is incomplete.
+Supabase Storage powers uploads in production. Provide `SUPABASE_*` credentials to stream media to your bucket; otherwise Devlogia falls back to a local `/public/uploads` stub so CI and offline development stay deterministic.
 
 ## 📊 Analytics & Newsletter
 

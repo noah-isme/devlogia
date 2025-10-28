@@ -21,8 +21,8 @@ enum RoleName {
 }
 
 model User {
-  id           String     @id @default(cuid())
-  email        String     @unique
+  id           String     @id @default(cuid()) @db.VarChar(191)
+  email        String     @unique @db.VarChar(191)
   passwordHash String
   isActive     Boolean    @default(true)
   createdAt    DateTime   @default(now())
@@ -32,7 +32,7 @@ model User {
 }
 
 model Role {
-  id          String     @id @default(cuid())
+  id          String     @id @default(cuid()) @db.VarChar(191)
   name        RoleName   @unique
   description String?
   createdAt   DateTime   @default(now())
@@ -40,9 +40,9 @@ model Role {
 }
 
 model UserRole {
-  id         String   @id @default(cuid())
-  userId     String
-  roleId     String
+  id         String   @id @default(cuid()) @db.VarChar(191)
+  userId     String   @db.VarChar(191)
+  roleId     String   @db.VarChar(191)
   assignedAt DateTime @default(now())
   user       User     @relation(fields: [userId], references: [id])
   role       Role     @relation(fields: [roleId], references: [id])
@@ -52,15 +52,15 @@ model UserRole {
 }
 
 model Post {
-  id          String     @id @default(cuid())
-  slug        String     @unique
-  title       String
-  summary     String?
-  contentMdx  String
-  coverUrl    String?
+  id          String     @id @default(cuid()) @db.VarChar(191)
+  slug        String     @unique @db.VarChar(191)
+  title       String     @db.VarChar(191)
+  summary     String?    @db.VarChar(512)
+  contentMdx  String     @db.LongText
+  coverUrl    String?    @db.VarChar(512)
   status      PostStatus @default(DRAFT)
   publishedAt DateTime?
-  authorId    String
+  authorId    String     @db.VarChar(191)
   author      User       @relation(fields: [authorId], references: [id])
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -70,15 +70,15 @@ model Post {
 }
 
 model Tag {
-  id    String  @id @default(cuid())
-  name  String  @unique
-  slug  String  @unique
+  id    String  @id @default(cuid()) @db.VarChar(191)
+  name  String  @unique @db.VarChar(191)
+  slug  String  @unique @db.VarChar(191)
   posts PostTag[]
 }
 
 model PostTag {
-  postId String
-  tagId  String
+  postId String @db.VarChar(191)
+  tagId  String @db.VarChar(191)
   post   Post @relation(fields: [postId], references: [id])
   tag    Tag  @relation(fields: [tagId], references: [id])
 
@@ -86,26 +86,30 @@ model PostTag {
 }
 
 model Page {
-  id         String   @id @default(cuid())
-  slug       String   @unique
-  title      String
-  contentMdx String
+  id         String   @id @default(cuid()) @db.VarChar(191)
+  slug       String   @unique @db.VarChar(191)
+  title      String   @db.VarChar(191)
+  contentMdx String   @db.LongText
   published  Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
 
 model Media {
-  id        String   @id @default(cuid())
-  url       String
-  alt       String?
-  ownerId   String?
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid()) @db.VarChar(191)
+  path       String   @db.VarChar(512)
+  mimeType   String   @db.VarChar(191)
+  sizeBytes  Int
+  checksum   String   @db.Char(64)
+  publicUrl  String   @db.VarChar(2048)
+  alt        String?  @db.VarChar(256)
+  ownerId    String?  @db.VarChar(191)
+  createdAt  DateTime @default(now())
 }
 
 model AuditLog {
-  id        String   @id @default(cuid())
-  userId    String?
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  userId    String?  @db.VarChar(191)
   user      User?    @relation(fields: [userId], references: [id])
   action    String
   targetId  String?
