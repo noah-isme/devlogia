@@ -65,6 +65,10 @@ model Post {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   tags        PostTag[]
+  embedding   Embedding?
+  recommendations Recommendation[]      @relation("RecommendationSource")
+  recommendedBy   Recommendation[]      @relation("RecommendationTarget")
+  topics          PostTopic[]
 
   @@index([status, publishedAt])
 }
@@ -115,4 +119,64 @@ model AuditLog {
   targetId  String?
   meta      Json?
   createdAt DateTime @default(now())
+}
+
+model Embedding {
+  id         String   @id @default(cuid()) @db.VarChar(191)
+  postId     String   @unique @db.VarChar(191)
+  model      String   @db.VarChar(191)
+  provider   String   @db.VarChar(191)
+  dimension  Int
+  vector     Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  post       Post     @relation(fields: [postId], references: [id])
+  snapshots  RecommendationSnapshot[]
+}
+
+model Recommendation {
+  id            String   @id @default(cuid()) @db.VarChar(191)
+  sourcePostId  String   @db.VarChar(191)
+  targetPostId  String   @db.VarChar(191)
+  score         Float
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  source        Post     @relation("RecommendationSource", fields: [sourcePostId], references: [id])
+  target        Post     @relation("RecommendationTarget", fields: [targetPostId], references: [id])
+
+  @@unique([sourcePostId, targetPostId])
+  @@index([sourcePostId])
+  @@index([targetPostId])
+}
+
+model RecommendationSnapshot {
+  id           String   @id @default(cuid()) @db.VarChar(191)
+  embeddingId  String   @db.VarChar(191)
+  metadata     Json
+  createdAt    DateTime @default(now())
+  embedding    Embedding @relation(fields: [embeddingId], references: [id])
+
+  @@index([embeddingId])
+}
+
+model TopicCluster {
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  label     String   @db.VarChar(191)
+  keywords  Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  posts     PostTopic[]
+}
+
+model PostTopic {
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  postId    String   @db.VarChar(191)
+  topicId   String   @db.VarChar(191)
+  score     Float    @default(0)
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id])
+  topic     TopicCluster @relation(fields: [topicId], references: [id])
+
+  @@unique([postId, topicId])
+  @@index([topicId])
 }

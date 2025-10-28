@@ -50,7 +50,7 @@ export class OpenAIProvider implements AIProvider {
     if (!apiKey) {
       throw new Error("Missing OPENAI_API_KEY");
     }
-    this.model = model || process.env.OPENAI_MODEL || "gpt-4o-mini";
+    this.model = model || process.env.AI_MODEL || process.env.OPENAI_MODEL || "gpt-4o-mini";
   }
 
   private async request(prompt: string, schema?: string): Promise<string> {
@@ -123,7 +123,7 @@ export class HFProvider implements AIProvider {
     if (!apiKey) {
       throw new Error("Missing HF_API_KEY");
     }
-    this.model = model || process.env.HF_MODEL || "mistralai/Mistral-7B-Instruct-v0.2";
+    this.model = model || process.env.AI_MODEL || process.env.HF_MODEL || "mistralai/Mistral-7B-Instruct-v0.2";
   }
 
   private async request(prompt: string): Promise<string> {
@@ -193,9 +193,11 @@ export function resolveAIProvider(): AIProvider {
   const provider = (process.env.AI_PROVIDER || "none").toLowerCase();
   try {
     if (provider === "openai") {
-      cachedProvider = new OpenAIProvider(process.env.OPENAI_API_KEY || "");
+      const apiKey = process.env.AI_API_KEY || process.env.OPENAI_API_KEY || "";
+      cachedProvider = new OpenAIProvider(apiKey);
     } else if (provider === "hf") {
-      cachedProvider = new HFProvider(process.env.HF_API_KEY || "");
+      const apiKey = process.env.HF_API_KEY || process.env.AI_API_KEY || "";
+      cachedProvider = new HFProvider(apiKey);
     } else {
       cachedProvider = new NullProvider();
     }
