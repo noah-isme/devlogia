@@ -1,13 +1,16 @@
 name: CI
-
 on:
   push:
-    branches: [main, work]
+    branches:
+      - main
+      - "**"
   pull_request:
 
 jobs:
-  build:
+  build-test:
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.47.0-jammy
     services:
       mysql:
         image: mysql:8
@@ -33,24 +36,53 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v3
         with:
-          version: 8
+          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+      - name: Restore Playwright cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-v1
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Generate Prisma client
+        run: pnpm install
+      - name: Setup env for CI
+        run: cp .env.ci .env
+
+      - name: Generate Prisma Client
         run: pnpm prisma generate
-      - name: Apply migrations
-        run: pnpm prisma migrate deploy
-      - name: Seed database
-        run: pnpm prisma:seed
-      - name: Lint
-        run: pnpm lint
-      - name: Typecheck
-        run: pnpm typecheck
-      - name: Unit tests
-        run: pnpm test
-      - name: Build
-        run: pnpm build
+      - name: Setup test database
+        run: |
+          if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+            pnpm db:up || echo "pnpm db:up skipped (already running or unavailable)"
+          else
+            echo "Docker Compose not available; assuming database service is running."
+          fi
+          pnpm prisma migrate deploy
+          pnpm prisma db seed
+      - name: Lint, Typecheck, Test, Build
+        run: |
+          pnpm lint
+          pnpm typecheck
+          pnpm test
+          CI=1 pnpm build
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps
+      - name: Run E2E tests
+        env:
+          PORT: 3000
+        run: |
+          pnpm start &
+          APP_PID=$!
+          trap "kill $APP_PID" EXIT
+          npx wait-on http://127.0.0.1:3000
+          pnpm test:e2e

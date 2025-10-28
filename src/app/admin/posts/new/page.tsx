@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
-import { PostEditor } from "@/components/editor/post-editor";
+import { PostEditor } from "@/components/editor/Editor";
+import { auth } from "@/lib/auth";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
@@ -8,6 +9,9 @@ export const metadata: Metadata = buildMetadata({
   description: "Draft a new blog post with autosave and MDX preview.",
 });
 
-export default function NewPostPage() {
-  return <PostEditor mode="create" />;
+export default async function NewPostPage() {
+  const session = await auth();
+  const role = session?.user?.role ?? "writer";
+  const aiEnabled = (process.env.AI_PROVIDER ?? "none").toLowerCase() !== "none";
+  return <PostEditor mode="create" role={role} aiEnabled={aiEnabled} />;
 }

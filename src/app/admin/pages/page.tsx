@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
 import { PageManager, type PageSummary } from "@/components/forms/page-manager";
-import { isDatabaseEnabled, prisma } from "@/lib/prisma";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
@@ -10,6 +9,9 @@ export const metadata: Metadata = buildMetadata({
 });
 
 export default async function PagesPage() {
+  const prismaModule = await import("@/lib/prisma");
+  const { isDatabaseEnabled, prisma } = prismaModule;
+
   if (!isDatabaseEnabled) {
     return (
       <div className="space-y-6 rounded-md border border-dashed border-border bg-muted/40 p-6 text-sm text-muted-foreground">

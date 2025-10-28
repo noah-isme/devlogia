@@ -1,27 +1,33 @@
 import { NextResponse } from "next/server";
 
-import { isDatabaseEnabled, prisma } from "@/lib/prisma";
 import { siteConfig } from "@/lib/seo";
+
+type SitemapEntry = {
+  slug: string;
+  updatedAt: Date;
+};
 
 function formatDate(date: Date) {
   return date.toISOString();
 }
 
 export async function GET() {
-  if (!isDatabaseEnabled) {
+  const prismaModule = await import("@/lib/prisma");
+
+  if (!prismaModule.isDatabaseEnabled) {
     return buildSitemapResponse([], []);
   }
 
-  let posts: Array<{ slug: string; updatedAt: Date }> = [];
-  let pages: Array<{ slug: string; updatedAt: Date }> = [];
+  let posts: SitemapEntry[] = [];
+  let pages: SitemapEntry[] = [];
 
   try {
     [posts, pages] = await Promise.all([
-      prisma.post.findMany({
+      prismaModule.safeFindMany<SitemapEntry>("post", {
         where: { status: "PUBLISHED" },
         select: { slug: true, updatedAt: true },
       }),
-      prisma.page.findMany({
+      prismaModule.safeFindMany<SitemapEntry>("page", {
         where: { published: true },
         select: { slug: true, updatedAt: true },
       }),
@@ -33,10 +39,7 @@ export async function GET() {
   return buildSitemapResponse(posts, pages);
 }
 
-function buildSitemapResponse(
-  posts: Array<{ slug: string; updatedAt: Date }>,
-  pages: Array<{ slug: string; updatedAt: Date }>,
-) {
+function buildSitemapResponse(posts: SitemapEntry[], pages: SitemapEntry[]) {
   const urls = [
     { loc: siteConfig.url, lastmod: formatDate(new Date()) },
     ...posts.map((post) => ({

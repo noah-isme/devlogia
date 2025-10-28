@@ -14,12 +14,13 @@ enum PostStatus {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String     @id @default(cuid())
+  email        String     @unique
   passwordHash String
-  role         String   @default("admin")
-  createdAt    DateTime @default(now())
+  role         String     @default("writer")
+  createdAt    DateTime   @default(now())
   posts        Post[]
+  auditLogs    AuditLog[]
 }
 
 model Post {
@@ -36,6 +37,9 @@ model Post {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   tags        PostTag[]
+
+
+  @@index([status, publishedAt])
 }
 
 model Tag {
@@ -69,5 +73,15 @@ model Media {
   url       String
   alt       String?
   ownerId   String?
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  targetId  String?
+  meta      Json?
   createdAt DateTime @default(now())
 }

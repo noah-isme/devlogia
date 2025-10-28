@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import type { PostStatus } from "@prisma/client";
+
 import { auth } from "@/lib/auth";
+import { recordAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
+import { triggerOutbound } from "@/lib/webhooks";
 import { slugify } from "@/lib/utils";
 import { upsertPostSchema } from "@/lib/validations/post";
 
@@ -62,6 +67,10 @@ export async function GET(
     return notFoundResponse();
   }
 
+  if (!can(session.user, "post:update", post)) {
+    return forbiddenResponse();
+  }
+
   return NextResponse.json({ post });
 }
 
@@ -76,18 +85,23 @@ export async function PATCH(
     return unauthorizedResponse();
   }
 
-  if (session.user.role !== "admin") {
-    return forbiddenResponse();
-  }
-
   const post = await prisma.post.findUnique({ where: { id } });
 
   if (!post) {
     return notFoundResponse();
   }
 
+  if (!can(session.user, "post:update", post)) {
+    return forbiddenResponse();
+  }
+
   const json = await request.json().catch(() => ({}));
-  const data = upsertPostSchema.parse(json);
+  const parsed = upsertPostSchema.parse(json);
+  const isWriter = session.user.role === "writer";
+  let data: typeof parsed = parsed;
+  if (isWriter) {
+    data = { ...data, status: "DRAFT", publishedAt: null };
+  }
 
   const normalizedTags = normalizeTags(data.tags);
   const baseSlug = slugify(data.slug);
@@ -99,6 +113,10 @@ export async function PATCH(
         return new Date(data.publishedAt);
       }
       return post.publishedAt ?? new Date();
+    }
+
+    if (isWriter) {
+      return null;
     }
 
     if (data.publishedAt) {
@@ -116,7 +134,7 @@ export async function PATCH(
       summary: data.summary ?? null,
       contentMdx: data.contentMdx,
       coverUrl: data.coverUrl ?? null,
-      status: data.status,
+      status: data.status as PostStatus,
       publishedAt,
       tags: {
         deleteMany: {},
@@ -136,6 +154,43 @@ export async function PATCH(
     include: { tags: { include: { tag: true } } },
   });
 
+  await recordAuditLog({
+    userId: session.user.id,
+    action: "post:update",
+    targetId: updated.id,
+    meta: {
+      status: updated.status,
+    },
+  });
+
+  if (post.status !== "PUBLISHED" && updated.status === "PUBLISHED") {
+    await recordAuditLog({
+      userId: session.user.id,
+      action: "post:publish",
+      targetId: updated.id,
+      meta: { slug: updated.slug },
+    });
+    await triggerOutbound("post.published", {
+      id: updated.id,
+      slug: updated.slug,
+      status: updated.status,
+    });
+  }
+
+  if (post.status === "PUBLISHED" && updated.status !== "PUBLISHED") {
+    await recordAuditLog({
+      userId: session.user.id,
+      action: "post:unpublish",
+      targetId: updated.id,
+      meta: { slug: updated.slug, status: updated.status },
+    });
+    await triggerOutbound("post.unpublished", {
+      id: updated.id,
+      slug: updated.slug,
+      status: updated.status,
+    });
+  }
+
   return NextResponse.json({ post: updated });
 }
 
@@ -150,10 +205,24 @@ export async function DELETE(
     return unauthorizedResponse();
   }
 
-  if (session.user.role !== "admin") {
+  const post = await prisma.post.findUnique({ where: { id } });
+
+  if (!post) {
+    return notFoundResponse();
+  }
+
+  if (!can(session.user, "post:delete", post)) {
     return forbiddenResponse();
   }
+
   await prisma.post.delete({ where: { id } });
+
+  await recordAuditLog({
+    userId: session.user.id,
+    action: "post:delete",
+    targetId: id,
+    meta: { slug: post.slug },
+  });
 
   return NextResponse.json({ success: true });
 }

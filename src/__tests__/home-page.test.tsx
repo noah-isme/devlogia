@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import type { Post, PostStatus, User } from "@prisma/client";
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+const originalDatabaseUrl = process.env.DATABASE_URL;
 
 vi.mock("@/lib/prisma", () => {
   const mockPost = {
@@ -17,21 +19,37 @@ vi.mock("@/lib/prisma", () => {
     updatedAt: new Date("2024-01-02"),
   } satisfies Partial<Post>;
 
+  const posts = [
+    {
+      ...mockPost,
+      author: { id: "user_1", email: "owner@test", passwordHash: "", role: "owner", createdAt: new Date() } as User,
+      tags: [],
+    },
+  ];
+
   return {
     isDatabaseEnabled: true,
+    safeFindMany: vi.fn().mockResolvedValue(posts),
     prisma: {
       post: {
-        findMany: vi.fn().mockResolvedValue([
-          {
-            ...mockPost,
-            author: { id: "user_1", email: "admin@test", passwordHash: "", role: "admin", createdAt: new Date() } as User,
-            tags: [],
-          },
-        ]),
-        count: vi.fn().mockResolvedValue(1),
+        findMany: vi.fn().mockResolvedValue(posts),
       },
+      tag: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+      $queryRaw: vi.fn().mockResolvedValue([
+        { id: "post_1", sortKey: new Date("2024-01-01") },
+      ]),
     },
   };
+});
+
+beforeAll(() => {
+  process.env.DATABASE_URL = "postgresql://test-db";
+});
+
+afterAll(() => {
+  process.env.DATABASE_URL = originalDatabaseUrl;
 });
 
 vi.mock("@/lib/utils", async () => {
@@ -42,10 +60,9 @@ vi.mock("@/lib/utils", async () => {
   };
 });
 
-import HomePage from "@/app/(public)/page";
-
 describe("HomePage", () => {
   it("renders published posts", async () => {
+    const { default: HomePage } = await import("@/app/(public)/page");
     render(await HomePage({ searchParams: {} }));
 
     expect(

@@ -3,9 +3,16 @@ import { NextResponse } from "next/server";
 import type { PostStatus, Prisma } from "@prisma/client";
 
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { recordAuditLog } from "@/lib/audit";
+import { prisma, safeFindMany } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
+import { triggerOutbound } from "@/lib/webhooks";
 import { slugify } from "@/lib/utils";
 import { createPostSchema, postStatusValues } from "@/lib/validations/post";
+
+type AdminPostWithTags = Prisma.PostGetPayload<{
+  include: { tags: { include: { tag: true } } };
+}>;
 
 function unauthorizedResponse() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -37,21 +44,24 @@ async function ensureUniqueSlug(baseSlug: string) {
 
 export async function GET(request: Request) {
   const session = await auth();
-  const isAuthenticated = Boolean(session?.user);
-
-  if (!isAuthenticated) {
+  if (!session?.user) {
     return unauthorizedResponse();
   }
 
+  const { user } = session;
+
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status");
-  const where: Prisma.PostWhereInput | undefined =
-    status && (postStatusValues as readonly string[]).includes(status)
-      ? { status: status as PostStatus }
-      : undefined;
+  const filters: Prisma.PostWhereInput = {};
+  if (status && (postStatusValues as readonly string[]).includes(status)) {
+    filters.status = status as PostStatus;
+  }
+  if (user.role === "writer") {
+    filters.authorId = user.id;
+  }
 
-  const posts = await prisma.post.findMany({
-    where,
+  const posts = await safeFindMany<AdminPostWithTags>("post", {
+    where: Object.keys(filters).length ? filters : undefined,
     orderBy: { updatedAt: "desc" },
     include: { tags: { include: { tag: true } } },
   });
@@ -66,19 +76,29 @@ export async function POST(request: Request) {
     return unauthorizedResponse();
   }
 
-  if (session.user.role !== "admin") {
+  if (!can(session.user, "post:create")) {
     return forbiddenResponse();
   }
 
   const json = await request.json().catch(() => ({}));
   const data = createPostSchema.parse(json ?? {});
 
+  const { user } = session;
+  const isWriter = user.role === "writer";
+
   const title = data?.title?.trim() || "Untitled draft";
   const defaultSlugSource = data?.slug ?? title;
   const baseSlug = slugify(defaultSlugSource) || `untitled-${Date.now()}`;
   const slug = await ensureUniqueSlug(baseSlug);
   const normalizedTags = normalizeTags(data?.tags);
-  const status = data?.status ?? "DRAFT";
+  const status = (isWriter ? "DRAFT" : data?.status ?? "DRAFT") as PostStatus;
+  const publishedAt = !isWriter
+    ? status === "PUBLISHED"
+      ? new Date()
+      : data?.publishedAt
+        ? new Date(data.publishedAt)
+        : null
+    : null;
 
   const post = await prisma.post.create({
     data: {
@@ -90,13 +110,8 @@ export async function POST(request: Request) {
         `# ${title}\n\nStart writing your post. You can use **markdown** and <Callout>MDX</Callout> components.`,
       coverUrl: data?.coverUrl ?? null,
       status,
-      publishedAt:
-        status === "PUBLISHED"
-          ? new Date()
-          : data?.publishedAt
-            ? new Date(data.publishedAt)
-            : null,
-      authorId: session.user.id,
+      publishedAt,
+      authorId: user.id,
       tags: {
         create: normalizedTags.map((tagName) => {
           const slugged = slugify(tagName);
@@ -113,6 +128,27 @@ export async function POST(request: Request) {
     },
     include: { tags: { include: { tag: true } } },
   });
+
+  await recordAuditLog({
+    userId: session.user.id,
+    action: "post:create",
+    targetId: post.id,
+    meta: { status: post.status },
+  });
+
+  if (post.status === "PUBLISHED") {
+    await recordAuditLog({
+      userId: session.user.id,
+      action: "post:publish",
+      targetId: post.id,
+      meta: { slug: post.slug },
+    });
+    await triggerOutbound("post.published", {
+      id: post.id,
+      slug: post.slug,
+      status: post.status,
+    });
+  }
 
   return NextResponse.json({ post }, { status: 201 });
 }

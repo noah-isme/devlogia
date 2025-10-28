@@ -2,14 +2,16 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { renderMdx } from "@/lib/mdx";
-import { isDatabaseEnabled, prisma } from "@/lib/prisma";
 import { buildMetadata, siteConfig } from "@/lib/seo";
 
 type PageProps = {
   params: { slug: string };
 };
 
-async function getPage(slug: string) {
+async function getPage(slug: string, prismaModule?: typeof import("@/lib/prisma")) {
+  const moduleRef = prismaModule ?? (await import("@/lib/prisma"));
+  const { prisma, isDatabaseEnabled } = moduleRef;
+
   if (!isDatabaseEnabled) {
     return null;
   }
@@ -23,11 +25,13 @@ async function getPage(slug: string) {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  if (!isDatabaseEnabled) {
+  const prismaModule = await import("@/lib/prisma");
+
+  if (!prismaModule.isDatabaseEnabled) {
     return buildMetadata({ title: "Page unavailable" });
   }
 
-  const page = await getPage(params.slug);
+  const page = await getPage(params.slug, prismaModule);
   if (!page) {
     return buildMetadata({ title: "Page not found" });
   }
@@ -42,9 +46,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function StaticPage({ params }: PageProps) {
-  const page = await getPage(params.slug);
+  const prismaModule = await import("@/lib/prisma");
+  const page = await getPage(params.slug, prismaModule);
   if (!page) {
-    if (!isDatabaseEnabled) {
+    if (!prismaModule.isDatabaseEnabled) {
       return (
         <article className="prose prose-neutral dark:prose-invert">
           <header className="not-prose mb-6 space-y-2">

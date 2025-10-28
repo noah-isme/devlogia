@@ -8,8 +8,15 @@
 - **Prisma + PostgreSQL** schema for users, posts, pages, media, and tags
 - **NextAuth credentials** login with protected `/admin` middleware
 - **MDX editor with autosave** (localStorage fallback & live preview)
+- **AI Assist panel** for outlines, metadata, tags, and rephrasing (provider agnostic)
 - **UploadThing stub** so the app is deploy-ready without external storage
-- **SEO suite**: dynamic sitemap, RSS feed, canonical metadata, OG image
+- **Role-based admin** (owner/editor/writer) with audit logging and user management
+- **SEO suite**: dynamic sitemap, RSS feed, canonical metadata, enriched OG images
+- **Full-text search** with Postgres tsvector + tag filters on the home page
+- **Cursor-based pagination** on public + admin listings with preserved filters
+- **Accessibility polish**: share buttons, optional table of contents, skip links, focus rings
+- **Analytics & newsletter flags** controlled via environment variables
+- **Webhook revalidation** with HMAC signatures & rate limiting for safe cache busting
 - **Vitest + Playwright** test harness with GitHub Actions-friendly scripts
 
 ## 🧱 Tech Stack
@@ -52,8 +59,62 @@ devlogia/
 ## ✅ Prerequisites
 
 - **Node.js 20+** and **pnpm 8+** (`corepack enable pnpm` recommended)
-- **PostgreSQL 14+** running locally (default credentials below)
+- **PostgreSQL 14+** running locally (default credentials below) — or use the lightweight Docker Compose stack below
 - Recommended: `psql` CLI for managing the database
+
+### Quick start (local stack)
+
+Spin up Postgres, install browsers, and run the checks end-to-end:
+
+```bash
+pnpm install
+
+# Start the local Postgres container
+pnpm db:up
+
+# Apply schema & seed
+pnpm prisma:migrate
+pnpm prisma:seed
+
+# Install Playwright dependencies (browsers + system packages)
+pnpm exec playwright install --with-deps
+
+# Validate the build pipeline
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+
+# Optional: launch E2E specs (requires the dev server)
+pnpm test:e2e
+```
+
+Stop the services afterwards with `pnpm db:down`. To rebuild the database from scratch, run `pnpm db:reset`.
+
+To automate the entire E2E workflow — including Docker Compose startup, migrations, seeding, browser installation, and the Playwright suite — run:
+
+```bash
+pnpm test:e2e:full
+```
+
+The script is idempotent: `pnpm db:up` is skipped automatically when the containers are already healthy or Docker Compose is not available (e.g., inside CI where a PostgreSQL service is provided).
+
+## 🛠️ Local Troubleshooting
+
+- **E2E specs exit early?** Ensure Docker Desktop (or your container runtime) is running, then execute `pnpm db:up` before retrying.
+- **Prisma shows a build-time warning?** That message is safe to ignore when building static assets without a live database connection.
+
+### E2E auto-seed behavior
+
+Both the GitHub Actions pipeline and the `pnpm test:e2e:full` script ensure the database is migrated and seeded immediately before Playwright executes. This guarantees RBAC fixtures, webhook subscribers, and AI-assist content are present for every run without manual intervention.
+
+1. `pnpm prisma migrate deploy` applies the latest schema to the target database.
+2. `pnpm prisma db seed` repopulates deterministic users, posts, and supporting data.
+3. The seeding step is safe to rerun — existing data is updated when necessary so parallel environments stay in sync.
+
+### Running tests locally with Docker Compose
+
+When Docker Compose is available, `pnpm db:up` launches the Postgres stack defined in `docker-compose.yml`. The command is automatically invoked by `pnpm test:e2e:full`, but you can run it manually to develop against the same containerized database used in CI. Shut the stack down with `pnpm db:down` once you finish testing.
 
 ### Environment Variables
 
@@ -69,11 +130,41 @@ Defaults assume a local PostgreSQL server:
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/devlogia"
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="changeme"
-UPLOADTHING_SECRET="changeme"
+UPLOADTHING_SECRET="stub-dev"
 UPLOADER_PROVIDER="stub"
-SEED_ADMIN_EMAIL="admin@devlogia.test"
-SEED_ADMIN_PASSWORD="admin123"
+SEED_OWNER_EMAIL="owner@devlogia.test"
+SEED_OWNER_PASSWORD="owner123"
+SEED_EDITOR_EMAIL="editor@devlogia.test"
+SEED_EDITOR_PASSWORD="editor123"
+SEED_WRITER_EMAIL="writer@devlogia.test"
+SEED_WRITER_PASSWORD="writer123"
+AI_PROVIDER="none" # "openai" | "hf" | "none"
+OPENAI_API_KEY=""
+HF_API_KEY=""
+AI_RATE_LIMIT_PER_MIN="30"
+WEBHOOKS_OUTBOUND_URLS="[]"
+WEBHOOKS_SIGNING_SECRET="devlogia-signature"
+
+# Optional analytics & newsletter flags
+ANALYTICS_PROVIDER=""
+ANALYTICS_DOMAIN=""
+ANALYTICS_SCRIPT_URL=""
+ANALYTICS_WEBSITE_ID=""
+NEWSLETTER_PROVIDER=""
+BUTTONDOWN_API_KEY=""
+RESEND_API_KEY=""
+RESEND_AUDIENCE_ID=""
 ```
+
+### Test environment variables
+
+Use the provided `.env.test` template when running the automated test suites. It mirrors the CI defaults:
+
+```bash
+cp .env.test .env
+```
+
+The file pins a local PostgreSQL URL (`devlogia_test`), deterministic secrets, and disables external AI/webhook providers so unit and E2E tests run in isolation.
 
 ## 🚀 Local Development
 
@@ -89,7 +180,7 @@ SEED_ADMIN_PASSWORD="admin123"
    pnpm prisma:migrate
    ```
 
-3. **Seed the database** (creates an admin user & sample content)
+3. **Seed the database** (creates owner/editor/writer accounts & sample content)
 
    ```bash
    pnpm prisma:seed
@@ -103,14 +194,19 @@ SEED_ADMIN_PASSWORD="admin123"
 
    Visit [http://localhost:3000](http://localhost:3000) for the public site or [http://localhost:3000/admin/login](http://localhost:3000/admin/login) for the admin portal.
 
-### Admin Credentials
+### Database fallback
 
-The seed script provisions a default admin account:
+When `DATABASE_URL` is unset (for example during documentation builds or static previews), Prisma queries invoked during build-time rendering call a `safeFindMany` helper. The helper logs a friendly warning (`[Devlogia] DATABASE_URL missing — skipping query for <model>`) and returns an empty array so `pnpm build` succeeds even without a running database. Runtime mutations in the admin/API routes still require a real PostgreSQL connection.
 
-- **Email:** `admin@devlogia.test`
-- **Password:** `admin123`
+### Seeded accounts
 
-You can customise these via `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` before seeding.
+The seed script provisions three accounts for testing RBAC:
+
+- **Owner:** `owner@devlogia.test` / `owner123`
+- **Editor:** `editor@devlogia.test` / `editor123`
+- **Writer:** `writer@devlogia.test` / `writer123`
+
+Override these via `SEED_OWNER_*`, `SEED_EDITOR_*`, and `SEED_WRITER_*` before seeding.
 
 ## 🧪 Quality Gates & Scripts
 
@@ -118,8 +214,8 @@ The project follows a strict `lint → test → build` pipeline. Run all checks 
 
 ```bash
 pnpm lint
-pnpm test
 pnpm typecheck
+pnpm test
 pnpm build
 ```
 
@@ -132,7 +228,7 @@ Additional scripts:
 | `pnpm typecheck` | TypeScript `tsc --noEmit` |
 | `pnpm test` | Vitest unit tests (jsdom) |
 | `pnpm test:watch` | Vitest in watch mode |
-| `pnpm e2e` | Playwright E2E tests (requires running PostgreSQL) |
+| `pnpm test:e2e` | Playwright E2E tests (requires running PostgreSQL) |
 | `pnpm build` | Production Next.js build |
 | `pnpm prisma:migrate` | Apply migrations interactively |
 | `pnpm prisma:seed` | Seed the database via `tsx prisma/seed.ts` |
@@ -144,12 +240,37 @@ Additional scripts:
 Playwright spins up the Next.js dev server automatically. Ensure your PostgreSQL instance is running and populated (migration + seed) before executing:
 
 ```bash
+# one-time browser + dependency install
+pnpm exec playwright install --with-deps
+
+# prepare the database
 pnpm prisma:migrate
 pnpm prisma:seed
-pnpm e2e
+
+# run the spec suite
+pnpm test:e2e
 ```
 
-The E2E spec logs in as the seeded admin, creates a new post via the editor (autosave + publish), and verifies it appears on the public blog.
+Troubleshooting tips:
+
+- Ensure the `postgres` container is healthy (`pnpm db:up` and `docker compose ps`).
+- Delete Playwright's cache if browsers look stale: `rm -rf ~/.cache/ms-playwright`.
+- Rebuild the database if tests rely on a clean slate: `pnpm db:reset`.
+
+The E2E spec logs in as the seeded owner, creates a new post via the editor (autosave + publish), and verifies it appears on the public blog.
+
+CI uses the official `mcr.microsoft.com/playwright:v1.47.0-jammy` image with browsers preinstalled. We cache `~/.cache/ms-playwright` and set `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` to avoid redundant downloads, then run migrations, lint/typecheck/unit/build, and finally launch the app for Playwright.
+
+### Upgrade path from v1.0.0-rc → v1.0.0
+
+Upgrading from the release candidate is seamless — configuration keys remain the same and the schema changes are already captured in migrations. To adopt the stable tag:
+
+1. Pull the `v1.0.0` tag (or merge the `release/v1.0.0` branch) and rerun `pnpm install` to ensure lockfile parity.
+2. Apply the production schema with `pnpm prisma migrate deploy`.
+3. Seed the deterministic accounts and demo content using `pnpm prisma db seed` (safe to rerun in place).
+4. Optionally execute `pnpm test:e2e:full` to validate RBAC, webhook, and AI-assist flows under the new seeding automation.
+
+Refer to `docs/release-notes/v1.0.0.md` for the complete changelog.
 
 ## 🛠️ Admin & Editor Workflow
 
@@ -159,11 +280,13 @@ The E2E spec logs in as the seeded admin, creates a new post via the editor (aut
 - `/admin/posts/new` — MDX editor with autosave (1500 ms debounce, offline-safe)
 - `/admin/posts/[id]` — Edit existing posts with tag management & status changes
 - `/admin/pages` — Minimal CRUD for static pages with live preview on `/<slug>`
+- `/admin/users` — Owner-only user management with role assignments
 
 ### Editor Features
 
 - Autosave persists to the database (and localStorage as a fallback)
 - Live MDX preview using the same rendering pipeline as the public site
+- AI Assist panel for outlines, metadata, tags, and rephrasing (disabled when no provider configured)
 - Custom MDX components such as `<Callout>` are supported out of the box
 - Tag input accepts comma-separated values and creates tags automatically
 
@@ -171,17 +294,31 @@ The E2E spec logs in as the seeded admin, creates a new post via the editor (aut
 
 - `GET /api/sitemap` — Dynamic sitemap including posts and published pages
 - `GET /api/rss` — RSS feed with MDX content enclosed in CDATA
+- `GET /api/og` — Dynamic Open Graph image generator (title → PNG via `next/og`)
 - Default metadata (title template, OpenGraph, Twitter cards) via `siteConfig`
 - Canonical URLs derived from `NEXT_PUBLIC_APP_URL` / `NEXTAUTH_URL`
+- `public/og-default.png` ships as a text placeholder — swap with your own branded asset in production
+
+## 🔍 Search & Discovery
+
+- Home page search uses Postgres `tsvector` + `plainto_tsquery` for relevance-ranked results
+- Tag filters are encoded in the query string and combinable with full-text search
+- Pagination preserves active filters to keep the browsing context intact
 
 ## ♻️ Uploads
 
-UploadThing is configured with a **stub provider** for local development and test environments. The `/api/uploadthing` route returns a fake path without storing files, making it safe to deploy without cloud storage credentials. Swap `UPLOADER_PROVIDER` when wiring a real provider (R2/S3) in future phases.
+UploadThing is configured with a **stub provider** for local development and test environments. The `/api/uploadthing` route authenticates the admin, stores metadata in the `Media` table, and returns a deterministic fake URL (e.g. `/uploads/{id}.png`). Swap `UPLOADER_PROVIDER` when wiring a real provider (R2/S3) in future phases.
+
+## 📊 Analytics & Newsletter
+
+- Toggle analytics by setting `ANALYTICS_PROVIDER` to `plausible` or `umami`. Scripts load after hydration and respect the browser’s Do-Not-Track preference.
+- Configure `ANALYTICS_DOMAIN`, `ANALYTICS_SCRIPT_URL`, and `ANALYTICS_WEBSITE_ID` as required by your provider.
+- The `/subscribe` page surfaces a Buttondown or Resend form when `NEWSLETTER_PROVIDER` and credentials are present; otherwise the UI displays a “coming soon” callout.
 
 ## 🧪 Testing Details
 
 - **Unit tests**: Vitest + Testing Library cover key flows (Home page rendering, admin login form validation, utility functions)
-- **E2E tests**: Playwright script validates the core publishing workflow
+- **E2E tests**: Playwright scripts now cover publishing, media uploads, OG rendering, and search/pagination flows
 - **CI ready**: lint → typecheck → test → build flow suitable for GitHub Actions
 
 ## 📄 License

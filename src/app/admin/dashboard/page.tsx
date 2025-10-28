@@ -3,9 +3,22 @@ import Link from "next/link";
 
 import type { PostStatus } from "@prisma/client";
 
-import { isDatabaseEnabled, prisma } from "@/lib/prisma";
 import { buildMetadata } from "@/lib/seo";
 import { formatDate } from "@/lib/utils";
+
+type DashboardLatestPost = {
+  id: string;
+  title: string;
+  status: PostStatus;
+  updatedAt: Date;
+};
+
+type DashboardMetrics = {
+  drafts: number;
+  published: number;
+  scheduled: number;
+  latestPosts: DashboardLatestPost[];
+};
 
 export const metadata: Metadata = buildMetadata({
   title: "Dashboard",
@@ -13,6 +26,9 @@ export const metadata: Metadata = buildMetadata({
 });
 
 export default async function DashboardPage() {
+  const prismaModule = await import("@/lib/prisma");
+  const { isDatabaseEnabled, prisma, safeFindMany } = prismaModule;
+
   if (!isDatabaseEnabled) {
     return (
       <div className="space-y-6 rounded-md border border-dashed border-border bg-muted/40 p-6 text-sm text-muted-foreground">
@@ -24,24 +40,14 @@ export default async function DashboardPage() {
     );
   }
 
-  let metrics: {
-    drafts: number;
-    published: number;
-    scheduled: number;
-    latestPosts: Array<{
-      id: string;
-      title: string;
-      status: PostStatus;
-      updatedAt: Date;
-    }>;
-  } | null = null;
+  let metrics: DashboardMetrics | null = null;
 
   try {
     const [drafts, published, scheduled, latestPosts] = await Promise.all([
       prisma.post.count({ where: { status: "DRAFT" } }),
       prisma.post.count({ where: { status: "PUBLISHED" } }),
       prisma.post.count({ where: { status: "SCHEDULED" } }),
-      prisma.post.findMany({
+      safeFindMany<DashboardLatestPost>("post", {
         orderBy: { updatedAt: "desc" },
         take: 5,
         select: {

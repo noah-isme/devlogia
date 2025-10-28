@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 
 import type { Prisma } from "@prisma/client";
 
-import { PostEditor } from "@/components/editor/post-editor";
-import { isDatabaseEnabled, prisma } from "@/lib/prisma";
+import { PostEditor } from "@/components/editor/Editor";
+import { auth } from "@/lib/auth";
 import { buildMetadata } from "@/lib/seo";
 
 type PageProps = {
@@ -12,6 +12,9 @@ type PageProps = {
 };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const prismaModule = await import("@/lib/prisma");
+  const { prisma, isDatabaseEnabled } = prismaModule;
+
   if (!isDatabaseEnabled) {
     return buildMetadata({ title: "Post unavailable" });
   }
@@ -37,6 +40,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function EditPostPage({ params }: PageProps) {
+  const prismaModule = await import("@/lib/prisma");
+  const { prisma, isDatabaseEnabled } = prismaModule;
+
   if (!isDatabaseEnabled) {
     return (
       <div className="space-y-6 rounded-md border border-dashed border-border bg-muted/40 p-6 text-sm text-muted-foreground">
@@ -48,6 +54,7 @@ export default async function EditPostPage({ params }: PageProps) {
     );
   }
 
+  const session = await auth();
   let loadError: unknown | null = null;
   type EditablePost = Prisma.PostGetPayload<{ include: { tags: { include: { tag: true } } } }>;
   let post: EditablePost | null = null;
@@ -75,6 +82,10 @@ export default async function EditPostPage({ params }: PageProps) {
     notFound();
   }
 
+  if (session?.user?.role === "writer" && post.authorId !== session.user.id) {
+    notFound();
+  }
+
   const initialPost = {
     id: post.id,
     title: post.title,
@@ -85,7 +96,11 @@ export default async function EditPostPage({ params }: PageProps) {
     status: post.status,
     tags: post.tags.map(({ tag }) => tag.name),
     publishedAt: post.publishedAt ? post.publishedAt.toISOString() : null,
+    updatedAt: post.updatedAt.toISOString(),
   } as const;
 
-  return <PostEditor mode="edit" initialPost={initialPost} />;
+  const role = session?.user?.role ?? "writer";
+  const aiEnabled = (process.env.AI_PROVIDER ?? "none").toLowerCase() !== "none";
+
+  return <PostEditor mode="edit" initialPost={initialPost} role={role} aiEnabled={aiEnabled} />;
 }

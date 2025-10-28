@@ -1,6 +1,6 @@
 {
   "name": "devlogia",
-  "version": "0.1.0",
+  "version": "1.0.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -10,9 +10,16 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e": "playwright test",
+    "test:e2e": "playwright test",
+    "dev:seed": "pnpm db:up && pnpm prisma migrate deploy && pnpm prisma db seed",
+    "check:db": "node ./scripts/check-db.mjs",
+    "test:e2e:full": "node ./scripts/run-e2e-full.mjs",
+    "e2e": "pnpm test:e2e",
     "format": "prettier --check \"**/*.{ts,tsx,md,mdx,json,yml,yaml}\"",
     "format:write": "prettier --write \"**/*.{ts,tsx,md,mdx,json,yml,yaml}\"",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:reset": "docker compose down -v && docker compose up -d && pnpm prisma migrate deploy && pnpm prisma db seed",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts"

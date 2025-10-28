@@ -1,28 +1,31 @@
 import { NextResponse } from "next/server";
 
-import { isDatabaseEnabled, prisma } from "@/lib/prisma";
 import { siteConfig } from "@/lib/seo";
+
+type RssPost = {
+  title: string;
+  slug: string;
+  summary: string | null;
+  contentMdx: string;
+  publishedAt: Date | null;
+  updatedAt: Date;
+};
 
 function escapeCdata(value: string) {
   return value.replaceAll("]]>", "]]>]]><![CDATA[");
 }
 
 export async function GET() {
-  if (!isDatabaseEnabled) {
+  const prismaModule = await import("@/lib/prisma");
+
+  if (!prismaModule.isDatabaseEnabled) {
     return buildRssResponse([]);
   }
 
-  let posts: Array<{
-    title: string;
-    slug: string;
-    summary: string | null;
-    contentMdx: string;
-    publishedAt: Date | null;
-    updatedAt: Date;
-  }> = [];
+  let posts: RssPost[] = [];
 
   try {
-    posts = await prisma.post.findMany({
+    posts = await prismaModule.safeFindMany<RssPost>("post", {
       where: { status: "PUBLISHED" },
       orderBy: { publishedAt: "desc" },
       take: 20,
@@ -42,16 +45,7 @@ export async function GET() {
   return buildRssResponse(posts);
 }
 
-function buildRssResponse(
-  posts: Array<{
-    title: string;
-    slug: string;
-    summary: string | null;
-    contentMdx: string;
-    publishedAt: Date | null;
-    updatedAt: Date;
-  }>,
-) {
+function buildRssResponse(posts: RssPost[]) {
   const items = posts
     .map((post) => {
       const url = `${siteConfig.url}/blog/${post.slug}`;

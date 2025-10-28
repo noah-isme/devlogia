@@ -4,41 +4,62 @@ import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
 type PaginationProps = {
-  currentPage: number;
-  totalPages: number;
   basePath?: string;
   className?: string;
+  hasPrevious: boolean;
+  hasNext: boolean;
+  previousQuery?: Record<string, string | undefined>;
+  nextQuery?: Record<string, string | undefined>;
 };
 
+function buildHref(basePath: string, query?: Record<string, string | undefined>) {
+  if (!query) {
+    return basePath;
+  }
+
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (typeof value === "string" && value.length > 0) {
+      params.set(key, value);
+    }
+  }
+
+  const suffix = params.size ? `?${params.toString()}` : "";
+  return `${basePath}${suffix}`;
+}
+
 export function Pagination({
-  currentPage,
-  totalPages,
   basePath = "/",
   className,
+  hasNext,
+  hasPrevious,
+  nextQuery,
+  previousQuery,
 }: PaginationProps) {
-  if (totalPages <= 1) return null;
-
-  const prevPage = Math.max(1, currentPage - 1);
-  const nextPage = Math.min(totalPages, currentPage + 1);
+  if (!hasNext && !hasPrevious) {
+    return null;
+  }
 
   return (
-    <nav className={cn("flex items-center justify-between", className)} aria-label="Pagination">
+    <nav className={cn("flex items-center justify-between gap-4", className)} aria-label="Pagination">
       <Link
-        href={`${basePath}?page=${prevPage}`}
-        className={cn(buttonVariants({ variant: "outline" }), currentPage === 1 && "pointer-events-none opacity-50")}
-        aria-disabled={currentPage === 1}
+        href={buildHref(basePath, previousQuery)}
+        className={cn(
+          buttonVariants({ variant: "outline" }),
+          !hasPrevious && "pointer-events-none opacity-50",
+        )}
+        aria-disabled={!hasPrevious}
+        tabIndex={hasPrevious ? undefined : -1}
       >
-        Previous
+        Newer
       </Link>
-      <p className="text-sm text-muted-foreground">
-        Page {currentPage} of {totalPages}
-      </p>
       <Link
-        href={`${basePath}?page=${nextPage}`}
-        className={cn(buttonVariants({ variant: "outline" }), currentPage === totalPages && "pointer-events-none opacity-50")}
-        aria-disabled={currentPage === totalPages}
+        href={buildHref(basePath, nextQuery)}
+        className={cn(buttonVariants({ variant: "outline" }), !hasNext && "pointer-events-none opacity-50")}
+        aria-disabled={!hasNext}
+        tabIndex={hasNext ? undefined : -1}
       >
-        Next
+        Older
       </Link>
     </nav>
   );

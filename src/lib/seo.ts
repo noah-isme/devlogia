@@ -3,18 +3,46 @@ import type { Metadata } from "next";
 const defaultUrl =
   process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
-const ogSvg = `
-  <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" role="img" aria-labelledby="title">
-    <title id="title">Devlogia</title>
-    <rect width="1200" height="630" rx="48" fill="#0f172a" />
-    <g fill="#e2e8f0" font-family="'Inter', 'Segoe UI', system-ui, sans-serif">
-      <text x="80" y="280" font-size="128" font-weight="600">Devlogia</text>
-      <text x="80" y="380" font-size="48" opacity="0.8">Developer-first personal blog CMS</text>
-    </g>
-  </svg>
-`.trim();
+type OgImageOptions =
+  | string
+  | {
+      title?: string;
+      slug?: string;
+      tags?: string[];
+      publishedAt?: Date | string | null;
+    };
 
-const ogImageDataUrl = `data:image/svg+xml;utf8,${encodeURIComponent(ogSvg)}`;
+function createOgUrl(options?: OgImageOptions) {
+  const ogUrl = new URL("/api/og", defaultUrl);
+  if (!options) {
+    return ogUrl.toString();
+  }
+
+  if (typeof options === "string") {
+    if (options) {
+      ogUrl.searchParams.set("title", options);
+    }
+    return ogUrl.toString();
+  }
+
+  const { title, slug, tags, publishedAt } = options;
+  if (title) {
+    ogUrl.searchParams.set("title", title);
+  }
+  if (slug) {
+    ogUrl.searchParams.set("slug", slug);
+  }
+  const primaryTag = tags?.[0];
+  if (primaryTag) {
+    ogUrl.searchParams.set("tag", primaryTag);
+  }
+  if (publishedAt) {
+    const iso = typeof publishedAt === "string" ? publishedAt : publishedAt.toISOString();
+    ogUrl.searchParams.set("date", iso);
+  }
+
+  return ogUrl.toString();
+}
 
 export const siteConfig = {
   name: "Devlogia",
@@ -22,9 +50,13 @@ export const siteConfig = {
     "Devlogia is a developer-first personal blog CMS with MDX, autosave, and production-ready workflows.",
   url: defaultUrl,
   author: "Devlogia",
-  ogImage: ogImageDataUrl,
+  ogImage: createOgUrl({ title: "Devlogia" }),
   twitter: "@devlogia",
 };
+
+export function buildOgImageUrl(options?: OgImageOptions) {
+  return createOgUrl(options);
+}
 
 export function buildMetadata(overrides: Metadata = {}): Metadata {
   const metadata: Metadata = {
@@ -55,6 +87,7 @@ export function buildMetadata(overrides: Metadata = {}): Metadata {
       card: "summary_large_image",
       site: siteConfig.twitter,
       creator: siteConfig.twitter,
+      images: [siteConfig.ogImage],
     },
     alternates: {
       canonical: siteConfig.url,
