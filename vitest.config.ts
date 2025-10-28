@@ -16,6 +16,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      pino: path.resolve(__dirname, "./tests/mocks/pino.ts"),
+      ioredis: path.resolve(__dirname, "./tests/mocks/ioredis.ts"),
+      "@supabase/supabase-js": path.resolve(__dirname, "./tests/mocks/supabase.ts"),
+      "@asteasolutions/zod-to-openapi": path.resolve(__dirname, "./tests/mocks/zod-to-openapi.ts"),
     },
   },
 });

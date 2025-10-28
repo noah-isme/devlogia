@@ -1,0 +1,88 @@
+name: Performance Monitor
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *"
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    env:
+      NEXTAUTH_SECRET: monitor-secret
+      NEXTAUTH_URL: http://localhost:3000
+      DATABASE_URL: fake://monitor
+      METRICS_ENDPOINT: ${{ secrets.METRICS_ENDPOINT != '' && secrets.METRICS_ENDPOINT || 'http://localhost:3000/api/metrics' }}
+      METRICS_API_KEY: ${{ secrets.METRICS_API_KEY != '' && secrets.METRICS_API_KEY || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build application
+        run: pnpm build
+      - name: Run SEO schema validation
+        run: pnpm seo:validate
+      - name: Sync metrics snapshot
+        id: metrics
+        continue-on-error: true
+        run: pnpm metrics:sync
+      - name: Lighthouse CI
+        id: lhci
+        continue-on-error: true
+        run: pnpm dlx @lhci/cli@0.13.1 autorun --config=./lighthouserc.json
+      - name: Upload metrics artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: metrics-snapshot
+          path: .reports/metrics-latest.json
+          if-no-files-found: ignore
+      - name: Create issue for degraded metrics
+        if: steps.metrics.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const snapshotPath = path.join(process.cwd(), '.reports', 'metrics-latest.json');
+            let snapshot = null;
+            try {
+              snapshot = JSON.parse(fs.readFileSync(snapshotPath, 'utf8'));
+            } catch (error) {
+              core.warning(`Unable to read metrics snapshot: ${error}`);
+            }
+            const errorRate = snapshot ? (snapshot.errorRate * 100).toFixed(2) : 'unknown';
+            const latency = snapshot && snapshot.latency ? snapshot.latency.p95 : 'unknown';
+            const availability = snapshot ? ((1 - snapshot.errorRate) * 100).toFixed(2) : 'unknown';
+            const body = `Metrics alert detected in scheduled monitor.\n\n- Error rate: ${errorRate}%\n- Latency p95: ${latency} ms\n- Availability (approx.): ${availability}%\n- Generated at: ${snapshot?.generatedAt ?? 'n/a'}\n\nPlease investigate the metrics dashboard and production logs.`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Metrics degradation detected',
+              body,
+              labels: ['ops', 'monitoring']
+            });
+      - name: Create issue for Lighthouse regression
+        if: steps.lhci.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Lighthouse score regression detected',
+              body: 'Lighthouse CI failed to meet the configured thresholds (>= 90 for all categories). Please review the latest run logs.',
+              labels: ['ops', 'performance']
+            });
+      - name: Fail workflow on regression
+        if: steps.metrics.outcome == 'failure' || steps.lhci.outcome == 'failure'
+        run: |
+          echo "Performance monitor detected regressions" >&2
+          exit 1

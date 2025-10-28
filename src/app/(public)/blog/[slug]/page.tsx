@@ -1,9 +1,17 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { ShareButtons } from "@/components/share-buttons";
+import { JsonLd } from "@/components/json-ld";
+import { PostShareSection } from "@/components/post-share-section";
+import { FeedbackForm } from "@/components/feedback-form";
 import { renderMdx } from "@/lib/mdx";
-import { buildMetadata, buildOgImageUrl, siteConfig } from "@/lib/seo";
+import {
+  buildBlogPostingJsonLd,
+  buildBreadcrumbJsonLd,
+  buildMetadata,
+  buildOgImageUrl,
+  siteConfig,
+} from "@/lib/seo";
 import { estimateReadingTime, formatDate, slugify } from "@/lib/utils";
 
 export const revalidate = 60;
@@ -131,6 +139,22 @@ export default async function BlogPostPage({ params }: PageProps) {
   const tableOfContents = extractHeadings(post.contentMdx);
   const hasTableOfContents = tableOfContents.length >= 3;
   const shareUrl = `${siteConfig.url}/blog/${post.slug}`;
+  const publishedAt = (post.publishedAt ?? post.createdAt).toISOString();
+  const updatedAt = post.updatedAt.toISOString();
+  const breadcrumbs = buildBreadcrumbJsonLd([
+    { name: "Home", url: siteConfig.url },
+    { name: "Blog", url: `${siteConfig.url}/blog` },
+    { name: post.title, url: shareUrl },
+  ]);
+  const blogPosting = buildBlogPostingJsonLd({
+    title: post.title,
+    description: post.summary ?? siteConfig.description,
+    url: shareUrl,
+    publishedAt,
+    updatedAt,
+    keywords: post.tags.map(({ tag }) => tag.name),
+    authorName: post.author?.email ?? siteConfig.author,
+  });
 
   return (
     <article className="prose prose-neutral dark:prose-invert">
@@ -174,15 +198,13 @@ export default async function BlogPostPage({ params }: PageProps) {
           </nav>
         </aside>
       ) : null}
-      <section className="not-prose mb-8 space-y-3" aria-labelledby="share-post">
-        <h2 id="share-post" className="text-lg font-semibold tracking-tight">
-          Share this post
-        </h2>
-        <ShareButtons url={shareUrl} title={post.title} />
-      </section>
+      <PostShareSection url={shareUrl} title={post.title} />
       <div className="prose-headings:scroll-mt-24 prose-a:text-foreground prose-pre:bg-muted/60">
         {content}
       </div>
+      <FeedbackForm slug={post.slug} />
+      <JsonLd id="breadcrumbs-jsonld" data={breadcrumbs} />
+      <JsonLd id="blogposting-jsonld" data={blogPosting} />
     </article>
   );
 }

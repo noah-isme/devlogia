@@ -89,6 +89,32 @@ Server-side uploads use the service role key and bypass RLS; client-side preview
 - Logs are structured JSON via `pino`. Configure your platform's log drain to forward to Logtail, DataDog, or CloudWatch.
 - Enable Sentry by setting `SENTRY_DSN`, `SENTRY_TRACES_SAMPLE_RATE`, and `SENTRY_PROFILES_SAMPLE_RATE`. Adjust sampling for production traffic.
 
+## 📊 Metrics & Alerting
+
+- `/api/metrics` exposes a secured snapshot (superadmin session or `x-metrics-key`) with request rate, error rate, cache hit ratio, and latency percentiles.
+- The proxy middleware records request timings and cache headers, feeding the in-memory registry that powers the endpoint.
+- Run `pnpm metrics:sync` in CI/cron to persist `.reports/metrics-latest.json` and dispatch Slack/Telegram alerts when:
+  - Error rate exceeds 1% (`METRICS_ERROR_RATE_THRESHOLD`).
+  - p95 latency exceeds 800 ms (`METRICS_P95_THRESHOLD_MS`).
+- `pnpm metrics:report [endpoint]` prints a human-readable summary for quick triage.
+- The scheduled **Performance Monitor** workflow (`.github/workflows/performance-monitor.yml`) executes nightly, publishing metrics artifacts and opening an issue when thresholds are breached.
+
+## 🌐 Performance Monitoring
+
+- `lighthouserc.json` defines Lighthouse thresholds (≥90 for Performance, Accessibility, Best Practices, SEO).
+- `pnpm dlx @lhci/cli@0.13.1 autorun --config=lighthouserc.json` runs inside the Performance Monitor workflow; adjust URLs as new critical pages appear.
+- Edge/static caching defaults:
+  - Static assets (`.js`, `.css`, fonts, images) cache for 1 year with `immutable`.
+  - API routes default to `s-maxage=60, stale-while-revalidate=300`.
+- Home (`/`) revalidates every 120 s; published posts revalidate every 60 s.
+
+## 🧪 UX Telemetry & Feedback
+
+- Client-side telemetry (scroll depth, session duration, layout variant) is captured by `TelemetryProvider` and POSTed to `/api/telemetry` using `sendBeacon`.
+- Telemetry events are logged and stored in `AuditLog` rows (`action = telemetry:*`) when MySQL is available, making them queryable for dashboards.
+- The `devlogia-post-layout-variant` experiment splits readers between control and “immersion” variants; `PostShareSection` adjusts CTA placement accordingly.
+- A lightweight feedback widget on blog posts sends free-text responses to `/api/telemetry` (`event: "feedback"`). Monitor these via `SELECT * FROM AuditLog WHERE action LIKE 'telemetry:%' ORDER BY createdAt DESC`.
+
 ## 🔁 Data Migration Aids
 
 - `pnpm etl` — ETL script for migrating data from the legacy PostgreSQL database to MySQL.
