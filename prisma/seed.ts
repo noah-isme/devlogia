@@ -39,9 +39,11 @@ async function upsertUser(email: string, password: string, role: RoleName) {
 async function main() {
   await Promise.all([
     ensureRole(RoleName.SUPERADMIN, "Full control over Devlogia"),
+    ensureRole(RoleName.TENANTADMIN, "Manage a single tenant including billing and members"),
     ensureRole(RoleName.ADMIN, "Manage content and system settings"),
     ensureRole(RoleName.EDITOR, "Edit all posts and pages"),
     ensureRole(RoleName.WRITER, "Draft and manage own posts"),
+    ensureRole(RoleName.VIEWER, "Read-only access to dashboards and insights"),
   ]);
 
   const superadminEmail =
@@ -54,12 +56,18 @@ async function main() {
   const editorPassword = process.env.SEED_EDITOR_PASSWORD ?? "editor123";
   const writerEmail = process.env.SEED_WRITER_EMAIL ?? "writer@devlogia.test";
   const writerPassword = process.env.SEED_WRITER_PASSWORD ?? "writer123";
+  const tenantAdminEmail = process.env.SEED_TENANT_ADMIN_EMAIL ?? "tenantadmin@devlogia.test";
+  const tenantAdminPassword = process.env.SEED_TENANT_ADMIN_PASSWORD ?? "tenantadmin123";
+  const viewerEmail = process.env.SEED_VIEWER_EMAIL ?? "viewer@devlogia.test";
+  const viewerPassword = process.env.SEED_VIEWER_PASSWORD ?? "viewer123";
 
   const superadmin = await upsertUser(superadminEmail, superadminPassword, RoleName.SUPERADMIN);
   await Promise.all([
+    upsertUser(tenantAdminEmail, tenantAdminPassword, RoleName.TENANTADMIN),
     upsertUser(adminEmail, adminPassword, RoleName.ADMIN),
     upsertUser(editorEmail, editorPassword, RoleName.EDITOR),
     upsertUser(writerEmail, writerPassword, RoleName.WRITER),
+    upsertUser(viewerEmail, viewerPassword, RoleName.VIEWER),
   ]);
 
   const tags = [

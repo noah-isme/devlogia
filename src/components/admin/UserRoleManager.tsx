@@ -10,12 +10,14 @@ import { Select } from "@/components/ui/select";
 import type { Role } from "@/lib/rbac";
 import { toast } from "sonner";
 
-const ROLE_OPTIONS: Role[] = ["admin", "editor", "writer"];
+const ROLE_OPTIONS: Role[] = ["tenantAdmin", "admin", "editor", "writer", "viewer"];
 const ROLE_LABELS: Record<Role, string> = {
   superadmin: "Superadmin",
+  tenantAdmin: "Tenant admin",
   admin: "Admin",
   editor: "Editor",
   writer: "Writer",
+  viewer: "Viewer",
 };
 
 type UserSummary = {

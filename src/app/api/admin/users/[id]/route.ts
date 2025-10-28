@@ -6,7 +6,9 @@ import { recordAuditLog } from "@/lib/audit";
 import { can, resolveHighestRole } from "@/lib/rbac";
 import { toRoleName } from "@/lib/roles";
 
-const updateSchema = z.object({ role: z.enum(["superadmin", "admin", "editor", "writer"] as const) });
+const updateSchema = z.object({
+  role: z.enum(["superadmin", "tenantAdmin", "admin", "editor", "writer", "viewer"] as const),
+});
 
 export async function PATCH(
   request: Request,
