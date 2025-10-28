@@ -1,6 +1,18 @@
+import { createHash } from "node:crypto";
+
 import { NextResponse } from "next/server";
 
 import { siteConfig } from "@/lib/seo";
+import {
+  buildRateLimitHeaders,
+  checkRateLimit,
+  isRateLimitBypassed,
+  parseRateLimit,
+  resolveRateLimitKey,
+} from "@/lib/ratelimit";
+
+const rssRateLimit = parseRateLimit(process.env.RSS_RATE_LIMIT, 60);
+const rssRateWindow = parseRateLimit(process.env.RSS_RATE_LIMIT_WINDOW_MS, 60_000);
 
 type RssPost = {
   title: string;
@@ -15,11 +27,21 @@ function escapeCdata(value: string) {
   return value.replaceAll("]]>", "]]>]]><![CDATA[");
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const bypass = isRateLimitBypassed(request);
+  const identifier = resolveRateLimitKey(request, "rss-anonymous");
+  const rateResult = await checkRateLimit(`rss:${identifier}`, rssRateLimit, rssRateWindow, { bypass });
+
+  const rateHeaders = buildRateLimitHeaders(rateResult, rssRateLimit);
+
+  if (!rateResult.success) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: rateHeaders });
+  }
+
   const prismaModule = await import("@/lib/prisma");
 
   if (!prismaModule.isDatabaseEnabled) {
-    return buildRssResponse([]);
+    return buildRssResponse([], rateHeaders);
   }
 
   let posts: RssPost[] = [];
@@ -42,10 +64,10 @@ export async function GET() {
     console.error("Failed to generate RSS feed", error);
   }
 
-  return buildRssResponse(posts);
+  return buildRssResponse(posts, rateHeaders);
 }
 
-function buildRssResponse(posts: RssPost[]) {
+function buildRssResponse(posts: RssPost[], rateHeaders: ReturnType<typeof buildRateLimitHeaders>) {
   const items = posts
     .map((post) => {
       const url = `${siteConfig.url}/blog/${post.slug}`;
@@ -73,10 +95,15 @@ function buildRssResponse(posts: RssPost[]) {
   </channel>
 </rss>`;
 
+  const lastModified = posts[0]?.updatedAt ?? null;
+  const etag = createHash("sha256").update(xml).digest("hex");
   return new NextResponse(xml, {
     headers: {
       "Content-Type": "application/rss+xml; charset=utf-8",
-      "Cache-Control": "s-maxage=3600",
+      "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=900",
+      ETag: etag,
+      ...(lastModified ? { "Last-Modified": lastModified.toUTCString() } : {}),
+      ...rateHeaders,
     },
   });
 }

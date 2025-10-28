@@ -1,6 +1,18 @@
+import { createHash } from "node:crypto";
+
 import { NextResponse } from "next/server";
 
 import { siteConfig } from "@/lib/seo";
+import {
+  buildRateLimitHeaders,
+  checkRateLimit,
+  isRateLimitBypassed,
+  parseRateLimit,
+  resolveRateLimitKey,
+} from "@/lib/ratelimit";
+
+const sitemapRateLimit = parseRateLimit(process.env.SITEMAP_RATE_LIMIT, 60);
+const sitemapRateWindow = parseRateLimit(process.env.SITEMAP_RATE_LIMIT_WINDOW_MS, 60_000);
 
 type SitemapEntry = {
   slug: string;
@@ -11,11 +23,20 @@ function formatDate(date: Date) {
   return date.toISOString();
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const bypass = isRateLimitBypassed(request);
+  const identifier = resolveRateLimitKey(request, "sitemap-anonymous");
+  const rateResult = await checkRateLimit(`sitemap:${identifier}`, sitemapRateLimit, sitemapRateWindow, { bypass });
+  const rateHeaders = buildRateLimitHeaders(rateResult, sitemapRateLimit);
+
+  if (!rateResult.success) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: rateHeaders });
+  }
+
   const prismaModule = await import("@/lib/prisma");
 
   if (!prismaModule.isDatabaseEnabled) {
-    return buildSitemapResponse([], []);
+    return buildSitemapResponse([], [], rateHeaders);
   }
 
   let posts: SitemapEntry[] = [];
@@ -36,10 +57,14 @@ export async function GET() {
     console.error("Failed to generate sitemap", error);
   }
 
-  return buildSitemapResponse(posts, pages);
+  return buildSitemapResponse(posts, pages, rateHeaders);
 }
 
-function buildSitemapResponse(posts: SitemapEntry[], pages: SitemapEntry[]) {
+function buildSitemapResponse(
+  posts: SitemapEntry[],
+  pages: SitemapEntry[],
+  rateHeaders: ReturnType<typeof buildRateLimitHeaders>,
+) {
   const urls = [
     { loc: siteConfig.url, lastmod: formatDate(new Date()) },
     ...posts.map((post) => ({
@@ -59,10 +84,19 @@ function buildSitemapResponse(posts: SitemapEntry[], pages: SitemapEntry[]) {
     .join("\n  ")}
 </urlset>`;
 
+  const lastModifiedCandidates = [...posts, ...pages]
+    .map((entry) => entry.updatedAt)
+    .sort((a, b) => b.getTime() - a.getTime());
+  const lastModified = lastModifiedCandidates[0] ?? new Date();
+  const etag = createHash("sha256").update(xml).digest("hex");
+
   return new NextResponse(xml, {
     headers: {
       "Content-Type": "application/xml",
-      "Cache-Control": "s-maxage=3600",
+      "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=900",
+      "Last-Modified": lastModified.toUTCString(),
+      ETag: etag,
+      ...rateHeaders,
     },
   });
 }

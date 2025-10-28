@@ -4,7 +4,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { resolveAIProvider } from "@/lib/ai/provider";
 import { can } from "@/lib/rbac";
-import { checkRateLimit, parseRateLimit } from "@/lib/ratelimit";
+import { checkRateLimit, isRateLimitBypassed, parseRateLimit } from "@/lib/ratelimit";
 
 const outlineSchema = z.object({ topic: z.string().min(3) });
 const metaSchema = z.object({ title: z.string().min(1), content: z.string().min(10) });
@@ -37,7 +37,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ end
   }
 
   const limit = parseRateLimit(process.env.AI_RATE_LIMIT_PER_MIN, 30);
-  const result = checkRateLimit(`ai:${session.user.id}`, limit, 60_000);
+  const bypass = isRateLimitBypassed(request);
+  const result = await checkRateLimit(`ai:${session.user.id}`, limit, 60_000, { bypass });
   if (!result.success) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
