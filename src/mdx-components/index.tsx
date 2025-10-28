@@ -8,3 +8,12 @@ export const mdxComponents: MDXRemoteProps["components"] = {
   code: InlineCode,
   Callout,
 };
+
+type MdxComponentMap = NonNullable<MDXRemoteProps["components"]>;
+
+export function useMDXComponents(components: MdxComponentMap = {}): MdxComponentMap {
+  return {
+    ...mdxComponents,
+    ...components,
+  };
+}

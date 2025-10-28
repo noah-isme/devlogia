@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 
-import type { PostStatus, Prisma } from "@prisma/client";
+import type { PostStatus, Prisma, PrismaClient } from "@prisma/client";
 
 import { auth } from "@/lib/auth";
 import { recordAuditLog } from "@/lib/audit";
-import { prisma, safeFindMany } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { triggerOutbound } from "@/lib/webhooks";
 import { slugify } from "@/lib/utils";
@@ -32,10 +31,10 @@ function normalizeTags(tags: string[] | undefined) {
   );
 }
 
-async function ensureUniqueSlug(baseSlug: string) {
+async function ensureUniqueSlug(prismaClient: PrismaClient, baseSlug: string) {
   for (let counter = 0; ; counter += 1) {
     const candidate = counter === 0 ? baseSlug : `${baseSlug}-${counter}`;
-    const existing = await prisma.post.findUnique({ where: { slug: candidate } });
+    const existing = await prismaClient.post.findUnique({ where: { slug: candidate } });
     if (!existing) {
       return candidate;
     }
@@ -43,6 +42,8 @@ async function ensureUniqueSlug(baseSlug: string) {
 }
 
 export async function GET(request: Request) {
+  const prismaModule = await import("@/lib/prisma");
+  const { safeFindMany } = prismaModule;
   const session = await auth();
   if (!session?.user) {
     return unauthorizedResponse();
@@ -80,6 +81,9 @@ export async function POST(request: Request) {
     return forbiddenResponse();
   }
 
+  const prismaModule = await import("@/lib/prisma");
+  const { prisma } = prismaModule;
+
   const json = await request.json().catch(() => ({}));
   const data = createPostSchema.parse(json ?? {});
 
@@ -89,7 +93,7 @@ export async function POST(request: Request) {
   const title = data?.title?.trim() || "Untitled draft";
   const defaultSlugSource = data?.slug ?? title;
   const baseSlug = slugify(defaultSlugSource) || `untitled-${Date.now()}`;
-  const slug = await ensureUniqueSlug(baseSlug);
+  const slug = await ensureUniqueSlug(prisma, baseSlug);
   const normalizedTags = normalizeTags(data?.tags);
   const status = (isWriter ? "DRAFT" : data?.status ?? "DRAFT") as PostStatus;
   const publishedAt = !isWriter

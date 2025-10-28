@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import type { Role } from "@/lib/rbac";
+import { toast } from "sonner";
 
 const ROLE_OPTIONS: Role[] = ["admin", "editor", "writer"];
 const ROLE_LABELS: Record<Role, string> = {
@@ -30,8 +31,6 @@ type Props = {
   currentUserId: string;
 };
 
-type Feedback = { status: "success" | "error"; message: string } | null;
-
 type RoleDraft = Record<string, Role>;
 
 type CreateDraft = {
@@ -51,7 +50,6 @@ export function UserRoleManager({ users, currentUserId }: Props) {
     Object.fromEntries(users.map((user) => [user.id, user.role])),
   );
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<Feedback>(null);
   const [state, setState] = useState(users);
   const [createDraft, setCreateDraft] = useState<CreateDraft>(INITIAL_CREATE_DRAFT);
   const [createPending, setCreatePending] = useState(false);
@@ -71,12 +69,11 @@ export function UserRoleManager({ users, currentUserId }: Props) {
 
     const nextRole = draftRoles[userId];
     if (!nextRole || nextRole === user.role) {
-      setFeedback({ status: "success", message: "No changes to save." });
+      toast.info("No changes to save", { description: "Select a different role before saving." });
       return;
     }
 
     setPendingId(userId);
-    setFeedback(null);
 
     try {
       const response = await fetch(`/api/admin/users/${userId}`, {
@@ -96,11 +93,15 @@ export function UserRoleManager({ users, currentUserId }: Props) {
       const updatedRole = data.user.role as Role;
       setState((prev) => prev.map((item) => (item.id === userId ? { ...item, role: updatedRole } : item)));
       setDraftRoles((prev) => ({ ...prev, [userId]: updatedRole }));
-      setFeedback({ status: "success", message: `${user.email} is now ${ROLE_LABELS[updatedRole]}.` });
+      toast.success("Role updated", {
+        description: `${user.email} is now ${ROLE_LABELS[updatedRole]}.`,
+      });
     } catch (error) {
       console.error(error);
       setDraftRoles((prev) => ({ ...prev, [userId]: user.role }));
-      setFeedback({ status: "error", message: error instanceof Error ? error.message : "Update failed." });
+      toast.error("Unable to update role", {
+        description: error instanceof Error ? error.message : "Update failed.",
+      });
     } finally {
       setPendingId(null);
     }
@@ -113,7 +114,6 @@ export function UserRoleManager({ users, currentUserId }: Props) {
     if (!confirmed) return;
 
     setPendingId(userId);
-    setFeedback(null);
 
     try {
       const response = await fetch(`/api/admin/users/${userId}`, {
@@ -128,10 +128,12 @@ export function UserRoleManager({ users, currentUserId }: Props) {
       }
 
       setState((prev) => prev.filter((item) => item.id !== userId));
-      setFeedback({ status: "success", message: `${user.email} has been removed.` });
+      toast.success("User removed", { description: `${user.email} no longer has access.` });
     } catch (error) {
       console.error(error);
-      setFeedback({ status: "error", message: error instanceof Error ? error.message : "Delete failed." });
+      toast.error("Unable to delete user", {
+        description: error instanceof Error ? error.message : "Delete failed.",
+      });
     } finally {
       setPendingId(null);
     }
@@ -140,7 +142,6 @@ export function UserRoleManager({ users, currentUserId }: Props) {
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setCreatePending(true);
-    setFeedback(null);
 
     try {
       const response = await fetch("/api/admin/users", {
@@ -167,10 +168,14 @@ export function UserRoleManager({ users, currentUserId }: Props) {
       setState((prev) => [...prev, created]);
       setDraftRoles((prev) => ({ ...prev, [created.id]: created.role }));
       setCreateDraft(INITIAL_CREATE_DRAFT);
-      setFeedback({ status: "success", message: `${created.email} added as ${ROLE_LABELS[created.role]}.` });
+      toast.success("User created", {
+        description: `${created.email} added as ${ROLE_LABELS[created.role]}.`,
+      });
     } catch (error) {
       console.error(error);
-      setFeedback({ status: "error", message: error instanceof Error ? error.message : "Create failed." });
+      toast.error("Unable to create user", {
+        description: error instanceof Error ? error.message : "Create failed.",
+      });
     } finally {
       setCreatePending(false);
     }
@@ -226,18 +231,6 @@ export function UserRoleManager({ users, currentUserId }: Props) {
           </div>
         </form>
       </section>
-
-      {feedback ? (
-        <div
-          role="status"
-          className={`rounded-md border px-3 py-2 text-sm ${
-            feedback.status === "error" ? "border-red-200 bg-red-50 text-red-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"
-          }`}
-          data-testid="user-feedback"
-        >
-          {feedback.message}
-        </div>
-      ) : null}
 
       <div className="overflow-x-auto rounded-md border border-border" data-testid="user-table">
         <table className="min-w-full divide-y divide-border text-sm">

@@ -3,7 +3,6 @@ import { z } from "zod";
 
 import { auth } from "@/lib/auth";
 import { recordAuditLog } from "@/lib/audit";
-import { prisma } from "@/lib/prisma";
 import { can, resolveHighestRole } from "@/lib/rbac";
 import { toRoleName } from "@/lib/roles";
 
@@ -14,6 +13,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  const prismaModule = await import("@/lib/prisma");
+  const { prisma } = prismaModule;
   const session = await auth();
 
   if (!session?.user) {
@@ -102,6 +103,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  const prismaModule = await import("@/lib/prisma");
+  const { prisma } = prismaModule;
   const session = await auth();
 
   if (!session?.user) {

@@ -1,8 +1,9 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
 
+import type { PrismaClient } from "@prisma/client";
+
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 
 const DEFAULT_PROVIDER = "stub";
 
@@ -25,10 +26,10 @@ function buildFileKey(originalName: string) {
   return `uploads/${directory}/${crypto.randomUUID()}.${extension}`;
 }
 
-async function handleStubUpload(sessionUserId: string, file: File, altText: string) {
+async function handleStubUpload(prismaClient: PrismaClient, sessionUserId: string, file: File, altText: string) {
   const fakePath = `/uploads/${crypto.randomUUID()}.${file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") ?? "png"}`;
 
-  const media = await prisma.media.create({
+  const media = await prismaClient.media.create({
     data: {
       url: fakePath,
       alt: altText,
@@ -88,6 +89,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const prismaModule = await import("@/lib/prisma");
+  const { prisma } = prismaModule;
+
   const formData = await request.formData().catch(() => null);
   if (!formData) {
     return NextResponse.json({ error: "Invalid form data" }, { status: 400 });
@@ -106,7 +110,7 @@ export async function POST(request: Request) {
     config.provider !== DEFAULT_PROVIDER && config.bucket && config.region && config.accessKey && config.secretKey;
 
   if (!hasCloudCredentials) {
-    return handleStubUpload(session.user.id, asFile, altText);
+    return handleStubUpload(prisma, session.user.id, asFile, altText);
   }
 
   try {
@@ -136,6 +140,6 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("Cloud upload failed, falling back to stub", error);
-    return handleStubUpload(session.user.id, asFile, altText);
+    return handleStubUpload(prisma, session.user.id, asFile, altText);
   }
 }

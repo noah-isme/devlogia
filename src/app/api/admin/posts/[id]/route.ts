@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import type { PostStatus } from "@prisma/client";
+import type { PostStatus, PrismaClient } from "@prisma/client";
 
 import { auth } from "@/lib/auth";
 import { recordAuditLog } from "@/lib/audit";
-import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { triggerOutbound } from "@/lib/webhooks";
 import { slugify } from "@/lib/utils";
@@ -32,10 +31,10 @@ function normalizeTags(tags: string[] | undefined) {
   );
 }
 
-async function ensureUniqueSlug(baseSlug: string, excludeId: string) {
+async function ensureUniqueSlug(prismaClient: PrismaClient, baseSlug: string, excludeId: string) {
   for (let counter = 0; ; counter += 1) {
     const candidate = counter === 0 ? baseSlug : `${baseSlug}-${counter}`;
-    const existing = await prisma.post.findFirst({
+    const existing = await prismaClient.post.findFirst({
       where: {
         slug: candidate,
         NOT: { id: excludeId },
@@ -53,6 +52,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  const prismaModule = await import("@/lib/prisma");
+  const { prisma } = prismaModule;
   const session = await auth();
   if (!session?.user) {
     return unauthorizedResponse();
@@ -79,6 +80,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  const prismaModule = await import("@/lib/prisma");
+  const { prisma } = prismaModule;
   const session = await auth();
 
   if (!session?.user) {
@@ -105,7 +108,7 @@ export async function PATCH(
 
   const normalizedTags = normalizeTags(data.tags);
   const baseSlug = slugify(data.slug);
-  const slug = await ensureUniqueSlug(baseSlug, id);
+  const slug = await ensureUniqueSlug(prisma, baseSlug, id);
 
   const publishedAt = (() => {
     if (data.status === "PUBLISHED") {
@@ -199,6 +202,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  const prismaModule = await import("@/lib/prisma");
+  const { prisma } = prismaModule;
   const session = await auth();
 
   if (!session?.user) {

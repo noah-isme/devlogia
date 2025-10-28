@@ -42,8 +42,7 @@ async function main() {
 
   console.log(`✅ PostgreSQL is reachable at ${host}:${port}. Continuing with migrations and tests.`);
 
-  runCommand("pnpm", ["prisma", "migrate", "deploy"]);
-  runCommand("pnpm", ["prisma", "db", "seed"]);
+  runCommand("pnpm", ["db:reset"]);
   runCommand("pnpm", ["exec", "playwright", "install", "--with-deps"]);
   runCommand("pnpm", ["test:e2e"]);
 }

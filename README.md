@@ -11,6 +11,7 @@
 - **AI Assist panel** for outlines, metadata, tags, and rephrasing (provider agnostic)
 - **UploadThing stub** with optional S3/R2 cloud uploads
 - **Role-based admin** (superadmin/admin/editor/writer) with audit logging and user management
+- **Unified admin workspace** with sticky sidebar navigation, WCAG AA contrast, and a persistent dark/light theme toggle
 - **SEO suite**: dynamic sitemap, RSS feed, canonical metadata, enriched OG images
 - **Full-text search** with Postgres tsvector + tag filters on the home page
 - **Cursor-based pagination** on public + admin listings with preserved filters
@@ -18,6 +19,7 @@
 - **Analytics & newsletter flags** controlled via environment variables
 - **Webhook revalidation** with HMAC signatures & rate limiting for safe cache busting
 - **Vitest + Playwright** test harness with GitHub Actions-friendly scripts
+- **OpenAPI-powered developer docs** (`/api/docs`, `/api/openapi.json`, `openapi.yaml`) for instant SDK and Postman imports
 
 ## 🧱 Tech Stack
 
@@ -62,42 +64,46 @@ devlogia/
 - **PostgreSQL 14+** running locally (default credentials below) — or use the lightweight Docker Compose stack below
 - Recommended: `psql` CLI for managing the database
 
-### Quick start (local stack)
+### 3-step local setup
 
-Spin up Postgres, install browsers, and run the checks end-to-end:
+1. Install dependencies
+
+   ```bash
+   pnpm install
+   ```
+
+2. Bootstrap the database (drops + migrates + seeds)
+
+   ```bash
+   cp .env.example .env
+   pnpm db:reset
+   ```
+
+3. Start the development server
+
+   ```bash
+   pnpm dev
+   ```
+
+The admin dashboard lives at [`http://localhost:3000/admin`](http://localhost:3000/admin). Use the seeded credentials from `.env` (e.g. `owner@devlogia.test` / `owner123`).
+
+### Full pipeline (optional)
+
+When you need to mirror CI locally — including browser installation and every check in the GitHub Actions workflow — run:
 
 ```bash
 pnpm install
-
-# Start the local Postgres container
 pnpm db:up
-
-# Apply schema & seed
-pnpm prisma:migrate
-pnpm prisma:seed
-
-# Install Playwright dependencies (browsers + system packages)
+pnpm db:reset
 pnpm exec playwright install --with-deps
-
-# Validate the build pipeline
 pnpm lint
 pnpm typecheck
 pnpm test
 pnpm build
-
-# Optional: launch E2E specs (requires the dev server)
 pnpm test:e2e
 ```
 
-Stop the services afterwards with `pnpm db:down`. To rebuild the database from scratch, run `pnpm db:reset`.
-
-To automate the entire E2E workflow — including Docker Compose startup, migrations, seeding, browser installation, and the Playwright suite — run:
-
-```bash
-pnpm test:e2e:full
-```
-
-The script is idempotent: `pnpm db:up` is skipped automatically when the containers are already healthy or Docker Compose is not available (e.g., inside CI where a PostgreSQL service is provided).
+Stop the containerised database afterwards with `pnpm db:down`. To execute the one-shot integration runner (Docker + migrations + seeding + Playwright), use `pnpm test:e2e:full`.
 
 ## 🛠️ Local Troubleshooting
 
@@ -115,6 +121,12 @@ Both the GitHub Actions pipeline and the `pnpm test:e2e:full` script ensure the 
 ### Running tests locally with Docker Compose
 
 When Docker Compose is available, `pnpm db:up` launches the Postgres stack defined in `docker-compose.yml`. The command is automatically invoked by `pnpm test:e2e:full`, but you can run it manually to develop against the same containerized database used in CI. Shut the stack down with `pnpm db:down` once you finish testing.
+
+## 📘 Developer API documentation
+
+- Visit [`/api/docs`](http://localhost:3000/api/docs) for the interactive MDX reference with request/response examples generated from the OpenAPI schema.
+- Programmatic consumers can fetch [`/api/openapi.json`](http://localhost:3000/api/openapi.json) or use the checked-in `openapi.yaml` file for Postman, Swagger UI, or SDK generation.
+- Regenerate the schema after editing public APIs with `pnpm openapi:generate`.
 
 ### Environment Variables
 

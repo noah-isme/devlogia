@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { slugify } from "@/lib/utils";
+import { toast } from "sonner";
 
 export type PageSummary = {
   id: string;
@@ -20,16 +21,10 @@ type PageManagerProps = {
   initialPages: PageSummary[];
 };
 
-type ToastState = {
-  type: "success" | "error";
-  message: string;
-} | null;
-
 export function PageManager({ initialPages }: PageManagerProps) {
   const [pages, setPages] = useState<PageSummary[]>(initialPages);
   const [selectedId, setSelectedId] = useState<string | null>(initialPages[0]?.id ?? null);
   const [draft, setDraft] = useState<PageSummary | null>(initialPages[0] ?? null);
-  const [toast, setToast] = useState<ToastState>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const orderedPages = useMemo(
@@ -45,7 +40,6 @@ export function PageManager({ initialPages }: PageManagerProps) {
 
   const handleCreate = async () => {
     setIsSaving(true);
-    setToast(null);
     try {
       const response = await fetch("/api/admin/pages", {
         method: "POST",
@@ -70,10 +64,10 @@ export function PageManager({ initialPages }: PageManagerProps) {
       setPages((prev) => [...prev, newPage]);
       setSelectedId(newPage.id);
       setDraft(newPage);
-      setToast({ type: "success", message: "Page created" });
+      toast.success("Page created", { description: "Use the editor panel to update details." });
     } catch (error) {
       console.error(error);
-      setToast({ type: "error", message: "Unable to create page" });
+      toast.error("Unable to create page", { description: "Please try again after checking your connection." });
     } finally {
       setIsSaving(false);
     }
@@ -87,7 +81,6 @@ export function PageManager({ initialPages }: PageManagerProps) {
     if (!draft) return;
 
     setIsSaving(true);
-    setToast(null);
 
     try {
       const response = await fetch(`/api/admin/pages/${draft.id}`, {
@@ -117,10 +110,10 @@ export function PageManager({ initialPages }: PageManagerProps) {
 
       setPages((prev) => prev.map((page) => (page.id === updated.id ? updated : page)));
       setDraft(updated);
-      setToast({ type: "success", message: "Page saved" });
+      toast.success("Page saved", { description: "Changes published to the live site." });
     } catch (error) {
       console.error(error);
-      setToast({ type: "error", message: "Unable to save page" });
+      toast.error("Unable to save page", { description: "Review your changes and try again." });
     } finally {
       setIsSaving(false);
     }
@@ -128,7 +121,6 @@ export function PageManager({ initialPages }: PageManagerProps) {
 
   const handleDelete = async (id: string) => {
     setIsSaving(true);
-    setToast(null);
     try {
       const response = await fetch(`/api/admin/pages/${id}`, {
         method: "DELETE",
@@ -144,10 +136,10 @@ export function PageManager({ initialPages }: PageManagerProps) {
         setSelectedId(null);
         setDraft(null);
       }
-      setToast({ type: "success", message: "Page deleted" });
+      toast.success("Page deleted", { description: "The content is no longer visible." });
     } catch (error) {
       console.error(error);
-      setToast({ type: "error", message: "Unable to delete page" });
+      toast.error("Unable to delete page", { description: "We couldn't remove the page." });
     } finally {
       setIsSaving(false);
     }
@@ -205,17 +197,6 @@ export function PageManager({ initialPages }: PageManagerProps) {
             </Button>
           ) : null}
         </div>
-        {toast ? (
-          <p
-            className={`rounded-md border px-3 py-2 text-sm ${
-              toast.type === "success"
-                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600"
-                : "border-red-500/40 bg-red-500/10 text-red-600"
-            }`}
-          >
-            {toast.message}
-          </p>
-        ) : null}
         {draft ? (
           <form
             className="space-y-4"

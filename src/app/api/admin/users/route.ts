@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { can, resolveHighestRole } from "@/lib/rbac";
 import { toRoleName } from "@/lib/roles";
 
@@ -14,6 +13,8 @@ const createSchema = z.object({
 });
 
 export async function GET() {
+  const prismaModule = await import("@/lib/prisma");
+  const { prisma } = prismaModule;
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -40,6 +41,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const prismaModule = await import("@/lib/prisma");
+  const { prisma } = prismaModule;
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

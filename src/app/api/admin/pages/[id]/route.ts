@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import type { PrismaClient } from "@prisma/client";
+
 import { auth } from "@/lib/auth";
 import { recordAuditLog } from "@/lib/audit";
-import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { slugify } from "@/lib/utils";
 import { pageSchema } from "@/lib/validations/page";
@@ -19,10 +20,10 @@ function notFound() {
   return NextResponse.json({ error: "Not found" }, { status: 404 });
 }
 
-async function ensureUniqueSlug(slug: string, excludeId: string) {
+async function ensureUniqueSlug(prismaClient: PrismaClient, slug: string, excludeId: string) {
   for (let counter = 0; ; counter += 1) {
     const candidate = counter === 0 ? slug : `${slug}-${counter}`;
-    const existing = await prisma.page.findFirst({
+    const existing = await prismaClient.page.findFirst({
       where: {
         slug: candidate,
         NOT: { id: excludeId },
@@ -40,6 +41,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  const prismaModule = await import("@/lib/prisma");
+  const { prisma } = prismaModule;
   const session = await auth();
   if (!session?.user) {
     return unauthorized();
@@ -60,7 +63,7 @@ export async function PATCH(
   }
 
   const payload = parsed.data;
-  const slug = await ensureUniqueSlug(slugify(payload.slug), id);
+  const slug = await ensureUniqueSlug(prisma, slugify(payload.slug), id);
 
   const page = await prisma.page.update({
     where: { id },
@@ -105,6 +108,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  const prismaModule = await import("@/lib/prisma");
+  const { prisma } = prismaModule;
   const session = await auth();
   if (!session?.user) {
     return unauthorized();
