@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 import { createRequestLogger } from "@/lib/logger";
+import { recordRequestMetrics } from "@/lib/metrics";
 
 const cspDirectives = [
   "default-src 'self'",
@@ -85,6 +86,14 @@ export default async function proxy(request: NextRequest) {
       applySecurityHeaders(response, requestId);
       const durationMs = Date.now() - start;
       requestLogger.info({ status: response.status, ms: durationMs }, "Request completed");
+      recordRequestMetrics({
+        status: response.status,
+        durationMs,
+        cacheHeader:
+          response.headers.get("x-vercel-cache") ??
+          response.headers.get("x-cache") ??
+          response.headers.get("cache-status"),
+      });
     }
   }
 }

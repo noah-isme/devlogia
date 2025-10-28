@@ -5,8 +5,9 @@ import type { PostStatus, PrismaClient } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { recordAuditLog } from "@/lib/audit";
 import { can } from "@/lib/rbac";
-import { triggerOutbound } from "@/lib/webhooks";
 import { slugify } from "@/lib/utils";
+import { notifySearchEngines, siteConfig } from "@/lib/seo";
+import { triggerOutbound } from "@/lib/webhooks";
 import { upsertPostSchema } from "@/lib/validations/post";
 
 function unauthorizedResponse() {
@@ -173,11 +174,14 @@ export async function PATCH(
       targetId: updated.id,
       meta: { slug: updated.slug },
     });
+    const publicUrl = `${siteConfig.url}/blog/${updated.slug}`;
     await triggerOutbound("post.published", {
       id: updated.id,
       slug: updated.slug,
       status: updated.status,
+      url: publicUrl,
     });
+    void notifySearchEngines();
   }
 
   if (post.status === "PUBLISHED" && updated.status !== "PUBLISHED") {
@@ -192,6 +196,7 @@ export async function PATCH(
       slug: updated.slug,
       status: updated.status,
     });
+    void notifySearchEngines();
   }
 
   return NextResponse.json({ post: updated });

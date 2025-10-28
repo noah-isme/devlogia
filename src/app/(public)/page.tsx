@@ -17,6 +17,8 @@ import {
 } from "@/lib/pagination";
 import { estimateReadingTime, formatDate } from "@/lib/utils";
 
+export const revalidate = 120;
+
 const DEFAULT_POSTS_PER_PAGE = 10;
 const MAX_POSTS_PER_PAGE = 25;
 

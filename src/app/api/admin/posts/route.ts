@@ -5,8 +5,9 @@ import type { PostStatus, Prisma, PrismaClient } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { recordAuditLog } from "@/lib/audit";
 import { can } from "@/lib/rbac";
-import { triggerOutbound } from "@/lib/webhooks";
 import { slugify } from "@/lib/utils";
+import { notifySearchEngines, siteConfig } from "@/lib/seo";
+import { triggerOutbound } from "@/lib/webhooks";
 import { createPostSchema, postStatusValues } from "@/lib/validations/post";
 
 type AdminPostWithTags = Prisma.PostGetPayload<{
@@ -147,11 +148,14 @@ export async function POST(request: Request) {
       targetId: post.id,
       meta: { slug: post.slug },
     });
+    const publicUrl = `${siteConfig.url}/blog/${post.slug}`;
     await triggerOutbound("post.published", {
       id: post.id,
       slug: post.slug,
       status: post.status,
+      url: publicUrl,
     });
+    void notifySearchEngines();
   }
 
   return NextResponse.json({ post }, { status: 201 });

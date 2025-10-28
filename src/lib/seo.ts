@@ -52,6 +52,11 @@ export const siteConfig = {
   author: "Devlogia",
   ogImage: createOgUrl({ title: "Devlogia" }),
   twitter: "@devlogia",
+  logo: "/og-default.png",
+  organization: {
+    legalName: "Devlogia Labs",
+    foundingDate: "2023-01-01",
+  },
 };
 
 export function buildOgImageUrl(options?: OgImageOptions) {
@@ -96,4 +101,88 @@ export function buildMetadata(overrides: Metadata = {}): Metadata {
   };
 
   return metadata;
+}
+
+type BlogPostingJsonLdOptions = {
+  title: string;
+  description: string;
+  url: string;
+  publishedAt: string;
+  updatedAt: string;
+  keywords?: string[];
+  authorName?: string;
+};
+
+export function buildOrganizationJsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: siteConfig.name,
+    legalName: siteConfig.organization.legalName,
+    url: siteConfig.url,
+    logo: new URL(siteConfig.logo, siteConfig.url).toString(),
+    sameAs: [
+      `https://twitter.com/${siteConfig.twitter.replace(/^@/, "")}`,
+    ],
+  };
+}
+
+export function buildBreadcrumbJsonLd(items: Array<{ name: string; url: string }>) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  };
+}
+
+export function buildBlogPostingJsonLd(options: BlogPostingJsonLdOptions) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: options.title,
+    description: options.description,
+    url: options.url,
+    mainEntityOfPage: options.url,
+    datePublished: options.publishedAt,
+    dateModified: options.updatedAt,
+    author: {
+      "@type": "Person",
+      name: options.authorName ?? siteConfig.author,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: siteConfig.name,
+      logo: {
+        "@type": "ImageObject",
+        url: new URL(siteConfig.logo, siteConfig.url).toString(),
+      },
+    },
+    keywords: options.keywords,
+  };
+}
+
+export async function notifySearchEngines(sitemapUrl?: string) {
+  const sitemap = sitemapUrl ?? `${siteConfig.url}/sitemap.xml`;
+  const targets = [
+    `https://www.google.com/ping?sitemap=${encodeURIComponent(sitemap)}`,
+    `https://www.bing.com/ping?sitemap=${encodeURIComponent(sitemap)}`,
+  ];
+
+  await Promise.allSettled(
+    targets.map(async (target) => {
+      try {
+        const response = await fetch(target, { method: "GET" });
+        if (!response.ok) {
+          console.warn(`Failed to ping search engine: ${target} responded with ${response.status}`);
+        }
+      } catch (error) {
+        console.warn(`Unable to ping search engine ${target}`, error);
+      }
+    }),
+  );
 }

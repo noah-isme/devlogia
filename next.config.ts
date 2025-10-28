@@ -50,6 +50,32 @@ const nextConfig: NextConfig = {
     optimizeCss: true,
     optimizePackageImports: ["sonner", "@aws-sdk/client-s3", "zod"],
   },
+  images: {
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 60 * 60,
+  },
+  async headers() {
+    return [
+      {
+        source: "/(.*)\.(js|css|woff2|ttf|svg|png|jpg|jpeg|gif|webp)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        source: "/api/(.*)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, s-maxage=60, stale-while-revalidate=300",
+          },
+        ],
+      },
+    ];
+  },
   env: {
     NEXT_PUBLIC_BUILD_TIME: buildTime,
     NEXT_PUBLIC_GIT_SHA: gitSha,
