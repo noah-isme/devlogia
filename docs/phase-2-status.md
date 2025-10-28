@@ -43,12 +43,12 @@ pnpm test:e2e
 | ------------ | --------- |
 | Analytics    | `ANALYTICS_PROVIDER`, `ANALYTICS_DOMAIN`, `ANALYTICS_SCRIPT_URL`, `ANALYTICS_WEBSITE_ID` |
 | Newsletter   | `NEWSLETTER_PROVIDER`, `BUTTONDOWN_API_KEY`, `RESEND_API_KEY`, `RESEND_AUDIENCE_ID` |
-| Uploads      | `UPLOADER_PROVIDER` (keep `stub` for local/e2e) |
+| Uploads      | `UPLOADTHING_PROVIDER`, `S3_*` credentials (stub by default) |
 
 Leave providers blank to disable the feature—the UI degrades gracefully.
 
 ## 📌 Notes
 
 - OG endpoints accept `title`, `tag`, `slug`, and `date` query parameters; use `buildOgImageUrl` helper in metadata.
-- Playwright specs rely on seeded credentials (`SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`).
+- Playwright specs rely on seeded credentials (`SEED_SUPERADMIN_EMAIL` / `SEED_SUPERADMIN_PASSWORD`).
 - No binary assets were added; OG fallback still references `public/og-default.png`.

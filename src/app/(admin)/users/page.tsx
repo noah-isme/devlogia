@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { UserRoleManager } from "@/components/admin/UserRoleManager";
+import { resolveHighestRole } from "@/lib/rbac";
 import type { Role } from "@/lib/rbac";
 import { auth } from "@/lib/auth";
 import { buildMetadata } from "@/lib/seo";
@@ -13,7 +14,7 @@ export const metadata: Metadata = buildMetadata({
 
 export default async function UsersPage() {
   const session = await auth();
-  if (!session?.user || session.user.role !== "owner") {
+  if (!session?.user || session.user.role !== "superadmin") {
     redirect("/admin/dashboard");
   }
 
@@ -31,17 +32,20 @@ export default async function UsersPage() {
     );
   }
 
-  let users: Array<{ id: string; email: string; role: Role; createdAt: Date }> = [];
+  let users: Array<{ id: string; email: string; role: Role; createdAt: Date; isActive: boolean }> = [];
 
   try {
     const records = await prisma.user.findMany({
       orderBy: { createdAt: "asc" },
-      select: { id: true, email: true, role: true, createdAt: true },
+      select: { id: true, email: true, isActive: true, createdAt: true, roles: { include: { role: true } } },
     });
 
     users = records.map((user) => ({
-      ...user,
-      role: user.role as Role,
+      id: user.id,
+      email: user.email,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+      role: resolveHighestRole(user.roles.map((relation) => relation.role.name.toLowerCase())),
     }));
   } catch (error) {
     console.error("Failed to load users for admin view", error);

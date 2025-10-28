@@ -1,8 +1,8 @@
 import { PrismaClient } from "@prisma/client";
 import { expect, test } from "@playwright/test";
 
-const OWNER_EMAIL = process.env.SEED_OWNER_EMAIL ?? "owner@devlogia.test";
-const OWNER_PASSWORD = process.env.SEED_OWNER_PASSWORD ?? "owner123";
+const SUPERADMIN_EMAIL = process.env.SEED_SUPERADMIN_EMAIL ?? "owner@devlogia.test";
+const SUPERADMIN_PASSWORD = process.env.SEED_SUPERADMIN_PASSWORD ?? "owner123";
 
 const prisma = new PrismaClient();
 
@@ -12,8 +12,8 @@ test.afterAll(async () => {
 
 test("publishing records audit log entry", async ({ page }) => {
   await page.goto("/admin/login");
-  await page.getByLabel("Email").fill(OWNER_EMAIL);
-  await page.getByLabel("Password").fill(OWNER_PASSWORD);
+  await page.getByLabel("Email").fill(SUPERADMIN_EMAIL);
+  await page.getByLabel("Password").fill(SUPERADMIN_PASSWORD);
   await page.getByRole("button", { name: /sign in/i }).click();
 
   await expect(page).toHaveURL(/admin\/dashboard/);

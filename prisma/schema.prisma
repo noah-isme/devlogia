@@ -13,14 +13,42 @@ enum PostStatus {
   SCHEDULED
 }
 
+enum RoleName {
+  SUPERADMIN
+  ADMIN
+  EDITOR
+  WRITER
+}
+
 model User {
   id           String     @id @default(cuid())
   email        String     @unique
   passwordHash String
-  role         String     @default("writer")
+  isActive     Boolean    @default(true)
   createdAt    DateTime   @default(now())
   posts        Post[]
   auditLogs    AuditLog[]
+  roles        UserRole[]
+}
+
+model Role {
+  id          String     @id @default(cuid())
+  name        RoleName   @unique
+  description String?
+  createdAt   DateTime   @default(now())
+  users       UserRole[]
+}
+
+model UserRole {
+  id         String   @id @default(cuid())
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+  role       Role     @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, roleId])
+  @@index([roleId])
 }
 
 model Post {
@@ -37,7 +65,6 @@ model Post {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   tags        PostTag[]
-
 
   @@index([status, publishedAt])
 }

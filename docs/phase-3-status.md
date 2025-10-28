@@ -1,9 +1,9 @@
 # Phase 3 status
 
 ## RBAC & audit logging
-- Owners, editors, and writers seeded via Prisma with role-aware defaults.
+- Superadmins, admins, editors, and writers seeded via Prisma with role-aware defaults.
 - API routes enforce permissions with reusable RBAC helpers and record activity in the `AuditLog` table.
-- Admin UI gains a **Users** screen so owners can review and update member roles.
+- Admin UI gains a **Users** screen so superadmins can review and update member roles.
 - Writer dashboard hides publish controls and restricts status updates to drafts only.
 
 ## AI assist
