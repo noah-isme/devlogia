@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Prisma } from "@prisma/client";
 
+import { PersonalizedFeedSection } from "@/components/personalization/PersonalizedFeedSection";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
@@ -58,6 +59,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             friction.
           </p>
         </header>
+        <div className="rounded-xl border border-border/60 bg-primary/10 p-4 text-sm text-primary-foreground">
+          Personalized recommendations powered by Devlogia AI.
+        </div>
         <div className="rounded-md border border-dashed border-border bg-muted/40 p-6 text-sm text-muted-foreground">
           <p className="font-medium">Database connection unavailable</p>
           <p className="mt-2">
@@ -171,6 +175,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             Devlogia combines MDX, autosave, and SEO-friendly defaults so you can share long-form insights without friction.
           </p>
         </header>
+        <div className="rounded-xl border border-border/60 bg-primary/10 p-4 text-sm text-primary-foreground">
+          Personalized recommendations powered by Devlogia AI.
+        </div>
         <div className="rounded-md border border-dashed border-border bg-muted/40 p-6 text-sm text-muted-foreground">
           <p className="font-medium">Content unavailable</p>
           <p className="mt-2">
@@ -230,6 +237,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           Devlogia combines MDX, autosave, and SEO-friendly defaults so you can share long-form insights without friction.
         </p>
       </header>
+
+      <div className="rounded-xl border border-border/60 bg-primary/10 p-4 text-sm text-primary-foreground">
+        Personalized recommendations powered by Devlogia AI.
+      </div>
+
+      <PersonalizedFeedSection />
 
       <div className="space-y-6 rounded-lg border border-border bg-muted/30 p-4 sm:p-6">
         <form className="flex flex-col gap-3 sm:flex-row sm:items-center" action="/" method="GET">
