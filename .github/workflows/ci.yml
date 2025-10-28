@@ -12,6 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        node: [20, 22]
         upload_provider: [stub, r2]
     container:
       image: mcr.microsoft.com/playwright:v1.47.0-jammy
@@ -54,7 +55,7 @@ jobs:
           version: 9
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ matrix.node }}
           cache: pnpm
       - name: Cache pnpm store
         uses: actions/cache@v4
@@ -69,7 +70,7 @@ jobs:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-v1
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
       - name: Setup env for CI
         run: cp .env.ci .env
 
@@ -82,8 +83,7 @@ jobs:
           else
             echo "Docker Compose not available; assuming database service is running."
           fi
-          pnpm prisma migrate deploy
-          pnpm prisma db seed
+          pnpm db:reset
       - name: Lint, Typecheck, Test, Build
         run: |
           pnpm lint
@@ -101,3 +101,38 @@ jobs:
           trap "kill $APP_PID" EXIT
           npx wait-on http://127.0.0.1:3000
           pnpm test:e2e
+
+  upload-openapi:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: build-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Generate OpenAPI schema
+        run: pnpm openapi:generate
+      - name: Upload schema to SwaggerHub
+        if: ${{ secrets.SWAGGERHUB_API_KEY != '' && secrets.SWAGGERHUB_OWNER != '' }}
+        env:
+          SWAGGERHUB_API_KEY: ${{ secrets.SWAGGERHUB_API_KEY }}
+          SWAGGERHUB_OWNER: ${{ secrets.SWAGGERHUB_OWNER }}
+          SWAGGERHUB_API: Devlogia
+          SWAGGERHUB_VERSION: 1.0.0
+        run: |
+          curl -s -X PUT "https://api.swaggerhub.com/apis/${SWAGGERHUB_OWNER}/${SWAGGERHUB_API}/${SWAGGERHUB_VERSION}" \
+            -H "Authorization: ${SWAGGERHUB_API_KEY}" \
+            -H "Content-Type: application/yaml" \
+            --data-binary @openapi.yaml
+      - name: Upload OpenAPI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi
+          path: openapi.yaml

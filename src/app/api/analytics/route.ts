@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
 import { buildMonthlyViewSeries, computePostStatusSummary, computeViewTotal, mapTopTags } from "@/lib/analytics";
-import { isDatabaseEnabled, prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 
 export async function GET() {
+  const prismaModule = await import("@/lib/prisma");
+  const { isDatabaseEnabled, prisma } = prismaModule;
   if (!isDatabaseEnabled) {
     return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
   }

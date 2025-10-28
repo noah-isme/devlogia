@@ -1,0 +1,18 @@
+import { ApiDocsContent, ApiDocsNavigation, ApiHero } from "@/components/api/api-docs-content";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata = buildMetadata({
+  title: "API Documentation",
+  description: "Explore Devlogia's public REST API, complete with schemas, examples, and authentication details.",
+});
+
+<ApiHero />
+
+<div className="mt-12 grid gap-10 lg:grid-cols-[18rem,1fr]">
+  <div className="lg:sticky lg:top-24">
+    <ApiDocsNavigation />
+  </div>
+  <div className="space-y-12">
+    <ApiDocsContent />
+  </div>
+</div>

@@ -1,0 +1,445 @@
+openapi: 3.1.0
+info:
+  title: Devlogia Public API
+  version: 1.0.0
+  description: OpenAPI definition covering the public content and analytics endpoints exposed by Devlogia. Authentication
+    is handled via NextAuth session cookies.
+  contact:
+    name: Devlogia Engineering
+    url: https://devlogia.test
+    email: engineering@devlogia.test
+servers:
+  - url: https://devlogia.test
+    description: Production
+  - url: http://localhost:3000
+    description: Local development
+security:
+  - CookieAuth: []
+components:
+  securitySchemes:
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: next-auth.session-token
+      description: Session token issued by NextAuth. In browsers it is managed automatically after sign-in.
+  schemas:
+    SessionUser:
+      type: object
+      properties:
+        name:
+          type:
+            - string
+            - "null"
+          example: Amalia
+        email:
+          type:
+            - string
+            - "null"
+          format: email
+          example: editor@devlogia.test
+        image:
+          type:
+            - string
+            - "null"
+          format: uri
+        role:
+          type: string
+          example: admin
+      required:
+        - name
+        - email
+      description: Authenticated user metadata.
+    Session:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/SessionUser"
+        expires:
+          type: string
+          format: date-time
+          example: 2025-10-28T15:09:39.597Z
+      required:
+        - expires
+      title: NextAuth Session
+    Post:
+      type: object
+      properties:
+        id:
+          type: string
+          example: post_123
+        title:
+          type: string
+          example: Introducing Devlogia
+        slug:
+          type: string
+          example: introducing-devlogia
+        summary:
+          type:
+            - string
+            - "null"
+          example: Learn how Devlogia keeps your content workflow nimble.
+        publishedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        url:
+          type: string
+          format: uri
+      required:
+        - id
+        - title
+        - slug
+        - summary
+        - publishedAt
+        - updatedAt
+        - url
+      title: PublicPost
+    Page:
+      type: object
+      properties:
+        id:
+          type: string
+          example: page_123
+        title:
+          type: string
+        slug:
+          type: string
+          example: about
+        published:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+        url:
+          type: string
+          format: uri
+      required:
+        - id
+        - title
+        - slug
+        - published
+        - updatedAt
+        - url
+      title: PublicPage
+    TrafficPoint:
+      type: object
+      properties:
+        month:
+          type: string
+          example: 2024-06
+        views:
+          type: integer
+          minimum: 0
+          example: 1200
+      required:
+        - month
+        - views
+      description: Monthly view summary.
+    AnalyticsResponse:
+      type: object
+      properties:
+        posts:
+          type: object
+          properties:
+            drafts:
+              type: integer
+              minimum: 0
+            published:
+              type: integer
+              minimum: 0
+            scheduled:
+              type: integer
+              minimum: 0
+            views:
+              type: integer
+              minimum: 0
+          required:
+            - drafts
+            - published
+            - scheduled
+            - views
+        pages:
+          type: object
+          properties:
+            total:
+              type: integer
+              minimum: 0
+            published:
+              type: integer
+              minimum: 0
+          required:
+            - total
+            - published
+        users:
+          type: object
+          properties:
+            total:
+              type: integer
+              minimum: 0
+            active:
+              type: integer
+              minimum: 0
+            inactive:
+              type: integer
+              minimum: 0
+          required:
+            - total
+            - active
+            - inactive
+        tags:
+          type: object
+          properties:
+            total:
+              type: integer
+              minimum: 0
+            top:
+              type: array
+              items:
+                type: object
+                properties:
+                  tag:
+                    type: string
+                  count:
+                    type: integer
+                    minimum: 0
+                required:
+                  - tag
+                  - count
+              description: Top tags with usage frequency.
+          required:
+            - total
+            - top
+        traffic:
+          type: object
+          properties:
+            timeframe:
+              type: string
+              example: 6 months
+            points:
+              type: array
+              items:
+                $ref: "#/components/schemas/TrafficPoint"
+          required:
+            - timeframe
+            - points
+        generatedAt:
+          type: string
+          format: date-time
+      required:
+        - posts
+        - pages
+        - users
+        - tags
+        - traffic
+        - generatedAt
+    UploadFile:
+      type: object
+      properties:
+        id:
+          type: string
+          example: media_123
+        url:
+          type: string
+          format: uri
+          example: https://cdn.devlogia.test/uploads/2024-04-01/header.png
+        alt:
+          type: string
+          example: Team photo
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - url
+        - alt
+        - createdAt
+    UploadResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        provider:
+          type: string
+          example: stub
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/UploadFile"
+      required:
+        - success
+        - provider
+        - files
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Unauthorized
+      required:
+        - error
+  parameters: {}
+paths:
+  /api/auth/session:
+    get:
+      tags:
+        - Auth
+      summary: Read the active session
+      responses:
+        "200":
+          description: Current NextAuth session for the authenticated user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "401":
+          description: No active session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/posts:
+    get:
+      tags:
+        - Content
+      summary: List published posts
+      description: "Responses include `Cache-Control: public, s-maxage=60, stale-while-revalidate=300` to keep content fresh
+        while allowing CDN reuse."
+      responses:
+        "200":
+          description: Published posts ordered by publish date.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  posts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Post"
+                required:
+                  - posts
+  /api/pages:
+    get:
+      tags:
+        - Content
+      summary: List site pages
+      description: "Responses include `Cache-Control: public, s-maxage=60, stale-while-revalidate=300` to keep content fresh
+        while allowing CDN reuse."
+      responses:
+        "200":
+          description: All CMS pages with visibility flags.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pages:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Page"
+                required:
+                  - pages
+  /api/rss:
+    get:
+      tags:
+        - Content
+      summary: RSS feed
+      responses:
+        "200":
+          description: RSS 2.0 XML feed.
+          content:
+            application/rss+xml:
+              schema:
+                type: string
+  /api/sitemap:
+    get:
+      tags:
+        - Content
+      summary: XML sitemap
+      responses:
+        "200":
+          description: Sitemap XML for search crawlers.
+          content:
+            application/xml:
+              schema:
+                type: string
+  /api/analytics:
+    get:
+      tags:
+        - Analytics
+      summary: Content analytics overview
+      security:
+        - CookieAuth: []
+      responses:
+        "200":
+          description: Aggregated metrics for authenticated admins.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/uploadthing:
+    post:
+      tags:
+        - Uploads
+      summary: Upload media to the configured storage provider
+      security:
+        - CookieAuth: []
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File contents
+              required:
+                - file
+      responses:
+        "200":
+          description: Upload succeeded (returns stub provider when S3 isn't configured).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/openapi.json:
+    get:
+      tags:
+        - Auth
+      summary: Download the OpenAPI schema
+      responses:
+        "200":
+          description: OpenAPI 3.1 definition for Devlogia's public API.
+          content:
+            application/json:
+              schema: {}
+webhooks: {}
