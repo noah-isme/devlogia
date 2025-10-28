@@ -35,6 +35,9 @@
     "prisma:seed": "tsx prisma/seed.ts",
     "embeddings:generate": "tsx scripts/generate-embeddings.ts",
     "insights:ai-report": "tsx scripts/ai-report.ts",
+    "ai:usage-report": "tsx scripts/ai-usage-report.ts",
+    "ai:purge-cache": "tsx scripts/ai-purge-cache.ts",
+    "ai:audit-export": "tsx scripts/ai-audit-export.ts",
     "insights:daily": "tsx scripts/insights-daily.ts",
     "deploy:staging": "node scripts/deploy-staging.mjs",
     "deploy:promote": "node scripts/deploy-promote.mjs"

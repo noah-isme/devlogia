@@ -29,6 +29,8 @@ model User {
   posts        Post[]
   auditLogs    AuditLog[]
   roles        UserRole[]
+  aiUsage      AIUsage[]
+  aiAuditLogs  AIAuditLog[]
 }
 
 model Role {
@@ -69,6 +71,9 @@ model Post {
   recommendations Recommendation[]      @relation("RecommendationSource")
   recommendedBy   Recommendation[]      @relation("RecommendationTarget")
   topics          PostTopic[]
+  headlineVariants HeadlineVariant[]
+  aiUsage          AIUsage[]
+  aiAuditLogs      AIAuditLog[]
 
   @@index([status, publishedAt])
 }
@@ -119,6 +124,56 @@ model AuditLog {
   targetId  String?
   meta      Json?
   createdAt DateTime @default(now())
+}
+
+model HeadlineVariant {
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  postId    String   @db.VarChar(191)
+  title     String   @db.VarChar(191)
+  abKey     String   @db.VarChar(64)
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id])
+
+  @@index([postId])
+  @@unique([postId, abKey])
+}
+
+model AIUsage {
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  userId    String   @db.VarChar(191)
+  postId    String?  @db.VarChar(191)
+  task      String   @db.VarChar(64)
+  model     String   @db.VarChar(191)
+  provider  String   @db.VarChar(64)
+  tokensIn  Int      @default(0)
+  tokensOut Int      @default(0)
+  usd       Decimal  @db.Decimal(10, 4)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  post      Post?    @relation(fields: [postId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([postId, createdAt])
+}
+
+model AIAuditLog {
+  id            String   @id @default(cuid()) @db.VarChar(191)
+  userId        String?  @db.VarChar(191)
+  postId        String?  @db.VarChar(191)
+  task          String   @db.VarChar(64)
+  promptHash    String   @db.Char(64)
+  promptExcerpt String   @db.VarChar(200)
+  model         String   @db.VarChar(191)
+  provider      String   @db.VarChar(64)
+  tokens        Int      @default(0)
+  moderated     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  user          User?    @relation(fields: [userId], references: [id])
+  post          Post?    @relation(fields: [postId], references: [id])
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([postId, createdAt])
 }
 
 model Embedding {

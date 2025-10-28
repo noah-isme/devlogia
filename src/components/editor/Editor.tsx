@@ -1,8 +1,7 @@
 "use client";
 
-import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, type SyntheticEvent, useEffect, useMemo, useRef, useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +10,10 @@ import { Textarea } from "@/components/ui/textarea";
 import type { Role } from "@/lib/rbac";
 import { postStatusValues } from "@/lib/validations/post";
 import { slugify } from "@/lib/utils";
+import { AssistantPanel } from "@/components/editor/ai/AssistantPanel";
+import { ToneStylePanel } from "@/components/editor/ai/ToneStylePanel";
+import { SeoOptimizerPanel } from "@/components/editor/ai/SeoOptimizerPanel";
+import { OutlineHeadlinePanel } from "@/components/editor/ai/OutlineHeadlinePanel";
 
 type PostStatus = (typeof postStatusValues)[number];
 
@@ -41,13 +44,6 @@ type PostEditorProps = {
 
 type AutosaveState = "idle" | "saving" | "saved" | "error";
 type UploadState = "idle" | "uploading" | "success" | "error";
-
-type AIEndpoint = "outline" | "meta" | "tags" | "rephrase";
-type AIResult =
-  | { type: "outline"; data: string[] }
-  | { type: "meta"; data: { title: string; description: string } }
-  | { type: "tags"; data: string[] }
-  | { type: "rephrase"; data: string };
 
 const AUTOSAVE_DELAY = 1500;
 
@@ -93,9 +89,11 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
   const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [actionState, setActionState] = useState<"idle" | "saving" | "success" | "error">("idle");
-  const [aiStatus, setAiStatus] = useState<"idle" | "loading">("idle");
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [aiResult, setAiResult] = useState<AIResult | null>(null);
+  const contentRef = useRef<HTMLTextAreaElement | null>(null);
+  const [selectionRange, setSelectionRange] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
+  const [lastAiContent, setLastAiContent] = useState<string | null>(null);
+  const [seoKeywords, setSeoKeywords] = useState<string[]>([]);
+  const [seoFaqs, setSeoFaqs] = useState<string[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const latestState = useRef(post);
@@ -126,6 +124,16 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
   const primaryLabel = canPublish ? (post.status === "PUBLISHED" ? "Update post" : "Publish") : "Save draft";
   const isPrimarySaving = actionState === "saving";
   const primaryVariant = actionState === "error" ? "destructive" : "default";
+  const selectionText = useMemo(() => {
+    const contentValue = post.contentMdx;
+    const start = Math.max(0, Math.min(selectionRange.start, contentValue.length));
+    const end = Math.max(0, Math.min(selectionRange.end, contentValue.length));
+    if (end <= start) {
+      return "";
+    }
+    return contentValue.slice(start, end);
+  }, [post.contentMdx, selectionRange]);
+  const hasSelection = selectionText.length > 0;
 
   useEffect(() => {
     latestState.current = post;
@@ -347,6 +355,84 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
     }
   };
 
+  const handleContentSelection = (event: SyntheticEvent<HTMLTextAreaElement>) => {
+    const target = event.currentTarget;
+    setSelectionRange({ start: target.selectionStart ?? 0, end: target.selectionEnd ?? 0 });
+  };
+
+  function focusContent() {
+    if (contentRef.current) {
+      contentRef.current.focus();
+    }
+  }
+
+  function applyGeneratedContent(mode: "replace-selection" | "append" | "insert" | "replace-all", generated: string) {
+    const current = latestState.current.contentMdx;
+    const start = Math.max(0, Math.min(selectionRange.start, current.length));
+    const end = Math.max(0, Math.min(selectionRange.end, current.length));
+    let next = current;
+    if (mode === "replace-selection") {
+      if (end > start) {
+        next = `${current.slice(0, start)}${generated}\n${current.slice(end)}`;
+      } else {
+        next = generated;
+      }
+    } else if (mode === "append") {
+      next = `${current.trimEnd()}\n\n${generated}`;
+    } else if (mode === "insert") {
+      next = `${current.slice(0, start)}${generated}${current.slice(start)}`;
+    } else if (mode === "replace-all") {
+      next = generated;
+    }
+    setLastAiContent(current);
+    updateField("contentMdx", next);
+    setSelectionRange({ start: next.length, end: next.length });
+    setActiveView("write");
+    focusContent();
+  }
+
+  function applyToneSuggestions(next: string) {
+    const current = latestState.current.contentMdx;
+    setLastAiContent(current);
+    updateField("contentMdx", next);
+    setSelectionRange({ start: next.length, end: next.length });
+    focusContent();
+  }
+
+  function applySeoSuggestion(payload: { title: string; summary: string; slug: string }) {
+    updateField("title", payload.title);
+    updateField("summary", payload.summary);
+    updateField("slug", slugify(payload.slug));
+  }
+
+  function handleSeoKeywords(keywords: string[], faqs: string[]) {
+    setSeoKeywords(keywords);
+    setSeoFaqs(faqs);
+  }
+
+  function insertOutline(mdx: string) {
+    if (!mdx.trim()) {
+      return;
+    }
+    applyGeneratedContent("append", mdx);
+  }
+
+  function useHeadline(headline: string) {
+    updateField("title", headline);
+    if (!initialPost) {
+      updateField("slug", slugify(headline));
+    }
+  }
+
+  function revertLastAiChange() {
+    if (lastAiContent === null) {
+      return;
+    }
+    updateField("contentMdx", lastAiContent);
+    setLastAiContent(null);
+    focusContent();
+  }
+
   async function handlePrimaryAction() {
     if (isPrimarySaving) {
       return;
@@ -391,155 +477,6 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
       setAutosaveState("error");
       actionTimeout.current = setTimeout(() => setActionState("idle"), 4000);
     }
-  }
-
-  async function requestAI(endpoint: AIEndpoint) {
-    if (!aiAvailable) {
-      return;
-    }
-
-    if (endpoint !== "outline") {
-      const contentLength = latestState.current.contentMdx.trim().length;
-      if (contentLength < 10) {
-        setAiError("Add more content before requesting AI suggestions.");
-        return;
-      }
-    } else if (!latestState.current.title || latestState.current.title.trim().length < 3) {
-      setAiError("Add a working title before requesting an outline.");
-      return;
-    }
-
-    setAiStatus("loading");
-    setAiError(null);
-    setAiResult(null);
-
-    const payload = (() => {
-      switch (endpoint) {
-        case "outline":
-          return { topic: latestState.current.title || latestState.current.slug || "Draft" };
-        case "meta":
-          return {
-            title: latestState.current.title || "Untitled draft",
-            content: latestState.current.contentMdx,
-          };
-        case "tags":
-          return { content: latestState.current.contentMdx, limit: 8 };
-        case "rephrase":
-          return { content: latestState.current.contentMdx };
-        default:
-          return {};
-      }
-    })();
-
-    try {
-      const response = await fetch(`/api/ai/${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        const message =
-          response.status === 429
-            ? "AI rate limit reached. Try again later."
-            : response.status === 503
-              ? "AI assistant is disabled for this workspace."
-              : typeof body.error === "string"
-                ? body.error
-                : `AI request failed (${response.status}).`;
-        setAiError(message);
-        setAiStatus("idle");
-        return;
-      }
-
-      const body = await response.json();
-      const data = body.data;
-      let result: AIResult | null = null;
-
-      switch (endpoint) {
-        case "outline":
-          if (Array.isArray(data)) {
-            result = { type: "outline", data: data.map((item: unknown) => String(item)) };
-          }
-          break;
-        case "meta":
-          if (data && typeof data === "object") {
-            result = {
-              type: "meta",
-              data: {
-                title: String((data as { title?: string }).title ?? latestState.current.title),
-                description: String((data as { description?: string }).description ?? latestState.current.summary),
-              },
-            };
-          }
-          break;
-        case "tags":
-          if (Array.isArray(data)) {
-            result = {
-              type: "tags",
-              data: data.map((item: unknown) => String(item)).filter(Boolean),
-            };
-          }
-          break;
-        case "rephrase":
-          if (typeof data === "string") {
-            result = { type: "rephrase", data };
-          }
-          break;
-        default:
-          break;
-      }
-
-      if (!result) {
-        setAiError("AI response was empty. Try again.");
-        setAiStatus("idle");
-        return;
-      }
-
-      setAiResult(result);
-      setAiStatus("idle");
-    } catch (error) {
-      console.error("AI request failed", error);
-      setAiError("Unable to reach the AI assistant.");
-      setAiStatus("idle");
-    }
-  }
-
-  function applyAiResult(result: AIResult) {
-    switch (result.type) {
-      case "outline": {
-        const outline = result.data
-          .map((item) => `## ${item}`)
-          .join("\n\n");
-        const existing = latestState.current.contentMdx.trim();
-        const next = `${existing ? `${existing}\n\n` : ""}${outline}`;
-        updateField("contentMdx", next);
-        setActiveView("write");
-        break;
-      }
-      case "meta": {
-        updateField("title", result.data.title);
-        updateField("summary", result.data.description);
-        break;
-      }
-      case "tags": {
-        const uniqueTags = Array.from(new Set(result.data.map((tag) => tag.trim()).filter(Boolean)));
-        updateField("tags", uniqueTags);
-        break;
-      }
-      case "rephrase": {
-        updateField("contentMdx", result.data);
-        setActiveView("write");
-        break;
-      }
-      default:
-        break;
-    }
-
-    setAiResult(null);
-    setAiError(null);
   }
 
   function updateField<K extends keyof EditorPost>(key: K, value: EditorPost[K]) {
@@ -752,9 +689,19 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
               <Textarea
                 id="content"
                 name="content"
+                ref={contentRef}
                 value={post.contentMdx}
                 className="min-h-[360px] font-mono"
-                onChange={(event) => updateField("contentMdx", event.target.value)}
+                onChange={(event) => {
+                  updateField("contentMdx", event.target.value);
+                  setSelectionRange({
+                    start: event.target.selectionStart ?? event.target.value.length,
+                    end: event.target.selectionEnd ?? event.target.value.length,
+                  });
+                }}
+                onSelect={handleContentSelection}
+                onKeyUp={handleContentSelection}
+                onClick={handleContentSelection}
               />
             ) : (
               <div className="prose prose-neutral min-h-[360px] rounded-lg border border-border bg-muted/40 p-6 text-sm dark:prose-invert">
@@ -768,101 +715,46 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
           </div>
         </div>
         <aside className="space-y-6">
-          <div className="space-y-3 rounded-lg border border-border bg-muted/40 p-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold">AI Assist</h2>
-              <span className="text-xs text-muted-foreground">
-                {!aiAvailable ? "Disabled" : aiStatus === "loading" ? "Generating…" : "Beta"}
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Generate outlines, SEO metadata, tags, or rephrase existing content to speed up your workflow.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={!aiAvailable || aiStatus === "loading"}
-                onClick={() => void requestAI("outline")}
-              >
-                Outline
+          <AssistantPanel
+            disabled={!aiAvailable}
+            postId={post.id}
+            title={post.title}
+            summary={post.summary}
+            tags={post.tags}
+            content={post.contentMdx}
+            selection={{ text: selectionText, hasSelection }}
+            onApply={applyGeneratedContent}
+          />
+          <div className="flex items-center justify-between rounded-md border border-dashed border-border bg-muted/30 px-3 py-2 text-xs">
+            <span className="text-muted-foreground">
+              {lastAiContent ? "Latest AI edit stored for undo." : "AI edits will keep MDX intact."}
+            </span>
+            {lastAiContent ? (
+              <Button type="button" size="sm" variant="ghost" onClick={revertLastAiChange}>
+                Undo AI insert
               </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={!aiAvailable || aiStatus === "loading"}
-                onClick={() => void requestAI("meta")}
-              >
-                Meta
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={!aiAvailable || aiStatus === "loading"}
-                onClick={() => void requestAI("tags")}
-              >
-                Tags
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={!aiAvailable || aiStatus === "loading"}
-                onClick={() => void requestAI("rephrase")}
-              >
-                Rephrase
-              </Button>
-            </div>
-            {aiError ? <p className="text-xs text-red-500">{aiError}</p> : null}
-            {aiResult ? (
-              <div className="space-y-3 rounded-md border border-dashed border-border bg-background p-3 text-xs">
-                {aiResult.type === "outline" ? (
-                  <ul className="list-disc space-y-1 pl-4 text-left">
-                    {aiResult.data.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                ) : aiResult.type === "meta" ? (
-                  <div className="space-y-1 text-left">
-                    <p>
-                      <span className="font-medium">Title:</span> {aiResult.data.title}
-                    </p>
-                    <p>
-                      <span className="font-medium">Description:</span> {aiResult.data.description}
-                    </p>
-                  </div>
-                ) : aiResult.type === "tags" ? (
-                  <div className="flex flex-wrap gap-2">
-                    {aiResult.data.map((tag) => (
-                      <Badge key={tag} variant="info">
-                        #{tag}
-                      </Badge>
-                    ))}
-                  </div>
-                ) : (
-                  <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-md bg-muted/30 p-2 text-left">
-                    {aiResult.data}
-                  </pre>
-                )}
-                <div className="flex items-center gap-2">
-                  <Button type="button" size="sm" onClick={() => applyAiResult(aiResult)}>
-                    Apply
-                  </Button>
-                  <Button type="button" size="sm" variant="ghost" onClick={() => setAiResult(null)}>
-                    Clear
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-            {!aiAvailable ? (
-              <p className="text-xs text-muted-foreground">
-                Configure <code>AI_PROVIDER</code> to enable AI assistance.
-              </p>
             ) : null}
           </div>
+          <ToneStylePanel disabled={!aiAvailable} postId={post.id} content={post.contentMdx} onApply={applyToneSuggestions} />
+          <SeoOptimizerPanel
+            disabled={!aiAvailable}
+            postId={post.id}
+            title={post.title}
+            summary={post.summary}
+            slug={post.slug}
+            content={post.contentMdx}
+            onApply={applySeoSuggestion}
+            onKeywords={handleSeoKeywords}
+          />
+          <OutlineHeadlinePanel
+            disabled={!aiAvailable}
+            postId={post.id}
+            title={post.title}
+            summary={post.summary}
+            tags={post.tags}
+            onOutline={insertOutline}
+            onHeadline={useHeadline}
+          />
           <div className="space-y-2">
             <Label htmlFor="status">Status</Label>
             <Select
@@ -900,11 +792,7 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
               onChange={handleFileChange}
             />
             {uploadMessage ? (
-              <p
-                className={`text-xs ${
-                  uploadState === "error" ? "text-red-500" : "text-muted-foreground"
-                }`}
-              >
+              <p className={`text-xs ${uploadState === "error" ? "text-red-500" : "text-muted-foreground"}`}>
                 {uploadMessage}
               </p>
             ) : null}
@@ -921,6 +809,36 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
             <p className="text-xs text-muted-foreground">
               Separate tags with commas. They will be created automatically if they do not exist.
             </p>
+            {seoKeywords.length ? (
+              <div className="space-y-1 rounded-md border border-dashed border-border bg-muted/20 p-2 text-[11px]">
+                <p className="font-medium">SEO keyword suggestions</p>
+                <div className="flex flex-wrap gap-1">
+                  {seoKeywords.map((keyword) => (
+                    <span key={keyword} className="rounded bg-background px-2 py-0.5">
+                      {keyword}
+                    </span>
+                  ))}
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => updateField("tags", Array.from(new Set([...post.tags, ...seoKeywords])))}
+                >
+                  Apply keywords as tags
+                </Button>
+              </div>
+            ) : null}
+            {seoFaqs.length ? (
+              <div className="space-y-1 rounded-md border border-dashed border-border bg-muted/20 p-2 text-[11px]">
+                <p className="font-medium">Suggested FAQs</p>
+                <ul className="list-disc space-y-1 pl-4">
+                  {seoFaqs.map((faq, index) => (
+                    <li key={`${faq}-${index}`}>{faq}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
           <div className="space-y-2">
             <Label htmlFor="publishedAt">Published at</Label>

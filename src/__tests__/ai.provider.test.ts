@@ -17,23 +17,16 @@ describe("AI providers", () => {
     expect(provider).toBeInstanceOf(NullProvider);
   });
 
-  it("null provider generates deterministic helpers", async () => {
+  it("null provider exposes deterministic fallbacks", async () => {
     const provider = new NullProvider();
-    const outline = await provider.suggestOutline("Next.js performance");
-    expect(outline).toEqual([
-      "Next.js performance",
-      "Next.js performance insights",
-      "Next steps for Next.js performance",
-    ]);
+    const draft = await provider.writer({ action: "draft", title: "Next.js performance", summary: "Improve builds" });
+    expect(draft.content).toContain("# Next.js performance");
 
-    const meta = await provider.suggestMeta("Test title", "Content for testing meta description.");
-    expect(meta.title).toBe("Test title");
-    expect(meta.description.length).toBeGreaterThan(0);
+    const tone = await provider.analyzeTone("This is a simple informative sentence.");
+    expect(tone.analysis.tone).toBe("informative");
+    expect(typeof tone.analysis.readability).toBe("number");
 
-    const tags = await provider.suggestTags("TypeScript TypeScript Next.js testing strategy", 3);
-    expect(tags).toContain("typescript");
-
-    const rephrased = await provider.rephrase("  Hello world  ");
-    expect(rephrased).toBe("Hello world");
+    const seo = await provider.optimizeSeo({ title: "Next.js performance", content: "Optimize Next.js builds" });
+    expect(seo.suggestion.slug).toContain("nextjs-performance");
   });
 });
