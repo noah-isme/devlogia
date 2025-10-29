@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import { prisma } from "../src/lib/prisma";
+import { publishFederationIndex } from "../src/lib/federation/indexer";
 import { createTenantConfig, evaluateTenantReadiness } from "../src/lib/tenant";
 
 async function main() {
@@ -23,39 +23,13 @@ async function main() {
     return;
   }
 
-  const posts = await prisma.post.findMany({
-    orderBy: { updatedAt: "desc" },
-    take: Number.isFinite(limit) && limit > 0 ? limit : 25,
-    include: {
-      tags: { include: { tag: true } },
-      embedding: true,
-    },
-  });
-
-  const payload = {
-    tenant: {
-      slug: tenantSlug,
-      plan: config.defaultPlan,
-      mode: config.mode,
-    },
-    generatedAt: new Date().toISOString(),
-    items: posts.map((post) => ({
-      postId: post.id,
-      slug: post.slug,
-      title: post.title,
-      summary: post.summary,
-      tags: post.tags.map((entry) => entry.tag.slug),
-      embedding: post.embedding?.vector ?? null,
-      updatedAt: post.updatedAt.toISOString(),
-    })),
-  };
-
   if (!push || !config.federation.indexUrl || !config.federation.apiKey) {
+    const { payload, durationMs } = await publishFederationIndex({ limit, tenantSlug, push: false });
     const outputDir = resolve(process.cwd(), ".reports");
     await mkdir(outputDir, { recursive: true });
     const outputPath = resolve(outputDir, "federation-payload.json");
     await writeFile(outputPath, JSON.stringify(payload, null, 2));
-    console.log(`📝 Federation payload written to ${outputPath}`);
+    console.log(`📝 Federation payload written to ${outputPath} in ${durationMs.toFixed(1)}ms`);
     if (push) {
       console.warn(
         "⚠️  Federation push requested but missing FEDERATION_INDEX_URL or FEDERATION_API_KEY. Payload saved locally instead.",
@@ -64,27 +38,15 @@ async function main() {
     return;
   }
 
-  const endpoint = `${config.federation.indexUrl.replace(/\/$/, "")}/ingest`;
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${config.federation.apiKey}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    console.error(`❌ Federation index responded with ${response.status} ${response.statusText}`);
-    const text = await response.text().catch(() => "");
-    if (text) {
-      console.error(text);
-    }
+  try {
+    const result = await publishFederationIndex({ limit, tenantSlug, push: true });
+    console.log(
+      `🚀 Federation payload published successfully. ${result.payload.items.length} items in ${result.durationMs.toFixed(1)}ms`,
+    );
+  } catch (error) {
+    console.error("❌ Federation publish failed", error);
     process.exitCode = 1;
-    return;
   }
-
-  console.log("🚀 Federation payload published successfully.");
 }
 
 main().catch((error) => {
