@@ -11,9 +11,6 @@
     "build": "tsup src/index.ts --format cjs,esm --dts --out-dir dist",
     "prepublishOnly": "pnpm build"
   },
-  "dependencies": {
-    "cross-fetch": "4.0.0"
-  },
   "peerDependencies": {
     "@types/node": ">=18"
   },
