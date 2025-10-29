@@ -1,10 +1,9 @@
-import type { Prisma } from "@prisma/client";
 import {
   ExtensionRuntime,
   ExtensionSurface,
   PluginInstallStatus,
   PluginVisibility,
-  PrismaClientKnownRequestError,
+  Prisma,
 } from "@prisma/client";
 import { z } from "zod";
 
@@ -30,7 +29,7 @@ export const pluginPublishSchema = z
     visibility: z.nativeEnum(PluginVisibility).default(PluginVisibility.PRIVATE),
     repositoryUrl: urlSchema.optional(),
     websiteUrl: urlSchema.optional(),
-    metadata: z.record(z.any()).optional(),
+    metadata: z.record(z.string(), z.any()).optional(),
     publisherTenantId: z.string().cuid().optional(),
   })
   .refine((data) => data.slug || data.name, {
@@ -59,14 +58,14 @@ const extensionRegistrationSchema = z.object({
   surface: z.nativeEnum(ExtensionSurface).default(ExtensionSurface.EDITOR),
   runtime: z.nativeEnum(ExtensionRuntime).default(ExtensionRuntime.EDGE),
   entrypoint: z.string().min(1).max(512),
-  configSchema: z.record(z.any()).optional(),
+  configSchema: z.record(z.string(), z.any()).optional(),
   sandbox: z
     .object({
       permissions: z.array(z.string()).max(32).optional(),
       timeoutMs: z.number().int().positive().max(30_000).optional(),
     })
     .optional(),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
   targetTenantId: z.string().cuid().optional(),
 });
 
@@ -116,8 +115,8 @@ export type PluginMutationContext = {
 
 export type ExtensionMutationContext = PluginMutationContext;
 
-const toJsonValue = (value: Record<string, unknown> | undefined): Prisma.JsonValue | undefined =>
-  value as Prisma.JsonValue | undefined;
+const toJsonValue = (value: Record<string, unknown> | undefined): Prisma.InputJsonValue | undefined =>
+  value as Prisma.InputJsonValue | undefined;
 
 export async function publishPlugin(payload: unknown, context: PluginMutationContext) {
   const parsed = pluginPublishSchema.parse(payload ?? {});
@@ -238,7 +237,7 @@ export async function registerExtension(payload: unknown, context: ExtensionMuta
 
     return normalizeExtension(extension);
   } catch (error) {
-    if (error instanceof PrismaClientKnownRequestError && error.code === "P2002") {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       logger.warn({ key: parsed.key, pluginId: parsed.pluginId }, "Extension key already exists");
       throw new Error("Extension key already exists for plugin");
     }

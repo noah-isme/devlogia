@@ -1,5 +1,3 @@
-import fetch from "cross-fetch";
-
 export type DevlogiaSDKOptions = {
   /** API token issued to the partner; falls back to SDK_PUBLISH_TOKEN */
   token?: string;
@@ -9,6 +7,21 @@ export type DevlogiaSDKOptions = {
   tenantId?: string;
   /** Custom fetch implementation */
   fetcher?: typeof fetch;
+};
+
+const resolveFetchImplementation = (fetcher?: typeof fetch): typeof fetch => {
+  if (fetcher) {
+    return fetcher;
+  }
+
+  const globalFetch = globalThis.fetch?.bind(globalThis);
+  if (!globalFetch) {
+    throw new Error(
+      "Devlogia SDK requires the Fetch API. Provide a custom fetcher or run in an environment with global fetch.",
+    );
+  }
+
+  return globalFetch;
 };
 
 export class HttpClient {
@@ -25,7 +38,7 @@ export class HttpClient {
     this.token = token;
     this.baseUrl = options.baseUrl ?? "https://api.devlogia.com";
     this.tenantId = options.tenantId;
-    this.fetcher = options.fetcher ?? fetch;
+    this.fetcher = resolveFetchImplementation(options.fetcher);
   }
 
   async request<T>(path: string, init: RequestInit = {}): Promise<T> {
