@@ -25,6 +25,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   if (role === "superadmin") {
     navItems.splice(1, 0, { href: "/admin/insights", label: "Insights" });
     navItems.splice(2, 0, { href: "/admin/analytics", label: "Analytics" });
+    navItems.splice(3, 0, { href: "/admin/federation", label: "Federation" });
     navItems.push({ href: "/admin/topics", label: "Topics" });
     navItems.push({ href: "/admin/users", label: "Users" });
     navItems.push({ href: "/admin/settings", label: "Settings" });
