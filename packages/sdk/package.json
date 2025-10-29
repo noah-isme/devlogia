@@ -1,0 +1,24 @@
+{
+  "name": "@devlogia/sdk",
+  "version": "1.0.0-beta",
+  "description": "Official Devlogia SDK for accessing feed, insights, and federation APIs",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --out-dir dist",
+    "prepublishOnly": "pnpm build"
+  },
+  "dependencies": {
+    "cross-fetch": "4.0.0"
+  },
+  "peerDependencies": {
+    "@types/node": ">=18"
+  },
+  "devDependencies": {
+    "tsup": "8.3.0",
+    "typescript": "5.9.3"
+  }
+}

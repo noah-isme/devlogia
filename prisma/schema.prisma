@@ -305,6 +305,7 @@ model Tenant {
   owner             User?             @relation("TenantOwner", fields: [ownerId], references: [id])
   settings          TenantSettings?
   federationEntries FederationIndex[]
+  analytics         TenantAnalytics?
 
   @@index([ownerId])
 }
@@ -333,4 +334,18 @@ model FederationIndex {
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId, updatedAt])
+}
+
+model TenantAnalytics {
+  id              String   @id @default(cuid()) @db.VarChar(191)
+  tenantId        String   @unique @db.VarChar(191)
+  visits          Int      @default(0)
+  aiUsage         Decimal  @db.Decimal(12, 4) @default(0)
+  revenue         Decimal  @db.Decimal(12, 2) @default(0)
+  federationShare Float    @default(0)
+  updatedAt       DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([updatedAt])
 }

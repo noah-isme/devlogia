@@ -10,7 +10,14 @@ export default defineConfig({
       reporter: ["text", "lcov"],
       reportsDirectory: "./coverage",
     },
-    include: ["src/**/*.test.{ts,tsx}", "src/**/*.spec.{ts,tsx}", "tests/**/*.test.{ts,tsx}", "tests/**/*.spec.{ts,tsx}"],
+    include: [
+      "src/**/*.test.{ts,tsx}",
+      "src/**/*.spec.{ts,tsx}",
+      "tests/**/*.test.{ts,tsx}",
+      "tests/**/*.spec.{ts,tsx}",
+      "packages/sdk/src/**/*.test.ts",
+      "packages/sdk/src/**/*.spec.ts",
+    ],
     exclude: [...configDefaults.exclude, "tests/e2e/**"],
   },
   resolve: {

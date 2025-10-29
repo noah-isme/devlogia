@@ -4,6 +4,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { queryFederationRecommendations } from "@/lib/federation/query";
 import { can } from "@/lib/rbac";
+import { verifyFederationSignature } from "@/lib/security/federation-signature";
 import { tenantConfig } from "@/lib/tenant";
 
 const schema = z.object({
@@ -15,6 +16,25 @@ const schema = z.object({
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  const timestamp = request.headers.get("x-devlogia-timestamp");
+  const signature = request.headers.get("x-devlogia-signature");
+  const rawBody = await request.clone().text();
+
+  if (!timestamp || !signature) {
+    return NextResponse.json({ error: "Missing federation signature" }, { status: 401 });
+  }
+
+  const path = new URL(request.url).pathname;
+  if (!verifyFederationSignature({
+    method: request.method,
+    path,
+    timestamp,
+    signature,
+    body: rawBody,
+  })) {
+    return NextResponse.json({ error: "Invalid federation signature" }, { status: 401 });
+  }
+
   const session = await auth();
   if (!session?.user || !can(session.user, "federation:view")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -24,8 +44,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Federation index unavailable" }, { status: 503 });
   }
 
-  const data = await request.json().catch(() => ({}));
-  const parsed = schema.safeParse(data);
+  let payload: unknown = {};
+  if (rawBody) {
+    try {
+      payload = JSON.parse(rawBody);
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
+    }
+  }
+
+  const parsed = schema.safeParse(payload);
 
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid request", detail: parsed.error.flatten() }, { status: 400 });
