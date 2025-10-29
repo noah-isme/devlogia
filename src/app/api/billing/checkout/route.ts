@@ -1,48 +1,58 @@
-import { NextResponse } from "next/server";
-import { z } from "zod";
+import { NextRequest, NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
-import { createStripeCheckoutSession } from "@/lib/billing/stripe";
-import { tenantConfig } from "@/lib/tenant";
-
-const requestSchema = z.object({
-  tenantId: z.string().min(3),
-  plan: z.enum(["pro", "enterprise"] as const),
-  successUrl: z.string().url(),
-  cancelUrl: z.string().url(),
-});
+import { createMarketplaceCheckoutSession } from "@/lib/billing/stripe";
+import { logger } from "@/lib/logger";
+import { can } from "@/lib/rbac";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(request: Request) {
+const unauthorized = () => NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+const forbidden = () => NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+export async function POST(request: NextRequest) {
   const session = await auth();
-  if (!session?.user || !session.user.isActive) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user) {
+    return unauthorized();
   }
 
-  if (!tenantConfig.billing || tenantConfig.billing.provider !== "stripe") {
-    return NextResponse.json({ error: "Stripe billing is not configured" }, { status: 503 });
+  if (!can(session.user, "billing:checkout")) {
+    return forbidden();
   }
 
-  const body = await request.json().catch(() => null);
-  const parsed = requestSchema.safeParse(body);
+  const body = await request.json().catch(() => ({}));
+  const tenantId = typeof body?.tenantId === "string" ? body.tenantId : null;
+  const productId = typeof body?.productId === "string" ? body.productId : null;
+  const successUrl = typeof body?.successUrl === "string" ? body.successUrl : null;
+  const cancelUrl = typeof body?.cancelUrl === "string" ? body.cancelUrl : null;
+  const quantityRaw = typeof body?.quantity === "number" ? body.quantity : Number.parseInt(body?.quantity ?? "1", 10);
+  const quantity = Number.isFinite(quantityRaw) && quantityRaw > 0 ? quantityRaw : 1;
 
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid request", detail: parsed.error.flatten() }, { status: 400 });
+  if (!tenantId || !productId || !successUrl || !cancelUrl) {
+    return NextResponse.json({ error: "tenantId, productId, successUrl, and cancelUrl are required" }, { status: 400 });
   }
 
   try {
-    const checkoutSession = await createStripeCheckoutSession({
-      tenantId: parsed.data.tenantId,
-      plan: parsed.data.plan,
-      successUrl: parsed.data.successUrl,
-      cancelUrl: parsed.data.cancelUrl,
-      customerEmail: session.user.email ?? undefined,
+    const checkout = await createMarketplaceCheckoutSession({
+      tenantId,
+      productId,
+      quantity,
+      successUrl,
+      cancelUrl,
+      customerEmail: typeof body?.customerEmail === "string" ? body.customerEmail : undefined,
     });
 
-    return NextResponse.json({ id: checkoutSession.id, url: checkoutSession.url });
+    return NextResponse.json(
+      {
+        id: checkout.id,
+        url: checkout.url,
+        expiresAt: checkout.expires_at ? new Date(checkout.expires_at * 1000).toISOString() : null,
+      },
+      { status: 201 },
+    );
   } catch (error) {
-    console.error("Stripe checkout session creation failed", error);
-    return NextResponse.json({ error: "Checkout session failed" }, { status: 500 });
+    logger.error({ error, tenantId, productId }, "Failed to create marketplace checkout session");
+    const message = error instanceof Error ? error.message : "Unable to create checkout session";
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }

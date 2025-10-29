@@ -47,6 +47,30 @@ enum ExtensionRuntime {
   CLIENT
 }
 
+enum BillingAccountStatus {
+  INACTIVE
+  ACTIVE
+  RESTRICTED
+}
+
+enum ProductType {
+  PLUGIN
+  EXTENSION
+  SUBSCRIPTION
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  REFUNDED
+}
+
+enum PayoutStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
 model User {
   id              String           @id @default(cuid()) @db.VarChar(191)
   email           String           @unique @db.VarChar(191)
@@ -338,6 +362,10 @@ model Tenant {
   pluginInstalls    PluginInstall[]
   extensionUsage    ExtensionUsage[]
   extensions        Extension[]
+  billingAccount    BillingAccount?
+  orders            Order[]
+  planQuotas        PlanQuota[]
+  productBeneficiaryProducts Product[] @relation("ProductBeneficiary")
 
   @@index([ownerId])
 }
@@ -401,6 +429,7 @@ model Plugin {
   creator           User?            @relation("PluginCreator", fields: [createdById], references: [id])
   extensions        Extension[]
   installs          PluginInstall[]
+  products          Product[]
 
   @@index([publisherTenantId])
 }
@@ -440,6 +469,7 @@ model Extension {
   plugin         Plugin           @relation(fields: [pluginId], references: [id])
   targetTenant   Tenant?          @relation(fields: [targetTenantId], references: [id])
   usages         ExtensionUsage[]
+  products       Product[]
 
   @@unique([pluginId, key])
   @@index([targetTenantId])
@@ -460,4 +490,116 @@ model ExtensionUsage {
   triggeredBy    User?     @relation("ExtensionUsageActor", fields: [triggeredById], references: [id])
 
   @@index([tenantId, occurredAt])
+}
+
+model BillingAccount {
+  id                String               @id @default(cuid()) @db.VarChar(191)
+  tenantId          String               @unique @db.VarChar(191)
+  stripeCustomerId  String?              @unique @db.VarChar(191)
+  connectAccountId  String?              @unique @db.VarChar(191)
+  status            BillingAccountStatus @default(INACTIVE)
+  metadata          Json?                @default("{}")
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  tenant            Tenant               @relation(fields: [tenantId], references: [id])
+  orders            Order[]
+  payouts           Payout[]
+}
+
+model Product {
+  id                   String       @id @default(cuid()) @db.VarChar(191)
+  type                 ProductType  @default(PLUGIN)
+  pluginId             String?      @db.VarChar(191)
+  extensionId          String?      @db.VarChar(191)
+  beneficiaryTenantId  String?      @db.VarChar(191)
+  priceCents           Int
+  currency             String       @db.VarChar(3)
+  stripePriceId        String?      @db.VarChar(191)
+  active               Boolean      @default(true)
+  metadata             Json?        @default("{}")
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  plugin               Plugin?      @relation(fields: [pluginId], references: [id])
+  extension            Extension?   @relation(fields: [extensionId], references: [id])
+  beneficiaryTenant    Tenant?      @relation("ProductBeneficiary", fields: [beneficiaryTenantId], references: [id])
+  orders               Order[]
+
+  @@index([pluginId])
+  @@index([extensionId])
+  @@index([beneficiaryTenantId])
+  @@index([active])
+}
+
+model Order {
+  id               String       @id @default(cuid()) @db.VarChar(191)
+  tenantId         String       @db.VarChar(191)
+  productId        String       @db.VarChar(191)
+  billingAccountId String?      @db.VarChar(191)
+  quantity         Int          @default(1)
+  unitPriceCents   Int
+  totalCents       Int
+  taxCents         Int          @default(0)
+  status           OrderStatus  @default(PENDING)
+  paymentIntentId  String?      @unique @db.VarChar(191)
+  invoiceNumber    String?      @db.VarChar(64)
+  metadata         Json?        @default("{}")
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  tenant           Tenant       @relation(fields: [tenantId], references: [id])
+  product          Product      @relation(fields: [productId], references: [id])
+  billingAccount   BillingAccount? @relation(fields: [billingAccountId], references: [id])
+  revenueSplit     RevenueSplit?
+
+  @@index([tenantId, createdAt])
+  @@index([productId])
+}
+
+model RevenueSplit {
+  id                  String      @id @default(cuid()) @db.VarChar(191)
+  orderId             String      @unique @db.VarChar(191)
+  payoutId            String?     @db.VarChar(191)
+  platformPct         Decimal     @db.Decimal(5, 4)
+  authorPct           Decimal     @db.Decimal(5, 4)
+  tenantPct           Decimal     @db.Decimal(5, 4)
+  platformAmountCents Int
+  authorAmountCents   Int
+  tenantAmountCents   Int
+  settled             Boolean     @default(false)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  order               Order       @relation(fields: [orderId], references: [id])
+  payout              Payout?     @relation("PayoutSplits", fields: [payoutId], references: [id])
+}
+
+model Payout {
+  id               String       @id @default(cuid()) @db.VarChar(191)
+  billingAccountId String       @db.VarChar(191)
+  connectAccountId String       @db.VarChar(191)
+  amountCents      Int
+  currency         String       @db.VarChar(3)
+  stripeTransferId String?      @unique @db.VarChar(191)
+  status           PayoutStatus @default(PENDING)
+  metadata         Json?        @default("{}")
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  billingAccount   BillingAccount @relation(fields: [billingAccountId], references: [id])
+  revenueSplits    RevenueSplit[] @relation("PayoutSplits")
+
+  @@index([billingAccountId, status])
+}
+
+model PlanQuota {
+  id               String   @id @default(cuid()) @db.VarChar(191)
+  tenantId         String   @db.VarChar(191)
+  plan             String   @db.VarChar(32)
+  aiTokensMonthly  Int
+  storageMB        Int
+  seats            Int
+  effectiveFrom    DateTime @default(now())
+  effectiveTo      DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  tenant           Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, effectiveFrom])
 }

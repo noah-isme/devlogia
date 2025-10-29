@@ -16,8 +16,12 @@ export async function POST(request: Request) {
   try {
     const event = await parseStripeWebhook({ payload, signature });
     const result = await handleStripeEvent(event);
+    const body: Record<string, unknown> = { status: result.status };
+    if ("plan" in result) {
+      body.plan = result.plan ?? null;
+    }
 
-    return NextResponse.json({ status: result.status, plan: result.plan ?? null });
+    return NextResponse.json(body);
   } catch (error) {
     console.error("Stripe webhook failed", error);
     return NextResponse.json({ error: "Invalid webhook" }, { status: 400 });

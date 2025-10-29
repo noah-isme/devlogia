@@ -8,7 +8,16 @@ vi.mock("@/lib/prisma", () => ({
     tenant: {
       update: updateMock,
     },
+    planQuota: {
+      findFirst: vi.fn(async () => null),
+      create: vi.fn(async () => ({})),
+      update: vi.fn(async () => ({})),
+    },
   },
+}));
+
+vi.mock("@/lib/billing/quota", () => ({
+  syncTenantPlanQuota: vi.fn(async () => ({})),
 }));
 
 const { handleStripeEvent } = await import("@/lib/billing/stripe");

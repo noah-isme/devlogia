@@ -17,6 +17,11 @@ export type TenantConfig = {
     provider: BillingProvider;
     stripeSecretKey: string | null;
     stripeWebhookSecret: string | null;
+    stripeConnectClientId: string | null;
+    stripePublishableKey: string | null;
+    platformFeePercentage: number;
+    marketplaceTaxRegion: string | null;
+    invoicePrefix: string;
   };
   federation: {
     indexUrl: string | null;
@@ -76,6 +81,36 @@ function normalizeToken(value: string | undefined): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function normalizePercentage(value: string | undefined, fallback: number) {
+  if (!value) {
+    return fallback;
+  }
+
+  const normalized = Number.parseFloat(value);
+  if (Number.isNaN(normalized) || normalized < 0 || normalized > 1) {
+    return fallback;
+  }
+
+  return Math.round(normalized * 10_000) / 10_000;
+}
+
+function normalizeTaxRegion(value: string | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim().toUpperCase();
+  if (!/^[A-Z]{2,3}$/.test(trimmed)) {
+    return null;
+  }
+  return trimmed;
+}
+
+function normalizeInvoicePrefix(value: string | undefined, fallback: string) {
+  if (!value) {
+    return fallback;
+  }
+  const trimmed = value.trim().toUpperCase();
+  return trimmed.length > 0 && trimmed.length <= 12 ? trimmed : fallback;
+}
+
 export function createTenantConfig(env: Record<string, string | undefined> = process.env): TenantConfig {
   const mode = normalizeMode(env.TENANT_MODE);
   const defaultPlan = normalizePlan(env.TENANT_DEFAULT_PLAN);
@@ -91,6 +126,11 @@ export function createTenantConfig(env: Record<string, string | undefined> = pro
       provider: billingProvider,
       stripeSecretKey: normalizeToken(env.STRIPE_SECRET_KEY),
       stripeWebhookSecret: normalizeToken(env.STRIPE_WEBHOOK_SECRET),
+      stripeConnectClientId: normalizeToken(env.STRIPE_CONNECT_CLIENT_ID),
+      stripePublishableKey: normalizeToken(env.STRIPE_PUBLISHABLE_KEY),
+      platformFeePercentage: normalizePercentage(env.PLATFORM_FEE_PCT, 0.15),
+      marketplaceTaxRegion: normalizeTaxRegion(env.MARKETPLACE_TAX_REGION),
+      invoicePrefix: normalizeInvoicePrefix(env.INVOICE_PREFIX, "DEV"),
     },
     federation: {
       indexUrl: normalizeUrl(env.FEDERATION_INDEX_URL),
@@ -130,6 +170,27 @@ export function evaluateTenantReadiness(config: TenantConfig): TenantReadinessIs
           code: "STRIPE_WEBHOOK_MISSING",
           level: "error",
           message: "STRIPE_WEBHOOK_SECRET must be configured for Stripe billing.",
+        });
+      }
+      if (!config.billing.stripeConnectClientId) {
+        issues.push({
+          code: "STRIPE_CONNECT_CLIENT_ID_MISSING",
+          level: "warning",
+          message: "STRIPE_CONNECT_CLIENT_ID is recommended to enable Connect onboarding links.",
+        });
+      }
+      if (!config.billing.stripePublishableKey) {
+        issues.push({
+          code: "STRIPE_PUBLISHABLE_KEY_MISSING",
+          level: "warning",
+          message: "STRIPE_PUBLISHABLE_KEY is missing; client-side checkout flows may fail.",
+        });
+      }
+      if (!config.billing.marketplaceTaxRegion) {
+        issues.push({
+          code: "MARKETPLACE_TAX_REGION_MISSING",
+          level: "warning",
+          message: "MARKETPLACE_TAX_REGION should be configured for accurate invoice tax metadata.",
         });
       }
     } else {

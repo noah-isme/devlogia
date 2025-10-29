@@ -1,16 +1,22 @@
 import Stripe from "stripe";
 
+import { OrderStatus, PayoutStatus } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 import type { TenantPlanTier } from "@/lib/tenant";
 import { tenantConfig } from "@/lib/tenant";
 
+import { ensureStripeCustomer } from "./accounts";
+import { recordPaidOrder } from "./orders";
 import { calculatePlanLimits, findPlanByPrice, resolvePlanConfiguration } from "./plans";
+import { syncTenantPlanQuota } from "./quota";
 
 let stripeClient: Stripe | null = null;
 
 const STRIPE_API_VERSION: Stripe.LatestApiVersion = "2024-06-20";
 
-function getStripeClient(): Stripe {
+export function getStripeClient(): Stripe {
   if (!tenantConfig.billing.stripeSecretKey) {
     throw new Error("Stripe secret key is not configured");
   }
@@ -72,6 +78,114 @@ export async function createStripeCheckoutSession(input: CheckoutSessionInput) {
   });
 }
 
+type MarketplaceCheckoutInput = {
+  tenantId: string;
+  productId: string;
+  quantity: number;
+  successUrl: string;
+  cancelUrl: string;
+  customerEmail?: string | null;
+};
+
+export async function createMarketplaceCheckoutSession(input: MarketplaceCheckoutInput) {
+  if (input.quantity <= 0) {
+    throw new Error("Quantity must be greater than zero");
+  }
+
+  const product = await prisma.product.findUnique({
+    where: { id: input.productId },
+    include: {
+      beneficiaryTenant: { include: { billingAccount: true } },
+      plugin: { include: { publisherTenant: { include: { billingAccount: true } } } },
+      extension: {
+        include: {
+          plugin: { include: { publisherTenant: { include: { billingAccount: true } } } },
+        },
+      },
+    },
+  });
+
+  if (!product || !product.active) {
+    throw new Error("Product is not available for purchase");
+  }
+
+  const buyerAccount = await ensureStripeCustomer({ tenantId: input.tenantId, email: input.customerEmail });
+  const platformFeeAmount = Math.round(product.priceCents * input.quantity * tenantConfig.billing.platformFeePercentage);
+  const platformFeePercent = Math.round(tenantConfig.billing.platformFeePercentage * 10_000) / 100;
+
+  const connectAccountId =
+    product.beneficiaryTenant?.billingAccount?.connectAccountId ||
+    product.plugin?.publisherTenant?.billingAccount?.connectAccountId ||
+    product.extension?.plugin.publisherTenant?.billingAccount?.connectAccountId ||
+    null;
+
+  const stripe = getStripeClient();
+
+  const lineItem: Stripe.Checkout.SessionCreateParams.LineItem = product.stripePriceId
+    ? { price: product.stripePriceId, quantity: input.quantity }
+    : {
+        price_data: {
+          currency: product.currency,
+          unit_amount: product.priceCents,
+          product_data: {
+            name: product.metadata && typeof product.metadata === "object"
+              ? String((product.metadata as Record<string, unknown>).name ?? `Product ${product.id}`)
+              : `Product ${product.id}`,
+            metadata: {
+              productId: product.id,
+            },
+          },
+        },
+        quantity: input.quantity,
+      };
+
+  const metadata = {
+    tenantId: input.tenantId,
+    productId: product.id,
+    quantity: String(input.quantity),
+    unitPriceCents: String(product.priceCents),
+    currency: product.currency,
+    connectAccountId: connectAccountId ?? "",
+  } satisfies Record<string, string>;
+
+  return stripe.checkout.sessions.create({
+    mode: product.type === "SUBSCRIPTION" ? "subscription" : "payment",
+    success_url: input.successUrl,
+    cancel_url: input.cancelUrl,
+    automatic_tax: { enabled: true },
+    billing_address_collection: "auto",
+    customer: buyerAccount.stripeCustomerId ?? undefined,
+    customer_email: buyerAccount.stripeCustomerId ? undefined : input.customerEmail ?? undefined,
+    metadata,
+    invoice_creation: {
+      enabled: true,
+      invoice_data: {
+        metadata: {
+          invoicePrefix: tenantConfig.billing.invoicePrefix,
+          taxRegion: tenantConfig.billing.marketplaceTaxRegion ?? "",
+        },
+      },
+    },
+    payment_intent_data:
+      product.type === "SUBSCRIPTION"
+        ? undefined
+        : {
+            application_fee_amount: platformFeeAmount,
+            transfer_data: connectAccountId ? { destination: connectAccountId } : undefined,
+            metadata,
+          },
+    subscription_data:
+      product.type === "SUBSCRIPTION"
+        ? {
+            metadata,
+            transfer_data: connectAccountId ? { destination: connectAccountId } : undefined,
+            application_fee_percent: platformFeePercent,
+          }
+        : undefined,
+    line_items: [lineItem],
+  });
+}
+
 type ApplyPlanOptions = {
   priceId?: string | null;
   subscriptionId?: string | null;
@@ -103,6 +217,8 @@ export async function applyPlanToTenant(
       },
     },
   });
+
+  await syncTenantPlanQuota(tenantId, plan);
 }
 
 type StripeWebhookContext = {
@@ -204,6 +320,146 @@ function resolvePlanFromSubscription(subscription: Stripe.Subscription): PlanRes
   };
 }
 
+async function handleMarketplaceCheckoutSession(session: Stripe.Checkout.Session) {
+  const tenantId = session.metadata?.tenantId ?? null;
+  const productId = session.metadata?.productId ?? null;
+
+  if (!tenantId || !productId) {
+    return { status: "ignored" } as const;
+  }
+
+  const quantity = Number.parseInt(session.metadata?.quantity ?? "1", 10);
+  const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+  const subtotal = session.amount_subtotal ?? 0;
+  const metadataUnitPrice = Number.parseInt(session.metadata?.unitPriceCents ?? "0", 10);
+  const unitPriceCents = metadataUnitPrice > 0 ? metadataUnitPrice : Math.round(subtotal / safeQuantity);
+  const taxCents = session.total_details?.amount_tax ?? Number.parseInt(session.metadata?.taxCents ?? "0", 10);
+  const currency = session.currency ?? session.metadata?.currency ?? "usd";
+  const paymentIntentId =
+    typeof session.payment_intent === "string"
+      ? session.payment_intent
+      : session.payment_intent?.id ?? null;
+
+  const connectAccountId =
+    session.metadata?.connectAccountId && session.metadata.connectAccountId.length > 0
+      ? session.metadata.connectAccountId
+      : undefined;
+
+  const { order, revenueSplit } = await recordPaidOrder({
+    tenantId,
+    productId,
+    quantity: safeQuantity,
+    unitPriceCents,
+    taxCents,
+    currency,
+    paymentIntentId,
+    connectAccountId,
+    metadata: {
+      checkoutSessionId: session.id,
+      invoiceId: typeof session.invoice === "string" ? session.invoice : session.invoice?.id ?? null,
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      action: "billing.order.recorded",
+      targetId: order.id,
+      meta: {
+        tenantId,
+        productId,
+        revenueSplitId: revenueSplit?.id ?? null,
+        paymentIntentId,
+        amount: order.totalCents,
+      },
+    },
+  });
+
+  logger.info({ orderId: order.id, paymentIntentId }, "Recorded marketplace order from checkout session");
+  return { status: "order-recorded", orderId: order.id } as const;
+}
+
+async function handleChargeRefunded(charge: Stripe.Charge) {
+  const paymentIntentId =
+    typeof charge.payment_intent === "string"
+      ? charge.payment_intent
+      : charge.payment_intent?.id ?? null;
+
+  if (!paymentIntentId) {
+    return { status: "ignored" } as const;
+  }
+
+  const order = await prisma.order.findFirst({ where: { paymentIntentId } });
+  if (!order) {
+    return { status: "ignored" } as const;
+  }
+
+  if (order.status === OrderStatus.REFUNDED) {
+    return { status: "ignored" } as const;
+  }
+
+  await prisma.order.update({
+    where: { id: order.id },
+    data: { status: OrderStatus.REFUNDED },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      action: "billing.order.refunded",
+      targetId: order.id,
+      meta: {
+        paymentIntentId,
+        amount_refunded: charge.amount_refunded,
+      },
+    },
+  });
+
+  logger.warn({ orderId: order.id }, "Order marked as refunded due to Stripe charge refund");
+  return { status: "order-refunded", orderId: order.id } as const;
+}
+
+async function handlePayoutPaid(payoutEvent: Stripe.Payout) {
+  const destination = typeof payoutEvent.destination === "string" ? payoutEvent.destination : null;
+  if (!destination) {
+    return { status: "ignored" } as const;
+  }
+
+  const payout = await prisma.payout.findFirst({
+    where: {
+      connectAccountId: destination,
+      status: { in: [PayoutStatus.PENDING, PayoutStatus.FAILED] },
+      amountCents: payoutEvent.amount,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (!payout) {
+    return { status: "ignored" } as const;
+  }
+
+  await prisma.payout.update({
+    where: { id: payout.id },
+    data: {
+      status: PayoutStatus.PAID,
+      stripeTransferId: payoutEvent.id,
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      action: "billing.payout.settled",
+      targetId: payout.id,
+      meta: {
+        destination,
+        payoutId: payoutEvent.id,
+        amount: payoutEvent.amount,
+      },
+    },
+  });
+
+  logger.info({ payoutId: payout.id, stripePayoutId: payoutEvent.id }, "Payout settled after Stripe payout paid");
+  return { status: "payout-settled", payoutId: payout.id } as const;
+}
+
 export async function handleStripeEvent(event: Stripe.Event) {
   if (!event?.type) {
     return { status: "ignored" } as const;
@@ -214,7 +470,7 @@ export async function handleStripeEvent(event: Stripe.Event) {
     const planResolution = resolvePlanFromCheckoutSession(session);
 
     if (!planResolution) {
-      return { status: "ignored" } as const;
+      return handleMarketplaceCheckoutSession(session);
     }
 
     await applyPlanToTenant(planResolution.tenantId, planResolution.plan, planResolution);
@@ -235,6 +491,16 @@ export async function handleStripeEvent(event: Stripe.Event) {
 
     await applyPlanToTenant(planResolution.tenantId, planResolution.plan, planResolution);
     return { status: "updated", plan: planResolution.plan } as const;
+  }
+
+  if (event.type === "charge.refunded") {
+    const charge = event.data.object as Stripe.Charge;
+    return handleChargeRefunded(charge);
+  }
+
+  if (event.type === "payout.paid") {
+    const payout = event.data.object as Stripe.Payout;
+    return handlePayoutPaid(payout);
   }
 
   return { status: "ignored" } as const;
