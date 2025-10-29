@@ -23,6 +23,9 @@ describe("tenant configuration", () => {
 
     expect(codes).toContain("STRIPE_SECRET_MISSING");
     expect(codes).toContain("STRIPE_WEBHOOK_MISSING");
+    expect(codes).toContain("STRIPE_CONNECT_CLIENT_ID_MISSING");
+    expect(codes).toContain("STRIPE_PUBLISHABLE_KEY_MISSING");
+    expect(codes).toContain("MARKETPLACE_TAX_REGION_MISSING");
   });
 
   it("passes readiness checks when required values are present", () => {
@@ -33,6 +36,11 @@ describe("tenant configuration", () => {
       BILLING_PROVIDER: "stripe",
       STRIPE_SECRET_KEY: "sk_test_ready",
       STRIPE_WEBHOOK_SECRET: "whsec_ready",
+      STRIPE_CONNECT_CLIENT_ID: "ca_ready",
+      STRIPE_PUBLISHABLE_KEY: "pk_ready",
+      PLATFORM_FEE_PCT: "0.25",
+      MARKETPLACE_TAX_REGION: "ID",
+      INVOICE_PREFIX: "READY",
       FEDERATION_INDEX_URL: "https://federation.devlogia.network",
       FEDERATION_API_KEY: "federation-key",
       DEVLOGIA_SDK_TOKEN: "sdk-token",
