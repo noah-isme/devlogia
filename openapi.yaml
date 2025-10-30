@@ -293,6 +293,196 @@ components:
         - success
         - provider
         - files
+    AIExtension:
+      type: object
+      properties:
+        id:
+          type: string
+        tenantId:
+          type: string
+        name:
+          type: string
+        provider:
+          type: string
+        model:
+          type: string
+        capability:
+          type: string
+        tokenCost:
+          type: integer
+        description:
+          type:
+            - string
+            - "null"
+        metadata:
+          type:
+            - object
+            - "null"
+        active:
+          type: boolean
+        monthlyTokens:
+          type: integer
+        monthlyCostCents:
+          type: integer
+        totalInvocations:
+          type: integer
+      required:
+        - id
+        - tenantId
+        - name
+        - provider
+        - model
+        - capability
+        - tokenCost
+        - active
+        - monthlyTokens
+        - monthlyCostCents
+        - totalInvocations
+    AIQuotaWarning:
+      type: object
+      properties:
+        level:
+          type: string
+          enum:
+            - warning
+            - critical
+        threshold:
+          type: number
+        utilization:
+          type: number
+        message:
+          type: string
+      required:
+        - level
+        - threshold
+        - utilization
+        - message
+    AIQuotaStatus:
+      type: object
+      properties:
+        limit:
+          type:
+            - integer
+            - "null"
+        used:
+          type: integer
+        remaining:
+          type:
+            - integer
+            - "null"
+        utilization:
+          type: number
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/AIQuotaWarning"
+      required:
+        - used
+        - utilization
+        - warnings
+    AIUsageResponse:
+      type: object
+      properties:
+        logId:
+          type:
+            - string
+            - "null"
+        quota:
+          $ref: "#/components/schemas/AIQuotaStatus"
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/AIQuotaWarning"
+      required:
+        - quota
+        - warnings
+    WorkspaceMember:
+      type: object
+      properties:
+        id:
+          type: string
+        role:
+          type: string
+        joinedAt:
+          type: string
+          format: date-time
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+            email:
+              type: string
+              format: email
+          required:
+            - id
+            - email
+      required:
+        - id
+        - role
+        - joinedAt
+        - user
+    PresenceState:
+      type: object
+      properties:
+        userId:
+          type: string
+        status:
+          type: string
+        lastSeenAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+      required:
+        - userId
+        - status
+    WorkspaceSession:
+      type: object
+      properties:
+        id:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+        active:
+          type: boolean
+        presence:
+          type: array
+          items:
+            $ref: "#/components/schemas/PresenceState"
+      required:
+        - id
+        - startedAt
+        - active
+        - presence
+    Workspace:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkspaceMember"
+        sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkspaceSession"
+      required:
+        - id
+        - name
+        - slug
+        - createdAt
+        - members
+        - sessions
     ErrorResponse:
       type: object
       properties:
@@ -317,6 +507,267 @@ paths:
                 $ref: "#/components/schemas/Session"
         "401":
           description: No active session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/ai/extensions:
+    get:
+      tags:
+        - AI
+      summary: List AI extensions for a tenant
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: includeInactive
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Active AI extensions scoped to the tenant.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  extensions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AIExtension"
+                required:
+                  - extensions
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      tags:
+        - AI
+      summary: Register a new AI extension
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tenantId:
+                  type: string
+                name:
+                  type: string
+                provider:
+                  type: string
+                model:
+                  type: string
+                capability:
+                  type: string
+                tokenCost:
+                  type: integer
+                description:
+                  type:
+                    - string
+                    - "null"
+                metadata:
+                  type:
+                    - object
+                    - "null"
+              required:
+                - tenantId
+                - name
+                - provider
+                - model
+                - capability
+      responses:
+        "201":
+          description: Extension registered successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  extension:
+                    $ref: "#/components/schemas/AIExtension"
+                required:
+                  - extension
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/ai/usage:
+    post:
+      tags:
+        - AI
+      summary: Record AI usage for billing and quota enforcement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tenantId:
+                  type: string
+                userId:
+                  type: string
+                extensionId:
+                  type: string
+                tokensUsed:
+                  type: integer
+                costCents:
+                  type: integer
+                promptSummary:
+                  type:
+                    - string
+                    - "null"
+                moderationStatus:
+                  type:
+                    - string
+                    - "null"
+              required:
+                - tenantId
+                - userId
+                - extensionId
+                - tokensUsed
+      responses:
+        "200":
+          description: Usage recorded and quota evaluated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIUsageResponse"
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/workspaces:
+    get:
+      tags:
+        - Collaboration
+      summary: List collaboration workspaces for a tenant
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Workspaces with active sessions and members.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  workspaces:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Workspace"
+                required:
+                  - workspaces
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      tags:
+        - Collaboration
+      summary: Create a new workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tenantId:
+                  type: string
+                name:
+                  type: string
+                slug:
+                  type:
+                    - string
+                    - "null"
+                createdBy:
+                  type: string
+              required:
+                - tenantId
+                - name
+                - createdBy
+      responses:
+        "201":
+          description: Workspace created successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  workspace:
+                    $ref: "#/components/schemas/Workspace"
+                required:
+                  - workspace
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
           content:
             application/json:
               schema:

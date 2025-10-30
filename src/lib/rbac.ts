@@ -25,6 +25,13 @@ const TENANT_ADMIN_USER_ACTIONS = new Set([
   "user:deactivate",
 ]);
 const VIEWER_ALLOWED_ACTIONS = new Set(["analytics:view", "insights:view", "federation:view"]);
+const WORKSPACE_WRITER_ACTIONS = new Set(["workspace:view", "workspace:join", "workspace:presence:update"]);
+const EDITOR_ALLOWED_ACTIONS = new Set([
+  "workspace:view",
+  "workspace:collaborate",
+  "workspace:presence:update",
+  "ai:extensions:view",
+]);
 const USER_ACTION_PREFIX = "user:";
 
 function actionStartsWith(action: string, prefixes: string[]) {
@@ -39,10 +46,10 @@ export function resolveHighestRole(rawRoles: Iterable<string> | null | undefined
   }
 
   const alias: Record<string, Role> = {
-    owner: 'superadmin',
-    administrator: 'admin',
-    tenant_admin: 'tenantAdmin',
-    tenantadmin: 'tenantAdmin',
+    owner: "superadmin",
+    administrator: "admin",
+    tenant_admin: "tenantAdmin",
+    tenantadmin: "tenantAdmin",
   };
 
   for (const value of rawRoles) {
@@ -81,9 +88,11 @@ export function can(user: Actor, action: string, resource?: Resource) {
         "page:",
         "media:",
         "ai:",
+        "ai:extensions:",
         "insights:",
         "analytics:",
         "federation:",
+        "workspace:",
       ])
     ) {
       return true;
@@ -97,6 +106,7 @@ export function can(user: Actor, action: string, resource?: Resource) {
     if (action === "analytics:view") return false;
     if (actionStartsWith(action, ["post:", "page:", "media:"])) return true;
     if (action === "ai:use") return true;
+    if (EDITOR_ALLOWED_ACTIONS.has(action)) return true;
     return false;
   }
 
@@ -106,6 +116,8 @@ export function can(user: Actor, action: string, resource?: Resource) {
     if (action === "post:update" || action === "post:delete") {
       return own;
     }
+    if (action === "ai:use") return true;
+    if (WORKSPACE_WRITER_ACTIONS.has(action)) return true;
     return false;
   }
 
