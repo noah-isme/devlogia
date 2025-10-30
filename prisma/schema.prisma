@@ -71,6 +71,31 @@ enum PayoutStatus {
   FAILED
 }
 
+enum AIExtensionCapability {
+  WRITER @map("writer")
+  OPTIMIZER @map("optimizer")
+  SEO @map("seo")
+  SUMMARIZER @map("summarizer")
+}
+
+enum AIProvider {
+  OPENAI @map("openai")
+  ANTHROPIC @map("anthropic")
+  HUGGINGFACE @map("huggingface")
+}
+
+enum WorkspaceMemberRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+enum PresenceStatus {
+  ONLINE
+  IDLE
+  DISCONNECTED
+}
+
 model User {
   id              String           @id @default(cuid()) @db.VarChar(191)
   email           String           @unique @db.VarChar(191)
@@ -87,6 +112,11 @@ model User {
   pluginsCreated  Plugin[]         @relation("PluginCreator")
   pluginInstalls  PluginInstall[]  @relation("PluginInstallInstaller")
   extensionUsages ExtensionUsage[] @relation("ExtensionUsageActor")
+  aiExtensions    AIExtension[]
+  aiUsageLogs     AIUsageLog[]
+  workspaceMemberships WorkspaceMember[]
+  presenceStates  PresenceState[]
+  createdWorkspaces Workspace[] @relation("WorkspaceCreator")
 }
 
 model Role {
@@ -366,6 +396,9 @@ model Tenant {
   orders            Order[]
   planQuotas        PlanQuota[]
   productBeneficiaryProducts Product[] @relation("ProductBeneficiary")
+  aiExtensions      AIExtension[]
+  aiUsageLogs       AIUsageLog[]
+  workspaces        Workspace[]
 
   @@index([ownerId])
 }
@@ -602,4 +635,98 @@ model PlanQuota {
   tenant           Tenant   @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId, effectiveFrom])
+}
+
+model AIExtension {
+  id          String               @id @default(cuid()) @db.VarChar(191)
+  tenantId    String               @db.VarChar(191)
+  ownerId     String?              @db.VarChar(191)
+  name        String               @db.VarChar(191)
+  provider    AIProvider           @default(OPENAI)
+  model       String               @db.VarChar(191)
+  capability  AIExtensionCapability
+  tokenCost   Int                  @default(0)
+  description String?              @db.VarChar(512)
+  metadata    Json?                @default("{}")
+  active      Boolean              @default(true)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  tenant      Tenant               @relation(fields: [tenantId], references: [id])
+  owner       User?                @relation(fields: [ownerId], references: [id])
+  usageLogs   AIUsageLog[]
+
+  @@index([tenantId, active])
+  @@index([ownerId])
+  @@unique([tenantId, name])
+}
+
+model AIUsageLog {
+  id             String       @id @default(cuid()) @db.VarChar(191)
+  tenantId       String       @db.VarChar(191)
+  userId         String       @db.VarChar(191)
+  extensionId    String       @db.VarChar(191)
+  tokensUsed     Int          @default(0)
+  costCents      Int          @default(0)
+  promptSummary  String?      @db.VarChar(256)
+  moderationStatus String?    @db.VarChar(32)
+  createdAt      DateTime     @default(now())
+  tenant         Tenant       @relation(fields: [tenantId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+  extension      AIExtension  @relation(fields: [extensionId], references: [id])
+
+  @@index([tenantId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model Workspace {
+  id        String     @id @default(cuid()) @db.VarChar(191)
+  tenantId  String     @db.VarChar(191)
+  name      String     @db.VarChar(191)
+  slug      String     @unique @db.VarChar(191)
+  createdBy String     @db.VarChar(191)
+  createdAt DateTime   @default(now())
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  creator   User       @relation("WorkspaceCreator", fields: [createdBy], references: [id])
+  members   WorkspaceMember[]
+  sessions  CollaborationSession[]
+
+  @@index([tenantId, slug])
+}
+
+model WorkspaceMember {
+  id          String             @id @default(cuid()) @db.VarChar(191)
+  workspaceId String             @db.VarChar(191)
+  userId      String             @db.VarChar(191)
+  role        WorkspaceMemberRole @default(EDITOR)
+  joinedAt    DateTime           @default(now())
+  workspace   Workspace          @relation(fields: [workspaceId], references: [id])
+  user        User               @relation(fields: [userId], references: [id])
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+model CollaborationSession {
+  id          String    @id @default(cuid()) @db.VarChar(191)
+  workspaceId String    @db.VarChar(191)
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+  active      Boolean   @default(true)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  presence    PresenceState[]
+
+  @@index([workspaceId, active])
+}
+
+model PresenceState {
+  id        String         @id @default(cuid()) @db.VarChar(191)
+  sessionId String         @db.VarChar(191)
+  userId    String         @db.VarChar(191)
+  status    PresenceStatus @default(ONLINE)
+  lastSeenAt DateTime      @default(now())
+  session   CollaborationSession @relation(fields: [sessionId], references: [id])
+  user      User           @relation(fields: [userId], references: [id])
+
+  @@unique([sessionId, userId])
+  @@index([userId])
 }
