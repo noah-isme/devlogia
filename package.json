@@ -8,6 +8,7 @@
     "analyze": "next build --analyze",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
+    "pretest": "pnpm prisma:generate",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
