@@ -1,3 +1,5 @@
+export {};
+
 const DEFAULT_ENDPOINT = process.env.METRICS_ENDPOINT ?? "http://localhost:3000/api/metrics";
 const METRICS_API_KEY = process.env.METRICS_API_KEY ?? "";
 
