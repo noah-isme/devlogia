@@ -1,8 +1,8 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("logAIExtensionUsage", () => {
-  process.env.DATABASE_URL =
-    process.env.DATABASE_URL ?? "mysql://stub:stub@127.0.0.1:3306/devlogia_test";
+  const originalDatabaseUrl = process.env.DATABASE_URL;
+  const testDatabaseUrl = "mysql://stub:stub@127.0.0.1:3306/devlogia_test";
 
   let logAIExtensionUsage: (typeof import("@/lib/ai/extensions"))["logAIExtensionUsage"];
   let prisma: typeof import("@/lib/prisma") extends { prisma: infer T } ? T : never;
@@ -15,10 +15,13 @@ describe("logAIExtensionUsage", () => {
   let applyQuotaUsageSpy: ReturnType<typeof vi.spyOn>;
   let getTenantQuotaStatusSpy: ReturnType<typeof vi.spyOn>;
   let loggerWarnSpy: ReturnType<typeof vi.spyOn>;
+  let extensionDelegate: { findFirst: ReturnType<typeof vi.fn> };
+  let usageDelegate: { create: ReturnType<typeof vi.fn> };
   let originalExtensionDelegate: unknown;
   let originalUsageDelegate: unknown;
 
   beforeAll(async () => {
+    process.env.DATABASE_URL = testDatabaseUrl;
     prismaModule = await import("@/lib/prisma");
     quotaModule = await import("@/lib/ai/quota");
     loggerModule = await import("@/lib/logger");
@@ -30,8 +33,8 @@ describe("logAIExtensionUsage", () => {
     originalExtensionDelegate = prisma.aIExtension;
     originalUsageDelegate = prisma.aIUsageLog;
 
-    const extensionDelegate = { findFirst: vi.fn() };
-    const usageDelegate = { create: vi.fn() };
+    extensionDelegate = { findFirst: vi.fn() };
+    usageDelegate = { create: vi.fn() };
 
     Object.defineProperty(prisma, "aIExtension", {
       configurable: true,
@@ -43,7 +46,9 @@ describe("logAIExtensionUsage", () => {
       writable: true,
       value: usageDelegate,
     });
+  });
 
+  beforeEach(() => {
     findExtensionSpy = vi.spyOn(extensionDelegate, "findFirst");
     createUsageSpy = vi.spyOn(usageDelegate, "create");
     applyQuotaUsageSpy = vi.spyOn(quotaModule, "applyQuotaUsage");
@@ -51,20 +56,14 @@ describe("logAIExtensionUsage", () => {
     loggerWarnSpy = vi.spyOn(loggerModule.logger, "warn");
   });
 
-  beforeEach(() => {
-    findExtensionSpy.mockReset();
-    createUsageSpy.mockReset();
-    applyQuotaUsageSpy.mockReset();
-    getTenantQuotaStatusSpy.mockReset();
-    loggerWarnSpy.mockReset();
+  afterEach(() => {
+    vi.restoreAllMocks();
+    extensionDelegate.findFirst.mockReset();
+    usageDelegate.create.mockReset();
   });
 
   afterAll(() => {
-    findExtensionSpy.mockRestore();
-    createUsageSpy.mockRestore();
-    applyQuotaUsageSpy.mockRestore();
-    getTenantQuotaStatusSpy.mockRestore();
-    loggerWarnSpy.mockRestore();
+    process.env.DATABASE_URL = originalDatabaseUrl;
 
     Object.defineProperty(prisma, "aIExtension", {
       configurable: true,
