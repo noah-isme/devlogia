@@ -17,10 +17,8 @@ const transport = (() => {
     return undefined;
   }
 
-  return {
-    target: "pino-pretty",
-    options: { colorize: true, singleLine: true },
-  } as const;
+  // Disable transport in development to avoid pino-pretty/thread-stream issues
+  return undefined;
 })();
 
 export const logger = pino({

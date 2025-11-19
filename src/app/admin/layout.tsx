@@ -10,6 +10,7 @@ type AdminLayoutProps = {
   children: ReactNode;
 };
 
+export const runtime = "nodejs"; // Required for auth() with AUTH_SECRET
 export const dynamic = "force-dynamic";
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {

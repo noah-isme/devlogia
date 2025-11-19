@@ -71,20 +71,24 @@ function ensureRegistry(): MetricsRegistry {
   return globalThis.__DEVLOGIA_METRICS__;
 }
 
-function classifyCacheStatus(raw: string | null): CacheStatus {
-  if (!raw) {
+function classifyCacheStatus(raw: string | null | undefined): CacheStatus {
+  if (!raw || typeof raw !== "string") {
     return "unknown";
   }
 
-  const normalized = raw.trim().toLowerCase();
-  if (["hit", "edge", "cached", "hit from cloudfront"].some((token) => normalized.includes(token))) {
-    return "hit";
-  }
-  if (["miss", "fwd", "fetch"].some((token) => normalized.includes(token))) {
-    return "miss";
-  }
-  if (["bypass", "pass"].some((token) => normalized.includes(token))) {
-    return "bypass";
+  try {
+    const normalized = raw.trim().toLowerCase();
+    if (["hit", "edge", "cached", "hit from cloudfront"].some((token) => normalized.includes(token))) {
+      return "hit";
+    }
+    if (["miss", "fwd", "fetch"].some((token) => normalized.includes(token))) {
+      return "miss";
+    }
+    if (["bypass", "pass"].some((token) => normalized.includes(token))) {
+      return "bypass";
+    }
+  } catch (error) {
+    logger.debug({ error, raw }, "Failed to classify cache status");
   }
   return "unknown";
 }

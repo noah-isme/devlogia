@@ -42,7 +42,10 @@ export type AnalyticsSnapshot = {
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-export function pseudoRandomFromString(seed: string) {
+export function pseudoRandomFromString(seed: string | undefined | null) {
+  if (!seed || typeof seed !== "string") {
+    return 0;
+  }
   let hash = 0;
   for (let index = 0; index < seed.length; index += 1) {
     hash = (hash << 5) - hash + seed.charCodeAt(index);

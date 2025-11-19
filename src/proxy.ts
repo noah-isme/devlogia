@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-import { createRequestLogger } from "@/lib/logger";
-import { recordRequestMetrics } from "@/lib/metrics";
+// Logger and metrics are not edge-compatible, disabled for now
+// import { createRequestLogger } from "@/lib/logger";
+// import { recordRequestMetrics } from "@/lib/metrics";
 
 const cspDirectives = [
   "default-src 'self'",
@@ -42,12 +43,12 @@ function applySecurityHeaders(response: NextResponse, requestId: string) {
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const requestId = request.headers.get("x-request-id") ?? crypto.randomUUID();
-  const start = Date.now();
   let response: NextResponse | null = null;
-  const requestLogger = createRequestLogger({ reqId: requestId, route: pathname, method: request.method });
 
   try {
-    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    // Use inline secret - same as authOptions
+    const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+    const token = await getToken({ req: request, secret });
 
     if (process.env.MAINTENANCE_MODE === "true") {
       const maintenanceAllowed =
@@ -84,16 +85,7 @@ export default async function proxy(request: NextRequest) {
   } finally {
     if (response) {
       applySecurityHeaders(response, requestId);
-      const durationMs = Date.now() - start;
-      requestLogger.info({ status: response.status, ms: durationMs }, "Request completed");
-      recordRequestMetrics({
-        status: response.status,
-        durationMs,
-        cacheHeader:
-          response.headers.get("x-vercel-cache") ??
-          response.headers.get("x-cache") ??
-          response.headers.get("cache-status"),
-      });
+      // Logging and metrics temporarily disabled - not edge-compatible
     }
   }
 }

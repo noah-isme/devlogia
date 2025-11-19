@@ -22,12 +22,15 @@ const roleNamesFromUser = (userRoles: Array<{ role: { name: string } }>) =>
   userRoles.map((entry) => entry.role.name.toLowerCase());
 
 export const authOptions: NextAuthOptions = {
+  // Use inline secret with fallback - compatible with all runtimes
+  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt",
   },
   pages: {
     signIn: "/admin/login",
   },
+  debug: process.env.NODE_ENV === "development",
   providers: [
     Credentials({
       name: "Credentials",
