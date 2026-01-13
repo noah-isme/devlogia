@@ -1,6 +1,7 @@
 "use client";
 
 import { type ChangeEvent, type SyntheticEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -100,6 +101,7 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
   const lastSavedSnapshot = useRef<string>(serialize(post));
   const autosaveTimeout = useRef<NodeJS.Timeout | null>(null);
   const actionTimeout = useRef<NodeJS.Timeout | null>(null);
+  const router = useRouter();
 
   const localStorageKey = useMemo(() => {
     if (typeof window === "undefined") {
@@ -581,6 +583,31 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
     }
   }
 
+  async function handleDelete() {
+    if (!initialPost?.id) return;
+
+    setActionState("saving");
+
+    try {
+      const response = await fetch(`/api/admin/posts/${initialPost.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete post");
+      }
+
+      window.localStorage.removeItem(initialStorageKey);
+      router.push("/admin/posts");
+      router.refresh();
+    } catch (error) {
+      console.error("Delete failed", error);
+      setActionState("error");
+      setAutosaveState("error");
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="rounded-lg border border-dashed border-border bg-muted/50 px-4 py-3">
@@ -642,6 +669,20 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
           >
             {isPrimarySaving ? "Saving…" : primaryLabel}
           </Button>
+          {mode === "edit" && initialPost?.id ? (
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                if (confirm("Are you sure you want to delete this post?")) {
+                  void handleDelete();
+                }
+              }}
+              disabled={actionState === "saving"}
+            >
+              Delete
+            </Button>
+          ) : null}
         </div>
       </div>
 

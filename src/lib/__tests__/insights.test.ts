@@ -4,7 +4,7 @@ import { aggregateTelemetry, type TelemetryRecord } from "@/lib/analytics/insigh
 
 const stubClassifier = async (messages: string[]) =>
   messages.map((message) => ({
-    label: message.includes("love") ? "positive" : message.includes("bad") ? "negative" : "neutral",
+    label: (message.includes("love") ? "positive" : message.includes("bad") ? "negative" : "neutral") as any,
     score: message.includes("love") ? 0.9 : message.includes("bad") ? 0.8 : 0.5,
   }));
 

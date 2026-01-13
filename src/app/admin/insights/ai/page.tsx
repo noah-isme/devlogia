@@ -14,7 +14,7 @@ export const metadata: Metadata = buildMetadata({
 export default async function AiInsightsPage() {
   const session = await auth();
   if (!session?.user || session.user.role !== "superadmin") {
-    redirect("/admin/dashboard");
+    redirect("/admin/login");
   }
 
   const snapshot = await getCreatorInsightSnapshot(20);

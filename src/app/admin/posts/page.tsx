@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
 
 import { Prisma, type PostStatus } from "@prisma/client";
 
@@ -55,6 +57,11 @@ export default async function PostsPage({ searchParams }: PostsPageProps) {
 
   const prismaModule = await import("@/lib/prisma");
   const { prisma, safeFindMany, isDatabaseEnabled } = prismaModule;
+  const session = await auth();
+
+  if (!session) {
+    redirect("/admin/login");
+  }
 
   if (!isDatabaseEnabled) {
     return (
@@ -151,18 +158,18 @@ export default async function PostsPage({ searchParams }: PostsPageProps) {
 
   const nextQuery = hasNext
     ? {
-        ...baseQuery,
-        cursor: nextCursor ?? undefined,
-        stack: nextStack,
-      }
+      ...baseQuery,
+      cursor: nextCursor ?? undefined,
+      stack: nextStack,
+    }
     : undefined;
 
   const previousQuery = hasPrevious
     ? {
-        ...baseQuery,
-        cursor: prevCursor ?? undefined,
-        stack: prevStack,
-      }
+      ...baseQuery,
+      cursor: prevCursor ?? undefined,
+      stack: prevStack,
+    }
     : undefined;
 
   return (
@@ -192,11 +199,10 @@ export default async function PostsPage({ searchParams }: PostsPageProps) {
               }
               return params.size ? `/admin/posts?${params.toString()}` : "/admin/posts";
             })()}
-            className={`rounded-full border px-3 py-1 text-sm transition ${
-              activeStatus === option.value
+            className={`rounded-full border px-3 py-1 text-sm transition ${activeStatus === option.value
                 ? "border-foreground bg-foreground text-background"
                 : "border-border bg-background text-muted-foreground hover:border-foreground/70 hover:text-foreground"
-            }`}
+              }`}
             aria-current={activeStatus === option.value ? "page" : undefined}
           >
             {option.label}

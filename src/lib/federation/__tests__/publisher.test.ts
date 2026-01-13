@@ -50,7 +50,7 @@ describe("federation publisher", () => {
 
   test("publishFederationIndex pushes payload when configured", async () => {
     const fetchMock = vi.fn(async () => ({ ok: true }));
-    const result = await publishFederationIndex({ limit: 5, push: true, fetchImpl: fetchMock });
+    const result = await publishFederationIndex({ limit: 5, push: true, fetchImpl: fetchMock as any });
 
     expect(fetchMock).toHaveBeenCalled();
     expect(result.status).toBe("published");

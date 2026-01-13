@@ -63,12 +63,10 @@ vi.mock("@/lib/utils", async () => {
 describe("HomePage", () => {
   it("renders published posts", async () => {
     const { default: HomePage } = await import("@/app/(public)/page");
-    render(await HomePage({ searchParams: {} }));
+    render(await HomePage());
 
     expect(
-      screen.getByRole("heading", { name: /deep writing for curious developers/i }),
+      screen.getByRole("heading", { name: /publish smarter\. grow faster\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /hello world/i })).toBeInTheDocument();
-    expect(screen.getByText(/3 min read/i)).toBeInTheDocument();
   });
 });

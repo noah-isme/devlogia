@@ -14,7 +14,7 @@ export const metadata: Metadata = buildMetadata({
 export default async function MarketplaceRevenuePage() {
   const session = await auth();
   if (!session?.user || (!can(session.user, "billing:manage") && !can(session.user, "billing:view"))) {
-    redirect("/admin/dashboard");
+    redirect("/admin/login");
   }
 
   return (

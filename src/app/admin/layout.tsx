@@ -15,6 +15,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {
   const session = await auth();
+
   const role = session?.user?.role;
   const maintenanceMode = process.env.MAINTENANCE_MODE === "true";
   const navItems = [

@@ -1,10 +1,6 @@
-import { initObservability } from "@/lib/observability";
-
 export async function register() {
-  // Skip observability init in edge runtime (logger not compatible)
-  if (process.env.NEXT_RUNTIME === "edge") {
-    return;
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { initObservability } = await import("@/lib/observability");
+    initObservability();
   }
-  
-  initObservability();
 }

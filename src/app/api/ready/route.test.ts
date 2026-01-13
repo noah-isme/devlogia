@@ -45,7 +45,7 @@ describe("/api/ready", () => {
   test("fails when maintenance mode active", async () => {
     process.env.MAINTENANCE_MODE = "true";
     const { GET } = await import("./route");
-    const response = await GET(new Request("http://localhost/api/ready"));
+    const response = await GET();
     expect(response.status).toBe(503);
     const body = await response.json();
     expect(body.checks.maintenance.status).toBe("fail");
@@ -54,7 +54,7 @@ describe("/api/ready", () => {
   test("fails when migrations pending", async () => {
     schemaMock.mockResolvedValueOnce({ version: "2024-02-01", pending: 2 });
     const { GET } = await import("./route");
-    const response = await GET(new Request("http://localhost/api/ready"));
+    const response = await GET();
     expect(response.status).toBe(503);
     const body = await response.json();
     expect(body.checks.database.details.pendingMigrations).toBe(2);
@@ -63,7 +63,7 @@ describe("/api/ready", () => {
   test("skips database when disabled", async () => {
     dbState.enabled = false;
     const { GET } = await import("./route");
-    const response = await GET(new Request("http://localhost/api/ready"));
+    const response = await GET();
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.checks.database.status).toBe("skip");

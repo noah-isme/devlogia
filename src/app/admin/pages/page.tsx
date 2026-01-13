@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 
 import { PageManager, type PageSummary } from "@/components/forms/page-manager";
+import { auth } from "@/lib/auth";
 import { buildMetadata } from "@/lib/seo";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = buildMetadata({
   title: "Pages",
@@ -11,6 +13,11 @@ export const metadata: Metadata = buildMetadata({
 export default async function PagesPage() {
   const prismaModule = await import("@/lib/prisma");
   const { isDatabaseEnabled, prisma } = prismaModule;
+  const session = await auth();
+
+  if (!session) {
+    redirect("/admin/login");
+  }
 
   if (!isDatabaseEnabled) {
     return (

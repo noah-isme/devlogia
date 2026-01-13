@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { PostStatus } from "@prisma/client";
 
 import {
   buildMonthlyViewSeries,
@@ -24,8 +25,8 @@ describe("analytics helpers", () => {
 
   it("computes deterministic view totals", () => {
     const posts = [
-      { id: "a", createdAt: new Date("2024-01-01"), publishedAt: new Date("2024-01-02"), status: "PUBLISHED" },
-      { id: "b", createdAt: new Date("2024-01-03"), publishedAt: null, status: "DRAFT" },
+      { id: "a", createdAt: new Date("2024-01-01"), publishedAt: new Date("2024-01-02"), status: "PUBLISHED" as PostStatus },
+      { id: "b", createdAt: new Date("2024-01-03"), publishedAt: null, status: "DRAFT" as PostStatus },
     ];
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2024-06-01"));
@@ -36,8 +37,8 @@ describe("analytics helpers", () => {
 
   it("builds monthly view series capped to the requested range", () => {
     const posts = [
-      { id: "recent", createdAt: new Date("2024-05-15"), publishedAt: new Date("2024-05-20"), status: "PUBLISHED" },
-      { id: "older", createdAt: new Date("2023-10-01"), publishedAt: new Date("2023-10-05"), status: "PUBLISHED" },
+      { id: "recent", createdAt: new Date("2024-05-15"), publishedAt: new Date("2024-05-20"), status: "PUBLISHED" as PostStatus },
+      { id: "older", createdAt: new Date("2023-10-01"), publishedAt: new Date("2023-10-05"), status: "PUBLISHED" as PostStatus },
     ];
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2024-06-15"));

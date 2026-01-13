@@ -37,7 +37,7 @@ test("publishing records audit log entry", async ({ page }) => {
     where: {
       action: "post:publish",
       meta: {
-        path: ["slug"],
+        path: ["slug"] as any,
         equals: slug,
       },
     },

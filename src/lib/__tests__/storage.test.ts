@@ -49,7 +49,7 @@ describe("storage", () => {
 
     const metadata = await getObjectMetadata(result.path);
     expect(metadata?.name).toBe(path.basename(storedPath));
-    expect(metadata?.size).toBe(buffer.byteLength);
+    expect((metadata as any)?.size).toBe(buffer.byteLength);
 
     const signedUrl = await createSignedUrl(result.path, 60);
     expect(signedUrl).toContain("/uploads/");

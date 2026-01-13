@@ -16,7 +16,7 @@ vi.mock("@/lib/logger", () => ({
 describe("applyQuotaUsage", () => {
   it("throws when usage exceeds limit", async () => {
     const { applyQuotaUsage } = await import("@/lib/ai/quota");
-    const { prisma } = (await import("@/lib/prisma")) as {
+    const { prisma } = (await import("@/lib/prisma") as unknown) as {
       prisma: {
         planQuota: { findFirst: ReturnType<typeof vi.fn> };
         aIUsageLog: { aggregate: ReturnType<typeof vi.fn> };
@@ -30,7 +30,7 @@ describe("applyQuotaUsage", () => {
 
   it("returns status and warnings when crossing threshold", async () => {
     const { applyQuotaUsage } = await import("@/lib/ai/quota");
-    const { prisma } = (await import("@/lib/prisma")) as {
+    const { prisma } = (await import("@/lib/prisma") as unknown) as {
       prisma: {
         planQuota: { findFirst: ReturnType<typeof vi.fn> };
         aIUsageLog: { aggregate: ReturnType<typeof vi.fn> };

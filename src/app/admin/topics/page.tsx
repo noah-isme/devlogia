@@ -12,7 +12,7 @@ export const metadata: Metadata = buildMetadata({
 export default async function TopicsPage() {
   const session = await auth();
   if (!session?.user || (session.user.role !== "superadmin" && session.user.role !== "editor")) {
-    redirect("/admin/dashboard");
+    redirect("/admin/login");
   }
 
   const prismaModule = await import("@/lib/prisma");
@@ -57,7 +57,7 @@ export default async function TopicsPage() {
         </p>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {clusters.map((cluster) => (
+          {clusters.map((cluster: any) => (
             <article key={cluster.id} className="rounded-xl border border-border bg-card p-4 shadow-sm">
               <header className="mb-3">
                 <h2 className="text-base font-semibold">{cluster.label}</h2>
@@ -66,7 +66,7 @@ export default async function TopicsPage() {
                 </p>
               </header>
               <ul className="space-y-2 text-sm">
-                {cluster.posts.map((relation) => (
+                {cluster.posts.map((relation: any) => (
                   <li key={relation.postId} className="rounded-lg border border-border/60 bg-muted/30 p-3">
                     <p className="font-medium">{relation.post.title}</p>
                     {relation.post.summary ? (

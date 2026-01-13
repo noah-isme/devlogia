@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
 
 import type { PostStatus } from "@prisma/client";
 
@@ -28,6 +30,11 @@ export const metadata: Metadata = buildMetadata({
 export default async function DashboardPage() {
   const prismaModule = await import("@/lib/prisma");
   const { isDatabaseEnabled, prisma, safeFindMany } = prismaModule;
+  const session = await auth();
+
+  if (!session) {
+    redirect("/admin/login");
+  }
 
   if (!isDatabaseEnabled) {
     return (
