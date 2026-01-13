@@ -16,7 +16,9 @@ function resolveGitSha() {
     return (
       process.env.NEXT_PUBLIC_GIT_SHA ??
       process.env.VERCEL_GIT_COMMIT_SHA ??
-      execSync("git rev-parse HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim()
+      execSync("git rev-parse HEAD", { stdio: ["ignore", "pipe", "ignore"] })
+        .toString()
+        .trim()
     );
   } catch {
     return "unknown";
@@ -55,9 +57,34 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 60 * 60,
   },
   async headers() {
+    const cspDirectives = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data: blob: https:",
+      "connect-src 'self' https://api.stripe.com https://*.sentry.io",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; ");
+
     return [
       {
-        source: "/(.*)\.(js|css|woff2|ttf|svg|png|jpg|jpeg|gif|webp)",
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+          { key: "Content-Security-Policy", value: cspDirectives },
+        ],
+      },
+      {
+        source: "/(.*)\\.(js|css|woff2|ttf|svg|png|jpg|jpeg|gif|webp)",
         headers: [
           {
             key: "Cache-Control",

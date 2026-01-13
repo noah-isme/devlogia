@@ -1,17 +1,42 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import type { Prisma } from "@prisma/client";
 
 import { auth } from "@/lib/auth";
 import { buildMetadata } from "@/lib/seo";
 
+/** Type for topic clusters with nested post relations from Prisma query */
+type TopicClusterWithPosts = Prisma.TopicClusterGetPayload<{
+  include: {
+    posts: {
+      include: {
+        post: {
+          select: {
+            id: true;
+            slug: true;
+            title: true;
+            summary: true;
+            publishedAt: true;
+          };
+        };
+      };
+      orderBy: { score: "desc" };
+    };
+  };
+}>;
+
 export const metadata: Metadata = buildMetadata({
   title: "Topics",
-  description: "Automated topic clusters generated from reader engagement and embeddings.",
+  description:
+    "Automated topic clusters generated from reader engagement and embeddings.",
 });
 
 export default async function TopicsPage() {
   const session = await auth();
-  if (!session?.user || (session.user.role !== "superadmin" && session.user.role !== "editor")) {
+  if (
+    !session?.user ||
+    (session.user.role !== "superadmin" && session.user.role !== "editor")
+  ) {
     redirect("/admin/login");
   }
 
@@ -35,7 +60,13 @@ export default async function TopicsPage() {
       posts: {
         include: {
           post: {
-            select: { id: true, slug: true, title: true, summary: true, publishedAt: true },
+            select: {
+              id: true,
+              slug: true,
+              title: true,
+              summary: true,
+              publishedAt: true,
+            },
           },
         },
         orderBy: { score: "desc" },
@@ -48,34 +79,49 @@ export default async function TopicsPage() {
       <header className="space-y-2">
         <h1 className="text-lg font-semibold">Active topic clusters</h1>
         <p className="text-sm text-muted-foreground">
-          Clusters are regenerated daily based on embedding similarity and reader interactions.
+          Clusters are regenerated daily based on embedding similarity and
+          reader interactions.
         </p>
       </header>
       {clusters.length === 0 ? (
         <p className="rounded-lg border border-border/60 bg-muted/40 p-4 text-sm text-muted-foreground">
-          No clusters detected yet. Generate embeddings and run the insights daily job to populate this view.
+          No clusters detected yet. Generate embeddings and run the insights
+          daily job to populate this view.
         </p>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {clusters.map((cluster: any) => (
-            <article key={cluster.id} className="rounded-xl border border-border bg-card p-4 shadow-sm">
+          {clusters.map((cluster: TopicClusterWithPosts) => (
+            <article
+              key={cluster.id}
+              className="rounded-xl border border-border bg-card p-4 shadow-sm"
+            >
               <header className="mb-3">
                 <h2 className="text-base font-semibold">{cluster.label}</h2>
                 <p className="text-xs text-muted-foreground">
-                  Keywords: {Array.isArray(cluster.keywords) ? cluster.keywords.join(", ") : String(cluster.keywords)}
+                  Keywords:{" "}
+                  {Array.isArray(cluster.keywords)
+                    ? cluster.keywords.join(", ")
+                    : String(cluster.keywords)}
                 </p>
               </header>
               <ul className="space-y-2 text-sm">
-                {cluster.posts.map((relation: any) => (
-                  <li key={relation.postId} className="rounded-lg border border-border/60 bg-muted/30 p-3">
+                {cluster.posts.map((relation) => (
+                  <li
+                    key={relation.postId}
+                    className="rounded-lg border border-border/60 bg-muted/30 p-3"
+                  >
                     <p className="font-medium">{relation.post.title}</p>
                     {relation.post.summary ? (
-                      <p className="text-xs text-muted-foreground">{relation.post.summary}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {relation.post.summary}
+                      </p>
                     ) : null}
                     <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
                       <span>Score: {relation.score.toFixed(2)}</span>
                       {relation.post.publishedAt ? (
-                        <time dateTime={relation.post.publishedAt.toISOString()}>
+                        <time
+                          dateTime={relation.post.publishedAt.toISOString()}
+                        >
                           {relation.post.publishedAt.toLocaleDateString()}
                         </time>
                       ) : null}

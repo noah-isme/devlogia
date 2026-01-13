@@ -1,4 +1,4 @@
-import { createTenantConfig, evaluateTenantReadiness } from "../src/lib/tenant";
+import { createTenantConfig, evaluateTenantReadiness } from "../../src/lib/tenant";
 
 async function main() {
   const config = createTenantConfig(process.env);

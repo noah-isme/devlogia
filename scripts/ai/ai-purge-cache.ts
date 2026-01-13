@@ -1,4 +1,4 @@
-import { initRedis } from "../src/lib/redis";
+import { initRedis } from "../../src/lib/redis";
 
 async function run() {
   const redis = await initRedis();

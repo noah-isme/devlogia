@@ -1,4 +1,4 @@
-import { settlePendingPayouts } from "../src/lib/billing/payouts";
+import { settlePendingPayouts } from "../../src/lib/billing/payouts";
 
 async function main() {
   const limit = Number.parseInt(process.argv[2] ?? "20", 10);

@@ -2,7 +2,7 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { checkDatabaseConnection } from "./check-db.mjs";
+import { checkDatabaseConnection } from "../database/check-db.mjs";
 
 function runCommand(command, args = [], { allowFailure = false } = {}) {
   const result = spawnSync(command, args, {
@@ -29,7 +29,9 @@ async function main() {
 
   const dbUpExit = runCommand("pnpm", ["db:up"], { allowFailure: true });
   if (dbUpExit !== 0) {
-    console.warn("⚠️  pnpm db:up did not complete successfully. Continuing with connection checks.");
+    console.warn(
+      "⚠️  pnpm db:up did not complete successfully. Continuing with connection checks.",
+    );
   }
 
   const { ok, host, port } = await checkDatabaseConnection();
@@ -40,7 +42,9 @@ async function main() {
     process.exit(0);
   }
 
-  console.log(`✅ PostgreSQL is reachable at ${host}:${port}. Continuing with migrations and tests.`);
+  console.log(
+    `✅ PostgreSQL is reachable at ${host}:${port}. Continuing with migrations and tests.`,
+  );
 
   runCommand("pnpm", ["db:reset"]);
   runCommand("pnpm", ["exec", "playwright", "install", "--with-deps"]);

@@ -1,6 +1,6 @@
-import { createConnectOnboardingLink } from "../src/lib/billing/accounts";
-import { prisma } from "../src/lib/prisma";
-import { createTenantConfig, evaluateTenantReadiness } from "../src/lib/tenant";
+import { createConnectOnboardingLink } from "../../src/lib/billing/accounts";
+import { prisma } from "../../src/lib/prisma";
+import { createTenantConfig, evaluateTenantReadiness } from "../../src/lib/tenant";
 
 async function main() {
   const tenantId = process.argv[2];

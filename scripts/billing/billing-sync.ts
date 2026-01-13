@@ -1,6 +1,6 @@
-import { prisma } from "../src/lib/prisma";
-import { syncTenantPlanQuota } from "../src/lib/billing/quota";
-import { createTenantConfig, evaluateTenantReadiness } from "../src/lib/tenant";
+import { prisma } from "../../src/lib/prisma";
+import { syncTenantPlanQuota } from "../../src/lib/billing/quota";
+import { createTenantConfig, evaluateTenantReadiness } from "../../src/lib/tenant";
 
 async function main() {
   const config = createTenantConfig(process.env);

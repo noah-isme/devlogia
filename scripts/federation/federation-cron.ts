@@ -1,5 +1,5 @@
-import { scheduleFederationPublishing } from "../src/lib/federation/indexer";
-import { createTenantConfig, evaluateTenantReadiness } from "../src/lib/tenant";
+import { scheduleFederationPublishing } from "../../src/lib/federation/indexer";
+import { createTenantConfig, evaluateTenantReadiness } from "../../src/lib/tenant";
 
 async function main() {
   const config = createTenantConfig(process.env);

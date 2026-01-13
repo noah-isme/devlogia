@@ -2,7 +2,7 @@ import { createHmac } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import { createTenantConfig, evaluateTenantReadiness } from "../src/lib/tenant";
+import { createTenantConfig, evaluateTenantReadiness } from "../../src/lib/tenant";
 
 async function readStdin() {
   const chunks: Buffer[] = [];

@@ -1,8 +1,8 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import { publishFederationIndex } from "../src/lib/federation/indexer";
-import { createTenantConfig, evaluateTenantReadiness } from "../src/lib/tenant";
+import { publishFederationIndex } from "../../src/lib/federation/indexer";
+import { createTenantConfig, evaluateTenantReadiness } from "../../src/lib/tenant";
 
 async function main() {
   const limitArg = process.argv.find((value) => value.startsWith("--limit="));

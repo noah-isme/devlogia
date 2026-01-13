@@ -1,4 +1,4 @@
-import { buildRevenueReport, getRevenueSummary } from "../src/lib/billing/revenue";
+import { buildRevenueReport, getRevenueSummary } from "../../src/lib/billing/revenue";
 
 async function main() {
   const format = (process.argv[2] ?? "markdown").toLowerCase();
