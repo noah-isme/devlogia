@@ -1,5 +1,7 @@
 import crypto from "node:crypto";
 
+import { fetchWithRetry } from "@/lib/ai/request";
+
 const OPENAI_EMBEDDING_ENDPOINT = "https://api.openai.com/v1/embeddings";
 const HF_EMBEDDING_ENDPOINT = "https://api-inference.huggingface.co/embeddings";
 
@@ -54,18 +56,22 @@ async function requestOpenAIEmbedding(text: string, options?: EmbeddingOptions):
   }
 
   const model = options?.model ?? pickModel("text-embedding-3-small");
-  const response = await fetch(OPENAI_EMBEDDING_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+  const response = await fetchWithRetry(
+    OPENAI_EMBEDDING_ENDPOINT,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      signal: options?.signal,
+      body: JSON.stringify({
+        input: text,
+        model,
+      }),
     },
-    signal: options?.signal,
-    body: JSON.stringify({
-      input: text,
-      model,
-    }),
-  });
+    { timeoutMs: 20_000, retries: 2 },
+  );
 
   if (!response.ok) {
     const message = await response.text().catch(() => response.statusText);
@@ -96,17 +102,21 @@ async function requestHFEmbedding(text: string, options?: EmbeddingOptions): Pro
   }
 
   const model = options?.model ?? pickModel("sentence-transformers/all-MiniLM-L6-v2");
-  const response = await fetch(`${HF_EMBEDDING_ENDPOINT}/${model}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+  const response = await fetchWithRetry(
+    `${HF_EMBEDDING_ENDPOINT}/${model}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      signal: options?.signal,
+      body: JSON.stringify({
+        inputs: text,
+      }),
     },
-    signal: options?.signal,
-    body: JSON.stringify({
-      inputs: text,
-    }),
-  });
+    { timeoutMs: 30_000, retries: 2 },
+  );
 
   if (!response.ok) {
     const message = await response.text().catch(() => response.statusText);

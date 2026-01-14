@@ -12,6 +12,7 @@ import {
   type TonePreset,
   type WriterRequest,
 } from "@/lib/ai/types";
+import { fetchWithRetry } from "@/lib/ai/request";
 import { slugify as normalizeSlug } from "@/lib/utils";
 
 const OPENAI_ENDPOINT = "https://api.openai.com/v1/responses";
@@ -297,7 +298,9 @@ export class OpenAIProvider implements AIProvider {
       response_format: options.responseFormat === "json" ? { type: "json_object" } : undefined,
     };
 
-    const response = await fetch(OPENAI_ENDPOINT, {
+    const response = await fetchWithRetry(
+      OPENAI_ENDPOINT,
+      {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -305,7 +308,9 @@ export class OpenAIProvider implements AIProvider {
         "X-Experimental-Stream-Usage": "none",
       },
       body: JSON.stringify(body),
-    });
+      },
+      { timeoutMs: 20_000, retries: 2 },
+    );
 
     if (!response.ok) {
       const message = await safeText(response);
@@ -461,14 +466,18 @@ export class HFProvider implements AIProvider {
   }
 
   private async request(prompt: string): Promise<string> {
-    const response = await fetch(`${HF_ENDPOINT}/${this.model}`, {
+    const response = await fetchWithRetry(
+      `${HF_ENDPOINT}/${this.model}`,
+      {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${this.apiKey}`,
       },
       body: JSON.stringify({ inputs: prompt }),
-    });
+      },
+      { timeoutMs: 30_000, retries: 2 },
+    );
 
     if (!response.ok) {
       const message = await safeText(response);

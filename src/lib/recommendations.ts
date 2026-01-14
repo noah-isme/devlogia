@@ -6,6 +6,8 @@ import { initRedis } from "@/lib/redis";
 
 const DEFAULT_LIMIT = 5;
 const CACHE_TTL = Number(process.env.RECOMMENDER_CACHE_TTL ?? 3600);
+const MAX_CANDIDATES = Math.max(25, Number(process.env.RECOMMENDER_MAX_CANDIDATES ?? 200));
+const EMBEDDING_CONCURRENCY = Math.max(1, Number(process.env.RECOMMENDER_EMBED_CONCURRENCY ?? 3));
 
 type PostWithEmbedding = Post & {
   embedding?: {
@@ -84,45 +86,58 @@ export async function regenerateEmbeddingsForPosts(postIds?: string[]) {
   let generated = 0;
   let skipped = 0;
 
-  for (const post of posts) {
-    const needsEmbedding = !post.embedding || post.embedding.updatedAt < post.updatedAt;
-    if (!needsEmbedding) {
-      skipped += 1;
-      continue;
-    }
+  let cursor = 0;
 
-    const text = [post.title, post.summary ?? "", post.contentMdx.slice(0, 4000)].join("\n\n");
-    const embedding = await generateEmbedding(text);
-    await prisma.embedding.upsert({
-      where: { postId: post.id },
-      create: {
-        postId: post.id,
-        dimension: embedding.vector.length,
-        model: embedding.model,
-        provider: embedding.provider,
-        vector: serializeVector(embedding.vector),
-      },
-      update: {
-        dimension: embedding.vector.length,
-        model: embedding.model,
-        provider: embedding.provider,
-        vector: serializeVector(embedding.vector),
-      },
-    });
+  const worker = async () => {
+    while (cursor < posts.length) {
+      const post = posts[cursor];
+      cursor += 1;
+      if (!post) {
+        continue;
+      }
 
-    await prisma.recommendationSnapshot.create({
-      data: {
-        embedding: { connect: { postId: post.id } },
-        metadata: {
+      const needsEmbedding = !post.embedding || post.embedding.updatedAt < post.updatedAt;
+      if (!needsEmbedding) {
+        skipped += 1;
+        continue;
+      }
+
+      const text = [post.title, post.summary ?? "", post.contentMdx.slice(0, 4000)].join("\n\n");
+      const embedding = await generateEmbedding(text);
+      await prisma.embedding.upsert({
+        where: { postId: post.id },
+        create: {
           postId: post.id,
-          tags: post.tags.map((entry) => entry.tag.name),
-          regeneratedAt: new Date().toISOString(),
+          dimension: embedding.vector.length,
+          model: embedding.model,
+          provider: embedding.provider,
+          vector: serializeVector(embedding.vector),
         },
-      },
-    });
+        update: {
+          dimension: embedding.vector.length,
+          model: embedding.model,
+          provider: embedding.provider,
+          vector: serializeVector(embedding.vector),
+        },
+      });
 
-    generated += 1;
-  }
+      await prisma.recommendationSnapshot.create({
+        data: {
+          embedding: { connect: { postId: post.id } },
+          metadata: {
+            postId: post.id,
+            tags: post.tags.map((entry) => entry.tag.name),
+            regeneratedAt: new Date().toISOString(),
+          },
+        },
+      });
+
+      generated += 1;
+    }
+  };
+
+  const workerCount = Math.min(EMBEDDING_CONCURRENCY, posts.length || 1);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
 
   return { generated, skipped };
 }
@@ -154,6 +169,51 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
+function buildTagIndex(posts: PostWithEmbedding[]) {
+  const index = new Map<string, Set<string>>();
+  for (const post of posts) {
+    for (const entry of post.tags) {
+      const tag = entry.tag.name.toLowerCase();
+      if (!tag) continue;
+      const bucket = index.get(tag) ?? new Set<string>();
+      bucket.add(post.id);
+      index.set(tag, bucket);
+    }
+  }
+  return index;
+}
+
+function resolveCandidateIds(
+  post: PostWithEmbedding,
+  tagIndex: Map<string, Set<string>>,
+  allIds: string[],
+): string[] {
+  const candidates = new Set<string>();
+  for (const entry of post.tags) {
+    const key = entry.tag.name.toLowerCase();
+    const bucket = tagIndex.get(key);
+    if (!bucket) continue;
+    for (const id of bucket) {
+      if (id !== post.id) {
+        candidates.add(id);
+      }
+    }
+  }
+
+  if (!candidates.size) {
+    for (const id of allIds) {
+      if (id !== post.id) {
+        candidates.add(id);
+      }
+      if (candidates.size >= MAX_CANDIDATES) {
+        break;
+      }
+    }
+  }
+
+  return Array.from(candidates).slice(0, MAX_CANDIDATES);
+}
+
 async function fetchEmbeddings() {
   const prismaModule = await import("@/lib/prisma");
   const { prisma, isDatabaseEnabled } = prismaModule;
@@ -183,23 +243,31 @@ export async function rebuildRecommendations(limit = DEFAULT_LIMIT) {
     post,
     vector: buildPostFeatureVector(post),
   }));
+  const vectorById = new Map(vectors.map((entry) => [entry.post.id, entry.vector]));
+  const tagIndex = buildTagIndex(posts);
+  const allIds = posts.map((post) => post.id);
 
   const recommendations: Array<{ source: string; target: string; score: number }> = [];
 
-  for (let i = 0; i < vectors.length; i += 1) {
-    const source = vectors[i];
+  for (const source of vectors) {
     if (!source.vector.length) {
       continue;
     }
-    const candidates: Array<{ target: string; score: number }> = [];
-    for (let j = 0; j < vectors.length; j += 1) {
-      if (i === j) continue;
-      const target = vectors[j];
-      if (!target.vector.length) continue;
-      const score = cosineSimilarity(source.vector, target.vector);
-      if (!Number.isFinite(score) || score <= 0) continue;
-      candidates.push({ target: target.post.id, score });
+
+    const candidateIds = resolveCandidateIds(source.post, tagIndex, allIds);
+    if (!candidateIds.length) {
+      continue;
     }
+
+    const candidates: Array<{ target: string; score: number }> = [];
+    for (const candidateId of candidateIds) {
+      const targetVector = vectorById.get(candidateId) ?? [];
+      if (!targetVector.length) continue;
+      const score = cosineSimilarity(source.vector, targetVector);
+      if (!Number.isFinite(score) || score <= 0) continue;
+      candidates.push({ target: candidateId, score });
+    }
+
     candidates
       .sort((a, b) => b.score - a.score)
       .slice(0, limit)

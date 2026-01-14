@@ -9,6 +9,7 @@ import { Pagination } from "@/components/ui/pagination";
 import {
   appendToStack,
   clampLimit,
+  decodeCursor,
   encodeCursor,
   parseCursorParam,
   parseStackParam,
@@ -42,8 +43,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   });
 
   const cursorParam = parseCursorParam(params?.cursor);
+  const cursorPayload = decodeCursor(cursorParam);
   const stack = parseStackParam(params?.stack);
-  // TODO: Implement cursor-based pagination with MySQL-compatible queries
 
   const prismaModule = await import("@/lib/prisma");
   const { prisma, safeFindMany, isDatabaseEnabled } = prismaModule;
@@ -122,6 +123,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         { createdAt: "desc" },
         { id: "desc" },
       ],
+      cursor: cursorPayload?.id ? { id: cursorPayload.id } : undefined,
+      skip: cursorPayload?.id ? 1 : undefined,
       take: limit + 1,
       include: { author: true, tags: { include: { tag: true } } },
     });
