@@ -152,6 +152,7 @@ model Post {
   author           User              @relation(fields: [authorId], references: [id])
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
+  revisions        PostRevision[]
   tags             PostTag[]
   embedding        Embedding?
   recommendations  Recommendation[]  @relation("RecommendationSource")
@@ -190,6 +191,40 @@ model Page {
   published  Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  revisions  PageRevision[]
+}
+
+model PostRevision {
+  id          String     @id @default(cuid()) @db.VarChar(191)
+  postId      String     @db.VarChar(191)
+  userId      String?    @db.VarChar(191)
+  reason      String     @db.VarChar(32)
+  title       String     @db.VarChar(191)
+  slug        String     @db.VarChar(191)
+  summary     String?    @db.VarChar(512)
+  contentMdx  String     @db.LongText
+  coverUrl    String?    @db.VarChar(512)
+  status      PostStatus
+  publishedAt DateTime?
+  createdAt   DateTime   @default(now())
+  post        Post       @relation(fields: [postId], references: [id])
+
+  @@index([postId, createdAt])
+}
+
+model PageRevision {
+  id         String   @id @default(cuid()) @db.VarChar(191)
+  pageId     String   @db.VarChar(191)
+  userId     String?  @db.VarChar(191)
+  reason     String   @db.VarChar(32)
+  title      String   @db.VarChar(191)
+  slug       String   @db.VarChar(191)
+  contentMdx String   @db.LongText
+  published  Boolean
+  createdAt  DateTime @default(now())
+  page       Page     @relation(fields: [pageId], references: [id])
+
+  @@index([pageId, createdAt])
 }
 
 model Media {

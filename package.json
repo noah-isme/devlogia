@@ -43,6 +43,7 @@
     "billing:report": "tsx scripts/billing/billing-report.ts",
     "billing:webhook": "tsx scripts/billing/billing-webhook.ts",
     "seo:validate": "tsx scripts/utils/seo-validate.ts",
+    "posts:publish-scheduled": "tsx scripts/utils/publish-scheduled.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",
