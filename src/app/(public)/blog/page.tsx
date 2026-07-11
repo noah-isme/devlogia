@@ -61,7 +61,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             friction.
           </p>
         </header>
-        <div className="rounded-xl border border-border/60 bg-primary/10 p-4 text-sm text-primary-foreground">
+        <div className="rounded-xl border border-primary/20 bg-primary/10 p-4 text-sm font-medium text-primary">
           Personalized recommendations powered by Devlogia AI.
         </div>
         <div className="rounded-md border border-dashed border-border bg-muted/40 p-6 text-sm text-muted-foreground">
@@ -147,7 +147,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             Devlogia combines MDX, autosave, and SEO-friendly defaults so you can share long-form insights without friction.
           </p>
         </header>
-        <div className="rounded-xl border border-border/60 bg-primary/10 p-4 text-sm text-primary-foreground">
+        <div className="rounded-xl border border-primary/20 bg-primary/10 p-4 text-sm font-medium text-primary">
           Personalized recommendations powered by Devlogia AI.
         </div>
         <div className="rounded-md border border-dashed border-border bg-muted/40 p-6 text-sm text-muted-foreground">
@@ -210,14 +210,14 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         </p>
       </header>
 
-      <div className="rounded-xl border border-border/60 bg-primary/10 p-4 text-sm text-primary-foreground">
+      <div className="rounded-xl border border-primary/20 bg-primary/10 p-4 text-sm font-medium text-primary">
         Personalized recommendations powered by Devlogia AI.
       </div>
 
       <PersonalizedFeedSection />
 
       <div className="space-y-6 rounded-lg border border-border bg-muted/30 p-4 sm:p-6">
-        <form className="flex flex-col gap-3 sm:flex-row sm:items-center" action="/" method="GET">
+        <form className="flex flex-col gap-3 sm:flex-row sm:items-center" action="/blog" method="GET">
           <Input
             type="search"
             name="q"
@@ -231,7 +231,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             Search
           </Button>
           {hasFilters ? (
-            <Link href="/" className={buttonVariants({ variant: "ghost" })}>
+            <Link href="/blog" className={buttonVariants({ variant: "ghost" })}>
               Reset
             </Link>
           ) : null}
@@ -249,7 +249,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 params.set("limit", String(limit));
               }
               params.set("tag", tag.slug);
-              const href = `/?${params.toString()}`;
+              const href = `/blog?${params.toString()}`;
               const isActive = tagSlug === tag.slug;
 
               return (
@@ -273,7 +273,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   const params = new URLSearchParams();
                   if (searchQuery) params.set("q", searchQuery);
                   if (limit !== DEFAULT_POSTS_PER_PAGE) params.set("limit", String(limit));
-                  return params.size ? `/?${params.toString()}` : "/";
+                  return params.size ? `/blog?${params.toString()}` : "/blog";
                 })()}
                 className="text-xs text-muted-foreground underline-offset-4 hover:underline"
               >
@@ -324,7 +324,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         )}
       </div>
       <Pagination
-        basePath="/"
+        basePath="/blog"
         hasNext={Boolean(hasNext)}
         hasPrevious={hasPrevious}
         nextQuery={nextQuery}

@@ -14,7 +14,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "openapi:validate": "node scripts/utils/openapi-validate.mjs",
-    "dev:seed": "pnpm db:up && pnpm prisma migrate deploy && pnpm prisma db seed",
+    "dev:seed": "pnpm db:up && pnpm prisma migrate deploy && pnpm prisma:seed",
     "check:db": "node ./scripts/database/check-db.mjs",
     "test:e2e:full": "node ./scripts/utils/run-e2e-full.mjs",
     "e2e": "pnpm test:e2e",

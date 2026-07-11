@@ -1,20 +1,21 @@
 import { expect, test } from "@playwright/test";
 
 test("public readers can paginate and filter", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/blog");
 
   const olderLink = page.getByRole("link", { name: "Older" });
   await expect(olderLink).toBeVisible();
   await expect(olderLink).not.toHaveAttribute("aria-disabled", "true");
 
   await olderLink.click();
-  await expect(page).toHaveURL(/cursor=/);
+  await expect(page).toHaveURL(/\/blog\?.*cursor=/);
 
   const newerLink = page.getByRole("link", { name: "Newer" });
   await expect(newerLink).toBeVisible();
   await expect(newerLink).not.toHaveAttribute("aria-disabled", "true");
 
   await newerLink.click();
+  await expect(page).toHaveURL(/\/blog/);
   await expect(page).not.toHaveURL(/cursor=/);
 
   await page.getByPlaceholder("Search posts…").fill("Prisma");

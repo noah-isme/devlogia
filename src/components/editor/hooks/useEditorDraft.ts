@@ -9,6 +9,19 @@ function serialize(post: EditorPost) {
   return JSON.stringify(post);
 }
 
+function serializeEditableFields(post: EditorPost) {
+  return JSON.stringify({
+    title: post.title,
+    slug: post.slug,
+    summary: post.summary,
+    contentMdx: post.contentMdx,
+    coverUrl: post.coverUrl,
+    status: post.status,
+    tags: post.tags,
+    publishedAt: post.publishedAt,
+  });
+}
+
 function formatTime(date: Date | null) {
   if (!date) {
     return "baru saja";
@@ -151,23 +164,25 @@ export function useEditorDraft({ initialPost, mode }: UseEditorDraftOptions) {
 
     setAutosaveState("saving");
 
+    const submitted = latestState.current;
+    const submittedSnapshot = serializeEditableFields(submitted);
     const payload = {
-      title: latestState.current.title || "Untitled draft",
-      slug: latestState.current.slug || slugify(latestState.current.title || "untitled"),
-      summary: latestState.current.summary || null,
+      title: submitted.title || "Untitled draft",
+      slug: submitted.slug || slugify(submitted.title || "untitled"),
+      summary: submitted.summary || null,
       contentMdx:
-        latestState.current.contentMdx ||
+        submitted.contentMdx ||
         "# Start writing\n\nUse markdown and MDX components like <Callout>Note</Callout>.",
-      coverUrl: latestState.current.coverUrl || null,
-      status: latestState.current.status,
-      tags: latestState.current.tags,
-      publishedAt: latestState.current.publishedAt,
+      coverUrl: submitted.coverUrl || null,
+      status: submitted.status,
+      tags: submitted.tags,
+      publishedAt: submitted.publishedAt,
     };
 
-    const endpoint = latestState.current.id
-      ? `/api/admin/posts/${latestState.current.id}`
+    const endpoint = submitted.id
+      ? `/api/admin/posts/${submitted.id}`
       : "/api/admin/posts";
-    const method = latestState.current.id ? "PATCH" : "POST";
+    const method = submitted.id ? "PATCH" : "POST";
 
     const response = await fetch(endpoint, {
       method,
@@ -183,6 +198,19 @@ export function useEditorDraft({ initialPost, mode }: UseEditorDraftOptions) {
 
     const data = await response.json();
     const received = data.post;
+
+    if (serializeEditableFields(latestState.current) !== submittedSnapshot) {
+      const merged: EditorPost = {
+        ...latestState.current,
+        id: received.id,
+        updatedAt: received.updatedAt ?? latestState.current.updatedAt,
+      };
+      setPost(merged);
+      latestState.current = merged;
+      setPendingRestore(null);
+      setAutosaveState("idle");
+      return null;
+    }
 
     const updated: EditorPost = {
       id: received.id,

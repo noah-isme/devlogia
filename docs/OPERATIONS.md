@@ -1,26 +1,41 @@
-# 🛠️ Devlogia Operations Runbook
+# Devlogia Operations Runbook
 
 This runbook documents the day-two operations for Devlogia's MySQL + Supabase Storage stack. Keep it alongside your infrastructure repo and update it whenever the deployment topology changes.
 
+## Release Scope
+
+The current operational release scope is the CMS/blog product:
+
+- Public landing page, `/blog`, post detail pages, published static pages, RSS, sitemap, and OG images.
+- Admin login, dashboard, post/page CRUD, media uploads, user/RBAC management, and analytics views.
+- MySQL-backed CMS tables, Supabase or stub media storage, and Playwright E2E/visual smoke coverage.
+
+Platform modules for AI recommendations, tenants, workspaces, marketplace billing, plugins/extensions, federation, and developer ecosystem workflows remain beta/foundation areas. Keep them disabled in production unless a separate rollout explicitly promotes them.
+
+Operational caveats from the current audit:
+
+- The full TypeScript gate is blocked by a beta marketplace checkout type issue in `src/lib/billing/stripe/checkout.ts`.
+- Prisma migrations do not yet cover every model in `schema.prisma`; deploy only the CMS/blog scope with the checked-in migrations until the beta platform tables receive migration coverage.
+
 ## 📦 Environment Overview
 
-| Component | Provider | Notes |
-| --------- | -------- | ----- |
-| Database  | Managed MySQL (e.g. PlanetScale, Aurora, RDS) | Prisma connects via the `DATABASE_URL` string. |
-| Storage   | Supabase Storage bucket (`SUPABASE_STORAGE_BUCKET`) | Public read, authenticated write with RLS policies below. |
-| Runtime   | Next.js 16 | Deployed via Vercel/Fly/Container runtime. |
-| Logging   | `pino` structured logs to stdout | Ship to Logtail/DataDog via platform log drains. |
-| Observability | Sentry (`SENTRY_DSN`) | Optional — init happens in `src/instrumentation.ts`. |
+| Component     | Provider                                            | Notes                                                     |
+| ------------- | --------------------------------------------------- | --------------------------------------------------------- |
+| Database      | Managed MySQL (e.g. PlanetScale, Aurora, RDS)       | Prisma connects via the `DATABASE_URL` string.            |
+| Storage       | Supabase Storage bucket (`SUPABASE_STORAGE_BUCKET`) | Public read, authenticated write with RLS policies below. |
+| Runtime       | Next.js 16                                          | Deployed via Vercel/Fly/Container runtime.                |
+| Logging       | `pino` structured logs to stdout                    | Ship to Logtail/DataDog via platform log drains.          |
+| Observability | Sentry (`SENTRY_DSN`)                               | Optional — init happens in `src/instrumentation.ts`.      |
 
 ## 🔐 Secrets Matrix
 
-| Secret | Rotation Cadence | Where to Update |
-| ------ | ---------------- | --------------- |
-| `DATABASE_URL` | Rotate when credentials change or cluster is reprovisioned. | GitHub Actions, deployment platform, `.env.production`. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Treat as highly privileged (server-only). Rotate quarterly. | CI secrets, serverless runtime env vars. |
-| `SUPABASE_ANON_KEY` | Public clients. Rotate annually or on leak. | `NEXT_PUBLIC_SUPABASE_URL/BUCKET`, web runtime. |
-| `NEXTAUTH_SECRET` | Rotate annually or on incident. | CI/deployment env. |
-| `SENTRY_DSN` | On demand. | Deployment env + CI (optional). |
+| Secret                      | Rotation Cadence                                            | Where to Update                                         |
+| --------------------------- | ----------------------------------------------------------- | ------------------------------------------------------- |
+| `DATABASE_URL`              | Rotate when credentials change or cluster is reprovisioned. | GitHub Actions, deployment platform, `.env.production`. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Treat as highly privileged (server-only). Rotate quarterly. | CI secrets, serverless runtime env vars.                |
+| `SUPABASE_ANON_KEY`         | Public clients. Rotate annually or on leak.                 | `NEXT_PUBLIC_SUPABASE_URL/BUCKET`, web runtime.         |
+| `NEXTAUTH_SECRET`           | Rotate annually or on incident.                             | CI/deployment env.                                      |
+| `SENTRY_DSN`                | On demand.                                                  | Deployment env + CI (optional).                         |
 
 ## 🗄️ MySQL Operations
 
@@ -138,12 +153,12 @@ Server-side uploads use the service role key and bypass RLS; client-side preview
 
 ## ✅ Maintenance Cadence
 
-| Task | Frequency |
-| ---- | --------- |
-| Rotate Supabase service key | Quarterly |
-| Review MySQL slow query log | Weekly |
-| Verify backups & restore drill | Quarterly |
-| Audit Sentry alert thresholds | Monthly |
-| Update dependencies (`pnpm outdated`) | Monthly |
+| Task                                  | Frequency |
+| ------------------------------------- | --------- |
+| Rotate Supabase service key           | Quarterly |
+| Review MySQL slow query log           | Weekly    |
+| Verify backups & restore drill        | Quarterly |
+| Audit Sentry alert thresholds         | Monthly   |
+| Update dependencies (`pnpm outdated`) | Monthly   |
 
 Keep this runbook version-controlled. PRs that alter infrastructure should update this file with the new operational procedures.

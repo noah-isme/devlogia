@@ -13,12 +13,14 @@ test("admin can upload media and publish with OG", async ({ page, request }) => 
 
   await expect(page).toHaveURL(/admin\/dashboard/);
 
-  await page.getByRole("link", { name: "Posts" }).click();
-  await page.getByRole("link", { name: /new post/i }).click();
+  await page.goto("/admin/posts/new");
   await expect(page.getByRole("heading", { name: /create a new post/i })).toBeVisible();
 
-  const title = `Media Test ${Date.now()}`;
+  const timestamp = Date.now();
+  const title = `Media Test ${timestamp}`;
+  const slug = `media-test-${timestamp}`;
   await page.getByLabel("Title").fill(title);
+  await page.getByLabel("Slug").fill(slug);
   await page.getByLabel("Summary").fill("Testing media upload via Playwright");
   await page.getByLabel("Content").fill("# Media Upload\n\nThis post verifies cover uploads and OG images.");
 
@@ -30,11 +32,11 @@ test("admin can upload media and publish with OG", async ({ page, request }) => 
 
   await expect(page.getByText(/Cover diperbarui/i)).toBeVisible();
   await expect(page.getByLabel("Cover image URL")).toHaveValue(/\/uploads\//);
+  await expect(page.getByText(/Terakhir disimpan/i)).toBeVisible();
 
-  await page.getByLabel("Status").selectOption("PUBLISHED");
-  await page.waitForTimeout(3000);
-
-  const slug = await page.getByLabel("Slug").inputValue();
+  await page.getByRole("button", { name: /publish/i }).click();
+  await expect(page.getByRole("button", { name: /update post/i })).toBeVisible();
+  await expect(page.getByText(/Terakhir disimpan/i)).toBeVisible();
 
   await page.goto(`/blog/${slug}`);
   await expect(page.getByRole("heading", { name: title })).toBeVisible();

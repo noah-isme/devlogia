@@ -225,7 +225,25 @@ export async function DELETE(
     return forbiddenResponse();
   }
 
-  await prisma.post.delete({ where: { id } });
+  await prisma.$transaction([
+    prisma.recommendation.deleteMany({
+      where: { OR: [{ sourcePostId: id }, { targetPostId: id }] },
+    }),
+    prisma.recommendationSnapshot.deleteMany({
+      where: { embedding: { is: { postId: id } } },
+    }),
+    prisma.embedding.deleteMany({ where: { postId: id } }),
+    prisma.postTopic.deleteMany({ where: { postId: id } }),
+    prisma.headlineVariant.deleteMany({ where: { postId: id } }),
+    prisma.aIUsage.updateMany({ where: { postId: id }, data: { postId: null } }),
+    prisma.aIAuditLog.updateMany({ where: { postId: id }, data: { postId: null } }),
+    prisma.userContentAffinity.deleteMany({
+      where: { contentVector: { is: { postId: id } } },
+    }),
+    prisma.contentVector.deleteMany({ where: { postId: id } }),
+    prisma.postTag.deleteMany({ where: { postId: id } }),
+    prisma.post.delete({ where: { id } }),
+  ]);
 
   await recordAuditLog({
     userId: session.user.id,

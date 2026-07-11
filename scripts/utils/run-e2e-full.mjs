@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkDatabaseConnection } from "../database/check-db.mjs";
@@ -23,9 +24,57 @@ function runCommand(command, args = [], { allowFailure = false } = {}) {
   return exitCode;
 }
 
+function escapeMySqlIdentifier(identifier) {
+  return `\`${identifier.replaceAll("`", "``")}\``;
+}
+
+function ensureMysqlDatabase() {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    return;
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(databaseUrl);
+  } catch {
+    return;
+  }
+
+  if (!parsed.protocol.startsWith("mysql")) {
+    return;
+  }
+
+  const databaseName = parsed.pathname.replace(/^\//, "");
+  if (!databaseName) {
+    return;
+  }
+
+  const user = decodeURIComponent(parsed.username || "root");
+  const password = decodeURIComponent(parsed.password || "root");
+  const sql = `CREATE DATABASE IF NOT EXISTS ${escapeMySqlIdentifier(databaseName)} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`;
+
+  runCommand("docker", [
+    "compose",
+    "exec",
+    "-T",
+    "mysql",
+    "mysql",
+    "-u",
+    user,
+    `-p${password}`,
+    "-e",
+    sql,
+  ]);
+}
+
 async function main() {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  process.chdir(path.resolve(currentDir, ".."));
+  process.chdir(path.resolve(currentDir, "..", ".."));
+
+  if (!process.env.CI && existsSync(".env.test")) {
+    process.loadEnvFile?.(".env.test");
+  }
 
   const dbUpExit = runCommand("pnpm", ["db:up"], { allowFailure: true });
   if (dbUpExit !== 0) {
@@ -43,11 +92,16 @@ async function main() {
   }
 
   console.log(
-    `✅ PostgreSQL is reachable at ${host}:${port}. Continuing with migrations and tests.`,
+    `✅ Database is reachable at ${host}:${port}. Continuing with migrations and tests.`,
   );
 
+  ensureMysqlDatabase();
   runCommand("pnpm", ["db:reset"]);
-  runCommand("pnpm", ["exec", "playwright", "install", "--with-deps"]);
+  if (process.env.PLAYWRIGHT_INSTALL_DEPS === "1") {
+    runCommand("pnpm", ["exec", "playwright", "install", "--with-deps"]);
+  } else if (process.env.PLAYWRIGHT_INSTALL_BROWSERS === "1") {
+    runCommand("pnpm", ["exec", "playwright", "install"]);
+  }
   runCommand("pnpm", ["test:e2e"]);
 }
 

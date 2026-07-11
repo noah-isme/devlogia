@@ -143,6 +143,7 @@ export async function DELETE(
     }
   }
 
+  await prisma.userRole.deleteMany({ where: { userId: id } });
   await prisma.user.delete({ where: { id } });
 
   await recordAuditLog({

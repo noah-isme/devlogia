@@ -6,14 +6,25 @@ import { getToken } from "next-auth/jwt";
 // import { createRequestLogger } from "@/lib/logger";
 // import { recordRequestMetrics } from "@/lib/metrics";
 
+const isDevelopmentLike =
+  process.env.NODE_ENV !== "production" || process.env.CI === "true";
+
+const scriptSources = ["'self'", "'unsafe-inline'"];
+const connectSources = ["'self'", "https:"];
+
+if (isDevelopmentLike) {
+  scriptSources.push("'unsafe-eval'");
+  connectSources.push("ws:", "wss:");
+}
+
 const cspDirectives = [
   "default-src 'self'",
   "img-src 'self' https: data:",
   "media-src 'self' https:",
-  "script-src 'self'",
+  `script-src ${scriptSources.join(" ")}`,
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self' data:",
-  "connect-src 'self' https:",
+  `connect-src ${connectSources.join(" ")}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

@@ -20,7 +20,7 @@ test("superadmin can create, update, and delete users", async ({ page }) => {
   const email = uniqueEmail();
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByLabel("Password").fill("secret123");
-  await page.getByLabel("Role").selectOption("editor");
+  await page.getByTestId("user-create-form").getByLabel("Role").selectOption("editor");
   await page.getByTestId("user-create-submit").click();
 
   const row = page.locator("tr", { hasText: email }).first();

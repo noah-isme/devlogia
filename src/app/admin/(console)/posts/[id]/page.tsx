@@ -8,12 +8,13 @@ import { auth } from "@/lib/auth";
 import { buildMetadata } from "@/lib/seo";
 
 type PageProps = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const prismaModule = await import("@/lib/prisma");
   const { prisma, isDatabaseEnabled } = prismaModule;
+  const { id } = await params;
 
   if (!isDatabaseEnabled) {
     return buildMetadata({ title: "Post unavailable" });
@@ -21,7 +22,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   try {
     const post = await prisma.post.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { title: true },
     });
 
@@ -34,7 +35,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       description: `Edit ${post.title} in the Devlogia editor.`,
     });
   } catch (error) {
-    console.error(`Failed to load post metadata for ${params.id}`, error);
+    console.error(`Failed to load post metadata for ${id}`, error);
     return buildMetadata({ title: "Post unavailable" });
   }
 }
@@ -42,6 +43,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function EditPostPage({ params }: PageProps) {
   const prismaModule = await import("@/lib/prisma");
   const { prisma, isDatabaseEnabled } = prismaModule;
+  const { id } = await params;
 
   if (!isDatabaseEnabled) {
     return (
@@ -61,12 +63,12 @@ export default async function EditPostPage({ params }: PageProps) {
 
   try {
     post = await prisma.post.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { tags: { include: { tag: true } } },
     });
   } catch (error) {
     loadError = error;
-    console.error(`Failed to load post ${params.id} for editing`, error);
+    console.error(`Failed to load post ${id} for editing`, error);
   }
 
   if (!post) {

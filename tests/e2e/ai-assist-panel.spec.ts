@@ -11,15 +11,21 @@ test("ai assist panel is disabled without provider", async ({ page }) => {
 
   await expect(page).toHaveURL(/admin\/dashboard/);
 
-  await page.getByRole("link", { name: "Posts" }).click();
-  await page.getByRole("link", { name: /new post/i }).click();
+  await page.goto("/admin/posts/new");
   await expect(page.getByRole("heading", { name: /create a new post/i })).toBeVisible();
 
-  const panel = page.getByRole("heading", { name: "AI Assist" }).locator(".." );
-  await expect(panel).toContainText("Disabled");
-  await expect(panel).toContainText("Configure AI_PROVIDER to enable AI assistance.");
+  await expect(page.getByRole("heading", { name: "AI Assistant" })).toBeVisible();
+  await expect(page.getByText("Disabled").first()).toBeVisible();
+  await expect(page.getByText(/Draft, continue, rewrite/)).toBeVisible();
 
-  const buttons = ["Outline", "Meta", "Tags", "Rephrase"];
+  const buttons = [
+    "Generate Draft",
+    "Continue Writing",
+    "Rewrite for Clarity",
+    "Rewrite Concise",
+    "Translate → English",
+    "Translate → Indonesian",
+  ];
   for (const label of buttons) {
     await expect(page.getByRole("button", { name: label })).toBeDisabled();
   }

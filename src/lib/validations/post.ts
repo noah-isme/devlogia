@@ -2,6 +2,37 @@ import { z } from "zod";
 
 export const postStatusValues = ["DRAFT", "PUBLISHED", "SCHEDULED"] as const;
 
+const optionalSummarySchema = z.string().trim().max(320).optional().nullable();
+
+function isValidCoverUrl(value: string) {
+  if (value.startsWith("/")) {
+    return true;
+  }
+
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const optionalCoverUrlSchema = z.preprocess(
+  (value) => {
+    if (typeof value === "string" && value.trim() === "") {
+      return undefined;
+    }
+
+    return value;
+  },
+  z
+    .string()
+    .trim()
+    .refine(isValidCoverUrl, "Cover must be a valid URL")
+    .optional()
+    .nullable(),
+);
+
 export const upsertPostSchema = z.object({
   title: z.string().trim().min(3, "Title is required").max(180),
   slug: z
@@ -10,14 +41,9 @@ export const upsertPostSchema = z.object({
     .min(3, "Slug is required")
     .max(150)
     .regex(/^[a-z0-9-]+$/, "Slug can only contain lowercase letters, numbers, and hyphens"),
-  summary: z.string().trim().max(320).optional().nullable(),
+  summary: optionalSummarySchema,
   contentMdx: z.string().min(1, "Content cannot be empty"),
-  coverUrl: z
-    .string()
-    .url("Cover must be a valid URL")
-    .optional()
-    .or(z.literal("").transform(() => undefined))
-    .nullable(),
+  coverUrl: optionalCoverUrlSchema,
   status: z.enum(postStatusValues),
   publishedAt: z
     .string()
@@ -30,14 +56,9 @@ export const upsertPostSchema = z.object({
 export const createPostSchema = z
   .object({
     title: z.string().trim().min(1).max(180).optional(),
-    summary: z.string().trim().max(320).optional(),
+    summary: optionalSummarySchema,
     contentMdx: z.string().optional(),
-    coverUrl: z
-      .string()
-      .url("Cover must be a valid URL")
-      .optional()
-      .or(z.literal(""))
-      .nullable(),
+    coverUrl: optionalCoverUrlSchema,
     status: z.enum(postStatusValues).optional(),
     slug: z
       .string()

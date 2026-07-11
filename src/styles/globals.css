@@ -1,37 +1,60 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-border: hsl(var(--border));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-ring: hsl(var(--ring));
+}
+
 :root {
   color-scheme: light;
-  --color-background: 210 20% 98%;
-  --color-foreground: 221 39% 11%;
-  --color-muted: 210 30% 96%;
-  --color-muted-foreground: 215 16% 38%;
-  --color-border: 214 32% 88%;
-  --color-primary: 222 84% 41%;
-  --color-primary-foreground: 210 40% 98%;
-  --color-secondary: 214 32% 92%;
-  --color-secondary-foreground: 221 39% 11%;
+  --background: 214 36% 97%;
+  --foreground: 224 39% 12%;
+  --muted: 216 33% 93%;
+  --muted-foreground: 218 17% 39%;
+  --border: 216 28% 82%;
+  --primary: 222 86% 47%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 174 47% 91%;
+  --secondary-foreground: 190 64% 16%;
+  --card: 0 0% 100%;
+  --card-foreground: 224 39% 12%;
+  --ring: 222 86% 47%;
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-mono: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --color-background: 222 47% 6%;
-  --color-foreground: 214 32% 92%;
-  --color-muted: 222 35% 14%;
-  --color-muted-foreground: 216 20% 70%;
-  --color-border: 217 34% 28%;
-  --color-primary: 210 100% 76%;
-  --color-primary-foreground: 220 48% 10%;
-  --color-secondary: 224 32% 18%;
-  --color-secondary-foreground: 210 100% 96%;
+  --background: 224 47% 7%;
+  --foreground: 213 31% 93%;
+  --muted: 224 35% 15%;
+  --muted-foreground: 216 18% 72%;
+  --border: 222 30% 25%;
+  --primary: 199 92% 66%;
+  --primary-foreground: 224 47% 8%;
+  --secondary: 165 39% 18%;
+  --secondary-foreground: 166 76% 88%;
+  --card: 224 39% 10%;
+  --card-foreground: 213 31% 93%;
+  --ring: 199 92% 66%;
 }
 
 body {
-  background-color: hsl(var(--color-background));
-  color: hsl(var(--color-foreground));
+  background:
+    linear-gradient(180deg, hsla(var(--primary), 0.06), transparent 18rem),
+    hsl(var(--background));
+  color: hsl(var(--foreground));
   font-family: var(--font-sans);
   font-size: 16px;
   line-height: 1.6;
@@ -40,7 +63,7 @@ body {
 }
 
 *:focus-visible {
-  outline: 3px solid hsl(var(--color-primary));
+  outline: 3px solid hsl(var(--ring));
   outline-offset: 3px;
 }
 
@@ -50,7 +73,7 @@ a {
 }
 
 a:hover {
-  color: hsl(var(--color-primary));
+  color: hsl(var(--primary));
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-underline-offset: 4px;
@@ -70,6 +93,6 @@ main {
 }
 
 ::selection {
-  background: hsla(var(--color-primary), 0.18);
+  background: hsla(var(--primary), 0.2);
   color: inherit;
 }

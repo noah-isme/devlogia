@@ -11,7 +11,7 @@ export const metadata: Metadata = buildMetadata({
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="py-16 text-center text-muted-foreground">Loading…</div>}>
+    <Suspense fallback={<div className="py-16 text-center text-muted-foreground">Loading...</div>}>
       <LoginForm />
     </Suspense>
   );

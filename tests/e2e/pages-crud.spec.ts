@@ -9,6 +9,7 @@ test("static page lifecycle", async ({ page }) => {
     await page.getByLabel("Email").fill(SUPERADMIN_EMAIL);
     await page.getByLabel("Password").fill(SUPERADMIN_PASSWORD);
     await page.getByRole("button", { name: /sign in/i }).click();
+    await expect(page).toHaveURL(/admin\/dashboard/);
 
     // Go to Pages
     // We'll navigate directly as sidebar coverage isn't guaranteed in this snippet

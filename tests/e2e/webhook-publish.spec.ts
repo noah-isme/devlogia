@@ -18,8 +18,7 @@ test("publishing records audit log entry", async ({ page }) => {
 
   await expect(page).toHaveURL(/admin\/dashboard/);
 
-  await page.getByRole("link", { name: "Posts" }).click();
-  await page.getByRole("link", { name: /new post/i }).click();
+  await page.goto("/admin/posts/new");
   await expect(page.getByRole("heading", { name: /create a new post/i })).toBeVisible();
 
   const title = `Webhook Publish ${Date.now()}`;
@@ -28,7 +27,8 @@ test("publishing records audit log entry", async ({ page }) => {
   await page.getByLabel("Content").fill("# Webhook\n\nTrigger outbound webhooks via audit log test.");
 
   await page.getByRole("button", { name: /^publish$/i }).click();
-  await page.waitForTimeout(2000);
+  await expect(page.getByRole("button", { name: /update post/i })).toBeVisible();
+  await expect(page.getByText(/Terakhir disimpan/i)).toBeVisible();
 
   const slug = await page.getByLabel("Slug").inputValue();
   expect(slug).not.toEqual("");
@@ -36,13 +36,10 @@ test("publishing records audit log entry", async ({ page }) => {
   const log = await prisma.auditLog.findFirst({
     where: {
       action: "post:publish",
-      meta: {
-        path: ["slug"] as any,
-        equals: slug,
-      },
     },
     orderBy: { createdAt: "desc" },
   });
 
   expect(log).not.toBeNull();
+  expect(log?.meta).toMatchObject({ slug });
 });

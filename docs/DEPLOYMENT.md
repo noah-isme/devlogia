@@ -1,12 +1,23 @@
-# 🚀 Deployment Playbook
+# Deployment Playbook
+
+## Release Scope
+
+The active production release scope is the CMS/blog application:
+
+- Public landing page and `/blog` article index.
+- Post detail pages, published static pages, RSS, sitemap, and OG image generation.
+- Admin login, dashboard, post/page CRUD, media upload, user/RBAC management, and analytics views.
+- Playwright E2E coverage for auth, publishing, media, public blog discovery, and visual smoke screenshots.
+
+Do not treat AI recommendations, marketplace billing, plugins/extensions, tenant workspaces, federation, or developer ecosystem workflows as production release scope yet. Those modules are present as beta/foundation code and need complete migrations, typecheck cleanup, UI flows, and E2E coverage before promotion.
 
 ## Environments
 
-| Environment | URL | Notes |
-| --- | --- | --- |
-| Local | `http://localhost:3000` | Uses dockerised MySQL and stub storage |
-| Staging | `https://staging.devlogia.app` | Mirrors production topology with managed MySQL + Supabase |
-| Production | `https://devlogia.app` | Customer-facing |
+| Environment | URL                            | Notes                                                     |
+| ----------- | ------------------------------ | --------------------------------------------------------- |
+| Local       | `http://localhost:3000`        | Uses dockerised MySQL and stub storage                    |
+| Staging     | `https://staging.devlogia.app` | Mirrors production topology with managed MySQL + Supabase |
+| Production  | `https://devlogia.app`         | Customer-facing                                           |
 
 Ensure staging and production share the same Prisma schema and Supabase bucket policies. Environment variables are defined in `.env.production.example` and managed via Vercel environment settings.
 
@@ -16,15 +27,29 @@ See `.env.example` for the complete list. The deployment scripts require the fol
 
 ```
 DATABASE_URL
+NEXT_PUBLIC_APP_URL
+NEXTAUTH_URL
+NEXTAUTH_SECRET
+```
+
+For production uploads, configure:
+
+```
 SUPABASE_URL
 SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY
 SUPABASE_STORAGE_BUCKET
-NEXT_PUBLIC_APP_URL
+```
+
+For production monitoring and rate limiting, configure:
+
+```
 SENTRY_DSN
 LOGTAIL_TOKEN
 RATE_LIMIT_REDIS_URL
 ```
+
+Leave beta platform integrations disabled unless they are explicitly being tested in a non-production environment.
 
 ## Staging Deployment
 
@@ -37,8 +62,9 @@ The script performs linting, unit tests, build, OpenAPI validation, database bac
 After deployment:
 
 1. Hit `/api/_version` and `/api/health` to confirm the new build and schema version.
-2. Run targeted end-to-end tests (`pnpm test:e2e`).
-3. Ensure Logtail and Sentry receive sample events.
+2. Run targeted CMS/blog end-to-end tests (`pnpm test:e2e` or `pnpm test:e2e:full` against the staging database).
+3. Inspect the Playwright HTML report and visual smoke screenshots for `/admin/login`, `/admin/dashboard`, `/blog`, and `/admin/posts/new`.
+4. Ensure Logtail and Sentry receive sample events.
 
 ## Production Promotion
 
@@ -52,8 +78,13 @@ Post-promotion checklist:
 
 1. `curl -fsSL https://devlogia.app/api/ready` should return HTTP 200.
 2. Disable `MAINTENANCE_MODE` if it was enabled.
-3. Verify primary flows (login, publish post, RSS, sitemap).
+3. Verify primary CMS/blog flows: login, create/edit post, upload media, publish post, browse `/blog`, RSS, sitemap, and OG image.
 4. Monitor alerts defined in `ALERTS.md` for 24–48 hours.
+
+## Current Release Blockers
+
+- `pnpm typecheck` fails in `src/lib/billing/stripe/checkout.ts` due a beta marketplace checkout type mismatch. This does not affect the CMS/blog E2E path, but it must be fixed before enforcing the full engineering gate.
+- Prisma migrations do not yet cover every model in `schema.prisma`. The CMS/blog tables are migrated; beta tenant, marketplace, workspace, and ecosystem tables need migration coverage before those features can be released.
 
 ## Rollback
 

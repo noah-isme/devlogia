@@ -21,10 +21,12 @@ test("admin theme preference persists across sections", async ({ page }) => {
   await page.waitForFunction((expected) => document.documentElement.dataset.theme === expected, toggledTheme);
 
   await page.goto("/admin/analytics");
+  await page.waitForFunction((expected) => document.documentElement.dataset.theme === expected, toggledTheme);
   const analyticsTheme = await page.evaluate(() => document.documentElement.dataset.theme);
   expect(analyticsTheme).toBe(toggledTheme);
 
   await page.goto("/admin/users");
+  await page.waitForFunction((expected) => document.documentElement.dataset.theme === expected, toggledTheme);
   const usersTheme = await page.evaluate(() => document.documentElement.dataset.theme);
   expect(usersTheme).toBe(toggledTheme);
 });

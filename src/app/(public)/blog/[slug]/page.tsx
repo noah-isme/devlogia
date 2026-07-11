@@ -19,7 +19,7 @@ import { estimateReadingTime, formatDate, slugify } from "@/lib/utils";
 export const revalidate = 60;
 
 type PageProps = {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 };
 
 type PublishedSlug = {
@@ -47,12 +47,13 @@ async function getPost(slug: string, prismaModule?: typeof import("@/lib/prisma"
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const prismaModule = await import("@/lib/prisma");
+  const { slug } = await params;
 
   if (!prismaModule.isDatabaseEnabled) {
     return buildMetadata({ title: "Post unavailable" });
   }
 
-  const post = await getPost(params.slug, prismaModule);
+  const post = await getPost(slug, prismaModule);
   if (!post) {
     return buildMetadata({ title: "Post not found" });
   }
@@ -118,7 +119,8 @@ export async function generateStaticParams() {
 
 export default async function BlogPostPage({ params }: PageProps) {
   const prismaModule = await import("@/lib/prisma");
-  const post = await getPost(params.slug, prismaModule);
+  const { slug } = await params;
+  const post = await getPost(slug, prismaModule);
 
   if (!post) {
     if (!prismaModule.isDatabaseEnabled) {

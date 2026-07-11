@@ -66,7 +66,7 @@ export function LoginForm() {
   );
 
   return (
-    <form className="space-y-6" onSubmit={handleSubmit}>
+    <form className="space-y-6" method="post" onSubmit={handleSubmit}>
       <div className="space-y-2 text-center">
         <h1 className="text-xl font-semibold">Welcome back</h1>
         <p className="text-sm text-muted-foreground">

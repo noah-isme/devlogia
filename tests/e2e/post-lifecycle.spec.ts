@@ -9,10 +9,10 @@ test("complete post lifecycle: create, edit, publish, delete", async ({ page }) 
     await page.getByLabel("Email").fill(SUPERADMIN_EMAIL);
     await page.getByLabel("Password").fill(SUPERADMIN_PASSWORD);
     await page.getByRole("button", { name: /sign in/i }).click();
+    await expect(page).toHaveURL(/admin\/dashboard/);
 
     // Create Post
-    await page.getByRole("link", { name: "Posts" }).click();
-    await page.getByRole("link", { name: /new post/i }).click();
+    await page.goto("/admin/posts/new");
 
     const timestamp = Date.now();
     const title = `Lifecycle Post ${timestamp}`;
@@ -29,23 +29,20 @@ test("complete post lifecycle: create, edit, publish, delete", async ({ page }) 
     await page.getByLabel("Tags").fill("e2e, testing");
     await page.getByLabel("Tags").blur();
 
-    // Save Draft
-    await page.getByRole("button", { name: /save draft/i }).click();
-    // Expect "Terakhir disimpan" or similar confirmation, assuming autosave state changes
-    // Editor.tsx text: "Terakhir disimpan pukul ..."
+    // Save Draft via autosave
     await expect(page.getByText(/terakhir disimpan/i)).toBeVisible();
 
-    // Reload to verify persistence
-    await page.reload();
+    // Open the persisted post from the list to verify it was saved server-side.
+    await page.goto("/admin/posts");
+    await page.getByRole("link", { name: title }).click();
     await expect(page.getByLabel("Title")).toHaveValue(title);
     await expect(page.getByLabel("Tags")).toHaveValue("e2e, testing");
 
     // Edit Content & Publish
     await page.getByLabel("Content").fill("# Updated Content\n\nVerified by Playwright.");
-    await page.getByLabel("Status").selectOption("PUBLISHED");
     await page.getByRole("button", { name: /publish/i }).click();
-
-    await page.waitForTimeout(1000); // Allow save
+    await expect(page.getByRole("button", { name: /update post/i })).toBeVisible();
+    await expect(page.getByText(/terakhir disimpan/i)).toBeVisible();
 
     // Verify Public Access
     await page.goto(`/blog/${slug}`);

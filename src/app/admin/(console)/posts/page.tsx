@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Pagination } from "@/components/ui/pagination";
 import {
   appendToStack,
-  buildCursorCondition,
   clampLimit,
   decodeCursor,
   encodeCursor,
@@ -35,7 +34,7 @@ const statusOptions = [
 const DEFAULT_LIMIT = 12;
 
 type PostsPageProps = {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 type AdminPost = Prisma.PostGetPayload<{
@@ -43,20 +42,19 @@ type AdminPost = Prisma.PostGetPayload<{
 }>;
 
 export default async function PostsPage({ searchParams }: PostsPageProps) {
-  const statusParam = (searchParams?.status as string) ?? "all";
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const statusParam = (resolvedSearchParams.status as string) ?? "all";
   const activeStatus = statusOptions.some((option) => option.value === statusParam)
     ? statusParam
     : "all";
 
-  const limit = clampLimit(searchParams?.limit, DEFAULT_LIMIT, { min: 5, max: 30 });
-  const cursorParam = parseCursorParam(searchParams?.cursor);
+  const limit = clampLimit(resolvedSearchParams.limit, DEFAULT_LIMIT, { min: 5, max: 30 });
+  const cursorParam = parseCursorParam(resolvedSearchParams.cursor);
   const cursor = decodeCursor(cursorParam);
-  const stack = parseStackParam(searchParams?.stack);
-
-  const where: Prisma.Sql[] = [];
+  const stack = parseStackParam(resolvedSearchParams.stack);
 
   const prismaModule = await import("@/lib/prisma");
-  const { prisma, safeFindMany, isDatabaseEnabled } = prismaModule;
+  const { safeFindMany, isDatabaseEnabled } = prismaModule;
   const session = await auth();
 
   if (!session) {
@@ -74,71 +72,27 @@ export default async function PostsPage({ searchParams }: PostsPageProps) {
     );
   }
 
-  if (activeStatus !== "all") {
-    where.push(Prisma.sql`p."status" = ${activeStatus as PostStatus}`);
-  }
+  const where: Prisma.PostWhereInput = {
+    ...(activeStatus !== "all" ? { status: activeStatus as PostStatus } : {}),
+    ...(cursor
+      ? {
+          OR: [
+            { updatedAt: { lt: new Date(cursor.sortKey) } },
+            { updatedAt: new Date(cursor.sortKey), id: { lt: cursor.id } },
+          ],
+        }
+      : {}),
+  };
 
-  const sortField = Prisma.sql`COALESCE(p."updatedAt", p."createdAt")`;
-  const baseConditions = where.length ? where : [Prisma.sql`TRUE`];
-  const cursorCondition = buildCursorCondition(sortField, cursor);
-  const allConditions = cursorCondition ? [...baseConditions, cursorCondition] : baseConditions;
-  const whereClause = allConditions.slice(1).reduce(
-    (acc, condition) => Prisma.sql`${acc} AND ${condition}`,
-    allConditions[0],
-  );
+  const rows = await safeFindMany<AdminPost>("post", {
+    where,
+    orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+    take: limit + 1,
+    include: { tags: { include: { tag: true } } },
+  });
 
-  const rows = await prisma.$queryRaw<Array<{ id: string; sortKey: Date }>>(Prisma.sql`
-    SELECT p."id", ${sortField} AS "sortKey"
-    FROM "Post" p
-    WHERE ${whereClause}
-    ORDER BY ${sortField} DESC, p."id" DESC
-    LIMIT ${limit + 1}
-  `);
-
-  let hasNext = rows.length > limit;
-  const trimmed = hasNext ? rows.slice(0, limit) : rows;
-  const ids = trimmed.map((row) => row.id);
-
-  let posts: AdminPost[] = [];
-  if (ids.length > 0) {
-    const fetched = await safeFindMany<AdminPost>("post", {
-      where: { id: { in: ids } },
-      include: { tags: { include: { tag: true } } },
-    });
-    const byId = new Map(fetched.map((post) => [post.id, post]));
-    posts = ids
-      .map((id) => byId.get(id))
-      .filter(Boolean) as AdminPost[];
-  }
-
-  if (!hasNext && posts.length === 0 && cursorParam) {
-    const retryWhereClause = baseConditions.slice(1).reduce(
-      (acc, condition) => Prisma.sql`${acc} AND ${condition}`,
-      baseConditions[0],
-    );
-    const retryRows = await prisma.$queryRaw<Array<{ id: string; sortKey: Date }>>(Prisma.sql`
-      SELECT p."id", ${sortField} AS "sortKey"
-      FROM "Post" p
-      WHERE ${retryWhereClause}
-      ORDER BY ${sortField} DESC, p."id" DESC
-      LIMIT ${limit}
-    `);
-    const retryIds = retryRows.map((row) => row.id);
-    if (retryRows.length === limit) {
-      // assume there may still be older pages available
-      hasNext = true;
-    }
-    if (retryIds.length) {
-      const retryFetched = await safeFindMany<AdminPost>("post", {
-        where: { id: { in: retryIds } },
-        include: { tags: { include: { tag: true } } },
-      });
-      const retryById = new Map(retryFetched.map((post) => [post.id, post]));
-      posts = retryIds
-        .map((id) => retryById.get(id))
-        .filter(Boolean) as AdminPost[];
-    }
-  }
+  const hasNext = rows.length > limit;
+  const posts = hasNext ? rows.slice(0, limit) : rows;
 
   const lastPost = posts.at(-1);
   const nextCursor =

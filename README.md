@@ -1,19 +1,28 @@
-# 🧠 Devlogia — Personal Blog CMS
+# Devlogia — Personal Blog CMS
 
 > “Where logic meets narrative.” Devlogia is a modern, developer-centric personal blog CMS — fast, minimal, and built for deep writing.
 
-## ✨ Highlights
+## Release Scope
+
+The current release scope is the **CMS/blog product**: public blog browsing, post/page publishing, media uploads, admin authentication, RBAC, SEO feeds, and the automated test harness around those flows.
+
+The repository also contains platform work for AI recommendations, tenant workspaces, marketplace billing, federation, and developer ecosystem features. Those areas are treated as **beta/foundation code** for now. They should not be positioned as production-ready release scope until their migrations, type checks, UI workflows, and E2E coverage are completed.
+
+Known release blocker outside the CMS/blog path:
+
+- `pnpm typecheck` currently fails in `src/lib/billing/stripe/checkout.ts` because marketplace checkout uses Prisma relation payloads that are not represented by its local product type.
+
+## Highlights
 
 - **Next.js 16 App Router** with MDX-powered publishing
 - **Prisma + MySQL** schema for users, posts, pages, media, and tags
 - **NextAuth credentials** login with protected `/admin` middleware
 - **MDX editor with autosave** (localStorage fallback & live preview)
-- **AI Assist panel** for outlines, metadata, tags, and rephrasing (provider agnostic)
 - **Supabase Storage integration** with a local stub fallback for CI and offline development
 - **Role-based admin** (superadmin/admin/editor/writer) with audit logging and user management
 - **Unified admin workspace** with sticky sidebar navigation, WCAG AA contrast, and a persistent dark/light theme toggle
 - **SEO suite**: dynamic sitemap, RSS feed, canonical metadata, enriched OG images
-- **Full-text search** powered by Prisma filters and tag metadata (MySQL-compatible)
+- **Blog search** powered by Prisma filters and tag metadata (MySQL-compatible)
 - **Cursor-based pagination** on public + admin listings with preserved filters
 - **Accessibility polish**: share buttons, optional table of contents, skip links, focus rings
 - **Analytics & newsletter flags** controlled via environment variables
@@ -21,20 +30,32 @@
 - **Vitest + Playwright** test harness with GitHub Actions-friendly scripts
 - **OpenAPI-powered developer docs** (`/api/docs`, `/api/openapi.json`, `openapi.yaml`) for instant SDK and Postman imports
 
-## 🧱 Tech Stack
+### Beta / Foundation Areas
 
-| Layer      | Tools |
-| ---------- | ----- |
-| Frontend   | Next.js 16, React 19, Tailwind CSS 4 |
-| Backend    | App Router route handlers + Prisma ORM |
-| Auth       | NextAuth (JWT sessions, email/password) |
-| Database   | MySQL |
-| Editor     | MDX (remark/rehype), custom Callout component |
-| Uploads    | Supabase Storage (stub fallback) |
-| Testing    | Vitest, Testing Library, Playwright |
-| CI/CD      | GitHub Actions template (lint → typecheck → test → build) |
+These modules exist in code but are outside the CMS/blog release commitment:
 
-## 📦 Project Structure
+- AI assist, recommendations, embeddings, topic clustering, and AI usage reporting.
+- Multi-tenant workspaces and realtime collaboration.
+- Marketplace plugins, extensions, Stripe checkout, revenue split, and payouts.
+- Federation dashboards and cross-tenant recommendation queries.
+- Developer portal submission/review workflows and SDK publishing flows.
+
+Before promoting these areas, complete the missing Prisma migrations, fix typecheck, add release-grade UI flows, and cover them with targeted E2E tests.
+
+## Tech Stack
+
+| Layer    | Tools                                                     |
+| -------- | --------------------------------------------------------- |
+| Frontend | Next.js 16, React 19, Tailwind CSS 4                      |
+| Backend  | App Router route handlers + Prisma ORM                    |
+| Auth     | NextAuth (JWT sessions, email/password)                   |
+| Database | MySQL                                                     |
+| Editor   | MDX (remark/rehype), custom Callout component             |
+| Uploads  | Supabase Storage (stub fallback)                          |
+| Testing  | Vitest, Testing Library, Playwright                       |
+| CI/CD    | GitHub Actions template (lint → typecheck → test → build) |
+
+## Project Structure
 
 ```
 devlogia/
@@ -44,8 +65,7 @@ devlogia/
 ├── src/
 │   ├── app/
 │   │   ├── (public)/      # Public-facing pages & blog routes
-│   │   ├── (admin)/       # Admin dashboard & CRUD routes
-│   │   ├── (auth)/        # Auth routes (admin login)
+│   │   ├── admin/         # Admin login + console route groups
 │   │   └── api/           # Route handlers (auth, posts, pages, rss, etc.)
 │   ├── components/        # UI primitives, forms, editor widgets
 │   ├── lib/               # Prisma client, auth, seo, mdx, helpers
@@ -58,7 +78,7 @@ devlogia/
 └── playwright.config.ts   # Playwright setup
 ```
 
-## ✅ Prerequisites
+## Prerequisites
 
 - **Node.js 20+** and **pnpm 8+** (`corepack enable pnpm` recommended)
 - **MySQL 8+** running locally (default credentials below) — or use the lightweight Docker Compose stack below
@@ -105,7 +125,7 @@ pnpm test:e2e
 
 Stop the containerised database afterwards with `pnpm db:down`. To execute the one-shot integration runner (Docker + migrations + seeding + Playwright), use `pnpm test:e2e:full`.
 
-## 🛠️ Local Troubleshooting
+## Local Troubleshooting
 
 - **E2E specs exit early?** Ensure Docker Desktop (or your container runtime) is running, then execute `pnpm db:up` before retrying.
 - **Prisma shows a build-time warning?** That message is safe to ignore when building static assets without a live database connection.
@@ -122,7 +142,7 @@ Both the GitHub Actions pipeline and the `pnpm test:e2e:full` script ensure the 
 
 When Docker Compose is available, `pnpm db:up` launches the MySQL stack defined in `docker-compose.yml`. The command is automatically invoked by `pnpm test:e2e:full`, but you can run it manually to develop against the same containerized database used in CI. Shut the stack down with `pnpm db:down` once you finish testing.
 
-## 📘 Developer API documentation
+## Developer API Documentation
 
 - Visit [`/api/docs`](http://localhost:3000/api/docs) for the interactive MDX reference with request/response examples generated from the OpenAPI schema.
 - Programmatic consumers can fetch [`/api/openapi.json`](http://localhost:3000/api/openapi.json) or use the checked-in `openapi.yaml` file for Postman, Swagger UI, or SDK generation.
@@ -206,7 +226,7 @@ cp .env.test .env
 
 The file pins a local MySQL URL (`devlogia_test`), deterministic secrets, and disables external AI/webhook providers so unit and E2E tests run in isolation.
 
-## 🚀 Local Development
+## Local Development
 
 1. **Install dependencies**
 
@@ -249,32 +269,43 @@ The seed script provisions four accounts for testing RBAC:
 
 Override these via `SEED_SUPERADMIN_*`, `SEED_ADMIN_*`, `SEED_EDITOR_*`, and `SEED_WRITER_*` before seeding.
 
-## 🧪 Quality Gates & Scripts
+## Quality Gates & Scripts
 
-The project follows a strict `lint → test → build` pipeline. Run all checks with:
+The CMS/blog release gate is:
+
+```bash
+pnpm test
+pnpm test:e2e:full
+```
+
+Before a production release, also run the full engineering gate:
 
 ```bash
 pnpm lint
 pnpm typecheck
 pnpm test
 pnpm build
+pnpm test:e2e:full
 ```
+
+At the time of this audit, the Playwright CMS/blog suite is passing, while `pnpm typecheck` is blocked by the beta marketplace checkout type issue noted above.
 
 Additional scripts:
 
-| Script | Description |
-| ------ | ----------- |
-| `pnpm dev` | Start Next.js development server |
-| `pnpm lint` | ESLint via `next lint` |
-| `pnpm typecheck` | TypeScript `tsc --noEmit` |
-| `pnpm test` | Vitest unit tests (jsdom) |
-| `pnpm test:watch` | Vitest in watch mode |
-| `pnpm test:e2e` | Playwright E2E tests (requires running MySQL) |
-| `pnpm build` | Production Next.js build |
-| `pnpm prisma:migrate` | Apply migrations interactively |
-| `pnpm prisma:seed` | Seed the database via `tsx prisma/seed.ts` |
-| `pnpm format` | Prettier check |
-| `pnpm format:write` | Prettier write |
+| Script                | Description                                                                  |
+| --------------------- | ---------------------------------------------------------------------------- |
+| `pnpm dev`            | Start Next.js development server                                             |
+| `pnpm lint`           | ESLint via `next lint`                                                       |
+| `pnpm typecheck`      | TypeScript `tsc --noEmit`                                                    |
+| `pnpm test`           | Vitest unit tests (jsdom)                                                    |
+| `pnpm test:watch`     | Vitest in watch mode                                                         |
+| `pnpm test:e2e`       | Playwright E2E tests (starts the configured web server and requires MySQL)   |
+| `pnpm test:e2e:full`  | Docker + test database + seed + Playwright runner for the CMS/blog E2E suite |
+| `pnpm build`          | Production Next.js build                                                     |
+| `pnpm prisma:migrate` | Apply migrations interactively                                               |
+| `pnpm prisma:seed`    | Seed the database via `tsx prisma/seed.ts`                                   |
+| `pnpm format`         | Prettier check                                                               |
+| `pnpm format:write`   | Prettier write                                                               |
 
 ### Running Playwright Tests
 
@@ -298,9 +329,9 @@ Troubleshooting tips:
 - Delete Playwright's cache if browsers look stale: `rm -rf ~/.cache/ms-playwright`.
 - Rebuild the database if tests rely on a clean slate: `pnpm db:reset`.
 
-The E2E spec logs in as the seeded superadmin, creates a new post via the editor (autosave + publish), and verifies it appears on the public blog.
+The E2E suite logs in as seeded users, validates admin auth and RBAC, creates and edits posts/pages, uploads media, publishes content, validates public blog search/pagination, checks OG rendering, and writes visual smoke screenshots for login, dashboard, blog, and the new-post editor.
 
-CI uses the official `mcr.microsoft.com/playwright:v1.47.0-jammy` image with browsers preinstalled. We cache `~/.cache/ms-playwright` and set `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` to avoid redundant downloads, then run migrations, lint/typecheck/unit/build, and finally launch the app for Playwright.
+Screenshots are stored under `test-results/visual-smoke-*` and attached to the Playwright HTML report.
 
 ### Upgrade path from v1.0.0-rc → v1.0.0
 
@@ -309,11 +340,11 @@ Upgrading from the release candidate is seamless — configuration keys remain t
 1. Pull the `v1.0.0` tag (or merge the `release/v1.0.0` branch) and rerun `pnpm install` to ensure lockfile parity.
 2. Apply the production schema with `pnpm prisma migrate deploy`.
 3. Seed the deterministic accounts and demo content using `pnpm prisma db seed` (safe to rerun in place).
-4. Optionally execute `pnpm test:e2e:full` to validate RBAC, webhook, and AI-assist flows under the new seeding automation.
+4. Optionally execute `pnpm test:e2e:full` to validate the CMS/blog flows under the current seeding automation.
 
 Refer to `docs/release-notes/v1.0.0.md` for the complete changelog.
 
-## 🛠️ Admin & Editor Workflow
+## Admin & Editor Workflow
 
 - `/admin/login` — Credentials sign-in backed by NextAuth JWT sessions
 - `/admin/dashboard` — Content health stats & recent activity
@@ -328,11 +359,12 @@ Refer to `docs/release-notes/v1.0.0.md` for the complete changelog.
 
 - Autosave persists to the database (and localStorage as a fallback)
 - Live MDX preview using the same rendering pipeline as the public site
-- AI Assist panel for outlines, metadata, tags, and rephrasing (disabled when no provider configured)
 - Custom MDX components such as `<Callout>` are supported out of the box
 - Tag input accepts comma-separated values and creates tags automatically
 
-## 🌐 SEO & Feeds
+AI editor panels are available as beta functionality and remain disabled when no provider is configured.
+
+## SEO & Feeds
 
 - `GET /api/sitemap` — Dynamic sitemap including posts and published pages
 - `GET /api/rss` — RSS feed with MDX content enclosed in CDATA
@@ -341,28 +373,29 @@ Refer to `docs/release-notes/v1.0.0.md` for the complete changelog.
 - Canonical URLs derived from `NEXT_PUBLIC_APP_URL` / `NEXTAUTH_URL`
 - `public/og-default.png` ships as a text placeholder — swap with your own branded asset in production
 
-## 🔍 Search & Discovery
+## Search & Discovery
 
-- Home page search uses Prisma `contains` filters with case-insensitive comparisons for MySQL compatibility
+- `/blog` search uses Prisma `contains` filters with case-insensitive comparisons for MySQL compatibility.
 - Tag filters are encoded in the query string and combinable with full-text search
 - Pagination preserves active filters to keep the browsing context intact
+- `/` is the landing page; the public article index is `/blog`.
 
-## ♻️ Uploads
+## Uploads
 
 Supabase Storage powers uploads in production. Provide `SUPABASE_*` credentials to stream media to your bucket; otherwise Devlogia falls back to a local `/public/uploads` stub so CI and offline development stay deterministic.
 
-## 📊 Analytics & Newsletter
+## Analytics & Newsletter
 
 - Toggle analytics by setting `ANALYTICS_PROVIDER` to `plausible` or `umami`. Scripts load after hydration and respect the browser’s Do-Not-Track preference.
 - Configure `ANALYTICS_DOMAIN`, `ANALYTICS_SCRIPT_URL`, and `ANALYTICS_WEBSITE_ID` as required by your provider.
 - The `/subscribe` page surfaces a Buttondown or Resend form when `NEWSLETTER_PROVIDER` and credentials are present; otherwise the UI displays a “coming soon” callout.
 
-## 🧪 Testing Details
+## Testing Details
 
 - **Unit tests**: Vitest + Testing Library cover key flows (Home page rendering, admin login form validation, utility functions)
-- **E2E tests**: Playwright scripts now cover publishing, media uploads, OG rendering, and search/pagination flows
-- **CI ready**: lint → typecheck → test → build flow suitable for GitHub Actions
+- **E2E tests**: Playwright scripts cover login, RBAC, publishing, media uploads, OG rendering, search/pagination, and visual smoke screenshots
+- **Current audit status**: Playwright E2E last run is passing; full release gate remains blocked until the marketplace checkout typecheck error is fixed
 
-## 📄 License
+## License
 
-MIT © 2025 Devlogia contributors. Crafted with ❤️ for long-form writing.
+MIT © 2025 Devlogia contributors.
