@@ -84,9 +84,9 @@ export async function PATCH(
 
   await recordAuditLog({
     userId: session.user.id,
-    action: "user:update",
+    action: "user:role_change",
     targetId: updated.id,
-    meta: { role: resolvedRole },
+    meta: { from: currentRole, to: resolvedRole },
   });
 
   return NextResponse.json({

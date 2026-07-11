@@ -7,6 +7,7 @@ import { recordAuditLog } from "@/lib/audit";
 import { can } from "@/lib/rbac";
 import { slugify } from "@/lib/utils";
 import { pageSchema } from "@/lib/validations/page";
+import { createPageRevisionSnapshot } from "@/lib/cms/revisions";
 
 function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -84,6 +85,13 @@ export async function POST(request: Request) {
     action: "page:create",
     targetId: page.id,
     meta: { published: page.published },
+  });
+
+  await createPageRevisionSnapshot({
+    prisma,
+    page,
+    userId: session.user.id,
+    reason: page.published ? "publish" : "manual",
   });
 
   if (page.published) {

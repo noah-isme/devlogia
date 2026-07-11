@@ -7,6 +7,7 @@ import { recordAuditLog } from "@/lib/audit";
 import { can } from "@/lib/rbac";
 import { slugify } from "@/lib/utils";
 import { pageSchema } from "@/lib/validations/page";
+import { createPageRevisionSnapshot } from "@/lib/cms/revisions";
 
 function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -75,6 +76,13 @@ export async function PATCH(
     },
   });
 
+  await createPageRevisionSnapshot({
+    prisma,
+    page: existing,
+    userId: session.user.id,
+    reason: !existing.published && page.published ? "publish" : "manual",
+  });
+
   await recordAuditLog({
     userId: session.user.id,
     action: "page:update",
@@ -121,7 +129,10 @@ export async function DELETE(
   if (!page) {
     return notFound();
   }
-  await prisma.page.delete({ where: { id } });
+  await prisma.$transaction([
+    prisma.pageRevision.deleteMany({ where: { pageId: id } }),
+    prisma.page.delete({ where: { id } }),
+  ]);
   await recordAuditLog({
     userId: session.user.id,
     action: "page:delete",

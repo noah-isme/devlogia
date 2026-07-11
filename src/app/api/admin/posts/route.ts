@@ -9,6 +9,7 @@ import { slugify } from "@/lib/utils";
 import { notifySearchEngines, siteConfig } from "@/lib/seo";
 import { triggerOutbound } from "@/lib/webhooks";
 import { createPostSchema, postStatusValues } from "@/lib/validations/post";
+import { createPostRevisionSnapshot } from "@/lib/cms/revisions";
 
 type AdminPostWithTags = Prisma.PostGetPayload<{
   include: { tags: { include: { tag: true } } };
@@ -139,6 +140,13 @@ export async function POST(request: Request) {
     action: "post:create",
     targetId: post.id,
     meta: { status: post.status },
+  });
+
+  await createPostRevisionSnapshot({
+    prisma,
+    post,
+    userId: session.user.id,
+    reason: post.status === "PUBLISHED" ? "publish" : data?.revisionReason ?? "autosave",
   });
 
   if (post.status === "PUBLISHED") {

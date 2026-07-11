@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const postStatusValues = ["DRAFT", "PUBLISHED", "SCHEDULED"] as const;
+export const revisionReasonValues = ["autosave", "manual", "publish"] as const;
 
 const optionalSummarySchema = z.string().trim().max(320).optional().nullable();
 
@@ -47,10 +48,12 @@ export const upsertPostSchema = z.object({
   status: z.enum(postStatusValues),
   publishedAt: z
     .string()
-    .datetime({ message: "Invalid date" })
+    .pipe(z.iso.datetime({ message: "Invalid date" }))
     .optional()
     .nullable(),
   tags: z.array(z.string().trim().min(1)).optional().default([]),
+  revisionReason: z.enum(revisionReasonValues).optional(),
+  expectedUpdatedAt: z.iso.datetime({ message: "Invalid date" }).optional().nullable(),
 });
 
 export const createPostSchema = z
@@ -68,9 +71,10 @@ export const createPostSchema = z
       .regex(/^[a-z0-9-]+$/)
       .optional(),
     tags: z.array(z.string().trim().min(1)).optional(),
+    revisionReason: z.enum(revisionReasonValues).optional(),
     publishedAt: z
       .string()
-      .datetime({ message: "Invalid date" })
+      .pipe(z.iso.datetime({ message: "Invalid date" }))
       .optional()
       .nullable(),
   })

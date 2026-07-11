@@ -9,6 +9,7 @@ import { slugify } from "@/lib/utils";
 import { notifySearchEngines, siteConfig } from "@/lib/seo";
 import { triggerOutbound } from "@/lib/webhooks";
 import { upsertPostSchema } from "@/lib/validations/post";
+import { createPostRevisionSnapshot } from "@/lib/cms/revisions";
 
 function unauthorizedResponse() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -20,6 +21,17 @@ function forbiddenResponse() {
 
 function notFoundResponse() {
   return NextResponse.json({ error: "Not found" }, { status: 404 });
+}
+
+function writerPublishForbiddenResponse() {
+  return NextResponse.json({ error: "Writers can only save drafts" }, { status: 403 });
+}
+
+function conflictResponse(post: { updatedAt: Date }) {
+  return NextResponse.json(
+    { error: "Post changed in another tab", post: { ...post, updatedAt: post.updatedAt.toISOString() } },
+    { status: 409 },
+  );
 }
 
 function normalizeTags(tags: string[] | undefined) {
@@ -102,6 +114,14 @@ export async function PATCH(
   const json = await request.json().catch(() => ({}));
   const parsed = upsertPostSchema.parse(json);
   const isWriter = session.user.role === "writer";
+  if (isWriter && parsed.status !== "DRAFT") {
+    return writerPublishForbiddenResponse();
+  }
+
+  if (parsed.expectedUpdatedAt && new Date(parsed.expectedUpdatedAt).getTime() < post.updatedAt.getTime()) {
+    return conflictResponse(post);
+  }
+
   let data: typeof parsed = parsed;
   if (isWriter) {
     data = { ...data, status: "DRAFT", publishedAt: null };
@@ -156,6 +176,13 @@ export async function PATCH(
       },
     },
     include: { tags: { include: { tag: true } } },
+  });
+
+  await createPostRevisionSnapshot({
+    prisma,
+    post,
+    userId: session.user.id,
+    reason: post.status !== "PUBLISHED" && updated.status === "PUBLISHED" ? "publish" : data.revisionReason ?? "autosave",
   });
 
   await recordAuditLog({
@@ -242,6 +269,7 @@ export async function DELETE(
     }),
     prisma.contentVector.deleteMany({ where: { postId: id } }),
     prisma.postTag.deleteMany({ where: { postId: id } }),
+    prisma.postRevision.deleteMany({ where: { postId: id } }),
     prisma.post.delete({ where: { id } }),
   ]);
 

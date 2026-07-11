@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/lib/auth";
+import { recordAuditLog } from "@/lib/audit";
 import { can, resolveHighestRole } from "@/lib/rbac";
 import { toRoleName } from "@/lib/roles";
 
@@ -78,6 +79,12 @@ export async function POST(request: Request) {
       },
     },
     select: { id: true, email: true, isActive: true, createdAt: true, roles: { include: { role: true } } },
+  });
+  await recordAuditLog({
+    userId: session.user.id,
+    action: "user:create",
+    targetId: created.id,
+    meta: { role },
   });
 
   return NextResponse.json({
