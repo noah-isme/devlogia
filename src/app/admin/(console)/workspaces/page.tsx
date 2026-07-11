@@ -12,7 +12,7 @@ export const metadata = buildMetadata({
 });
 
 type PageProps = {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 function parseSearchParam(value: string | string[] | undefined) {
@@ -36,6 +36,7 @@ function normalizeStatus(status: string | null | undefined) {
 }
 
 export default async function WorkspacesPage({ searchParams }: PageProps) {
+  const resolvedSearchParams = await searchParams;
   const session = await auth();
   if (!session?.user) {
     return (
@@ -58,8 +59,8 @@ export default async function WorkspacesPage({ searchParams }: PageProps) {
   }
 
   const tenants = await prisma.tenant.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } });
-  const selectedTenantId = parseSearchParam(searchParams?.tenantId) ?? tenants[0]?.id ?? null;
-  const query = (parseSearchParam(searchParams?.query) ?? "").trim().toLowerCase();
+  const selectedTenantId = parseSearchParam(resolvedSearchParams?.tenantId) ?? tenants[0]?.id ?? null;
+  const query = (parseSearchParam(resolvedSearchParams?.query) ?? "").trim().toLowerCase();
 
   if (!selectedTenantId) {
     return (
