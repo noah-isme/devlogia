@@ -48,6 +48,7 @@ const schemaVersion = resolveSchemaVersion();
 
 const nextConfig: NextConfig = {
   pageExtensions: ["ts", "tsx", "mdx"],
+  allowedDevOrigins: ["127.0.0.1"],
   experimental: {
     optimizeCss: true,
     optimizePackageImports: ["sonner", "@aws-sdk/client-s3", "zod"],

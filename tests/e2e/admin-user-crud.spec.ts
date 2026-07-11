@@ -21,10 +21,13 @@ test("superadmin can create, update, and delete users", async ({ page }) => {
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByLabel("Password").fill("secret123");
   await page.getByTestId("user-create-form").getByLabel("Role").selectOption("editor");
+  const createResponse = page.waitForResponse(
+    (response) => response.url().includes("/api/admin/users") && response.request().method() === "POST",
+  );
   await page.getByTestId("user-create-submit").click();
+  await expect.poll(async () => (await createResponse).status()).toBe(200);
 
   const row = page.locator("tr", { hasText: email }).first();
-  await expect(page.getByText(/User created/i)).toBeVisible();
   await expect(row).toContainText("Editor");
 
   await row.locator("select").selectOption("writer");
