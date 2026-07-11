@@ -14,7 +14,9 @@ type OgImageOptions =
 
 function createOgUrl(options?: OgImageOptions) {
   const ogUrl = new URL("/api/og", defaultUrl);
+  ogUrl.searchParams.set("fallback", "brand");
   if (!options) {
+    ogUrl.searchParams.set("title", siteConfig.name);
     return ogUrl.toString();
   }
 
@@ -168,6 +170,11 @@ export function buildBlogPostingJsonLd(options: BlogPostingJsonLdOptions) {
 
 export async function notifySearchEngines(sitemapUrl?: string) {
   const sitemap = sitemapUrl ?? `${siteConfig.url}/sitemap.xml`;
+  const { hostname } = new URL(sitemap);
+  if (hostname === "localhost" || hostname === "127.0.0.1") {
+    return;
+  }
+
   const targets = [
     `https://www.google.com/ping?sitemap=${encodeURIComponent(sitemap)}`,
     `https://www.bing.com/ping?sitemap=${encodeURIComponent(sitemap)}`,

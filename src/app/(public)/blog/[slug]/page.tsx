@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { JsonLd } from "@/components/json-ld";
 import { PostShareSection } from "@/components/post-share-section";
 import { FeedbackForm } from "@/components/feedback-form";
+import { RelatedPosts } from "@/components/related-posts";
 import { KeyHighlights } from "@/components/personalization/KeyHighlights";
 import { PersonalizedFeedSection } from "@/components/personalization/PersonalizedFeedSection";
 import { renderMdx } from "@/lib/mdx";
+import { buildTagHref, type BlogPostWithRelations } from "@/lib/blog-public";
 import {
   buildBlogPostingJsonLd,
   buildBreadcrumbJsonLd,
@@ -43,6 +46,24 @@ async function getPost(slug: string, prismaModule?: typeof import("@/lib/prisma"
     console.error(`Failed to load post for slug "${slug}":`, error);
     return null;
   }
+}
+
+async function getRelatedPosts(post: BlogPostWithRelations, prismaModule: typeof import("@/lib/prisma")) {
+  const tagSlugs = post.tags.map(({ tag }) => tag.slug);
+  if (tagSlugs.length === 0) {
+    return [];
+  }
+
+  return prismaModule.safeFindMany<BlogPostWithRelations>("post", {
+    where: {
+      status: "PUBLISHED",
+      NOT: { id: post.id },
+      tags: { some: { tag: { slug: { in: tagSlugs } } } },
+    },
+    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+    take: 3,
+    include: { author: true, tags: { include: { tag: true } } },
+  });
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -141,6 +162,7 @@ export default async function BlogPostPage({ params }: PageProps) {
 
   const content = await renderMdx(post.contentMdx);
   const tableOfContents = extractHeadings(post.contentMdx);
+  const relatedPosts = await getRelatedPosts(post, prismaModule);
   const hasTableOfContents = tableOfContents.length >= 3;
   const shareUrl = `${siteConfig.url}/blog/${post.slug}`;
   const publishedAt = (post.publishedAt ?? post.createdAt).toISOString();
@@ -173,12 +195,13 @@ export default async function BlogPostPage({ params }: PageProps) {
         {post.tags.length ? (
           <div className="flex flex-wrap gap-2">
             {post.tags.map(({ tag }) => (
-              <span
+              <Link
                 key={tag.id}
+                href={buildTagHref(tag.slug)}
                 className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground"
               >
                 #{tag.name}
-              </span>
+              </Link>
             ))}
           </div>
         ) : null}
@@ -208,6 +231,7 @@ export default async function BlogPostPage({ params }: PageProps) {
         {content}
       </div>
       <FeedbackForm slug={post.slug} />
+      <RelatedPosts posts={relatedPosts} />
       <div className="not-prose mt-10">
         <PersonalizedFeedSection contextPostId={post.id} title="More for you" />
       </div>
