@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("public readers can paginate and filter", async ({ page }) => {
   await page.goto("/blog");
+  expect(new URL(page.url()).pathname).toBe("/blog");
 
   const olderLink = page.getByRole("link", { name: "Older" });
   await expect(olderLink).toBeVisible();
@@ -9,6 +10,7 @@ test("public readers can paginate and filter", async ({ page }) => {
 
   await olderLink.click();
   await expect(page).toHaveURL(/\/blog\?.*cursor=/);
+  expect(new URL(page.url()).pathname).toBe("/blog");
 
   const newerLink = page.getByRole("link", { name: "Newer" });
   await expect(newerLink).toBeVisible();
@@ -20,9 +22,18 @@ test("public readers can paginate and filter", async ({ page }) => {
 
   await page.getByPlaceholder("Search posts…").fill("Prisma");
   await page.getByRole("button", { name: "Search" }).click();
+  const searchUrl = new URL(page.url());
+  expect(searchUrl.pathname).toBe("/blog");
+  expect(searchUrl.searchParams.get("q")).toBe("Prisma");
   await expect(page.getByRole("heading", { name: /Prisma/ })).toBeVisible();
 
-  await page.getByRole("link", { name: /#Prisma/ }).first().click();
-  await expect(page.getByRole("link", { name: /#Prisma/ }).first()).toHaveAttribute("aria-current", "page");
+  const prismaTagLink = page.locator('a[href*="tag="]', {
+    hasText: "#Prisma",
+  });
+  await expect(prismaTagLink.first()).toHaveAttribute("href", /\/blog\?.*tag=/);
+  await prismaTagLink.first().click();
+  const tagUrl = new URL(page.url());
+  expect(tagUrl.pathname).toBe("/blog");
+  await expect(prismaTagLink.first()).toHaveAttribute("aria-current", "page");
   await expect(page.getByText(/No posts found/i)).toHaveCount(0);
 });

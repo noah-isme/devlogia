@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { loginAsSuperadmin } from "./helpers";
+
 test.describe("Middleware Authentication", () => {
   test("unauthenticated user is redirected from /admin/dashboard to /admin/login", async ({
     page,
@@ -67,5 +69,23 @@ test.describe("Middleware Authentication", () => {
   test("redirect preserves original URL in callbackUrl", async ({ page }) => {
     await page.goto("/admin/posts/new");
     await expect(page).toHaveURL(/\/admin\/login.*callbackUrl/);
+  });
+
+  test("expired session is redirected back to login with callbackUrl", async ({
+    page,
+  }) => {
+    test.skip(
+      !process.env.DATABASE_URL,
+      "Requires database for authentication",
+    );
+
+    await loginAsSuperadmin(page);
+    await page.context().clearCookies();
+
+    await page.goto("/admin/posts/new");
+
+    await expect(page).toHaveURL(/\/admin\/login.*callbackUrl=/);
+    await expect(page.getByLabel("Email")).toBeVisible();
+    await expect(page.getByLabel("Password")).toBeVisible();
   });
 });
