@@ -20,5 +20,18 @@ export type PersistedDraft = {
   autosavedAt: string;
 };
 
-export type AutosaveState = "idle" | "saving" | "saved" | "error";
+export type EditorConflict = {
+  readonly serverPost: EditorPost;
+  readonly message: string;
+};
+
+export type EditorRevision = {
+  readonly id: string;
+  readonly reason: string;
+  readonly title: string;
+  readonly status: PostStatus;
+  readonly createdAt: string;
+};
+
+export type AutosaveState = "idle" | "saving" | "saved" | "error" | "conflict";
 export type UploadState = "idle" | "uploading" | "success" | "error";

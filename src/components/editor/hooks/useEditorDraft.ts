@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { slugify } from "@/lib/utils";
-import type { AutosaveState, EditorPost, PersistedDraft } from "@/components/editor/types";
+import type { AutosaveState, EditorConflict, EditorPost, PersistedDraft } from "@/components/editor/types";
 
 const AUTOSAVE_DELAY = 1500;
 
@@ -33,6 +33,38 @@ function formatTime(date: Date | null) {
   }).format(date);
 }
 
+function getTagName(value: unknown) {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value !== "object" || value === null || !("tag" in value)) {
+    return "";
+  }
+
+  const tag = value.tag;
+  if (typeof tag !== "object" || tag === null || !("name" in tag)) {
+    return "";
+  }
+
+  return typeof tag.name === "string" ? tag.name : "";
+}
+
+function normalizeEditorPost(received: Partial<EditorPost> & { tags?: unknown }, fallbackTags: string[]): EditorPost {
+  return {
+    id: received.id ?? null,
+    title: received.title ?? "Untitled draft",
+    slug: received.slug ?? "untitled",
+    summary: received.summary ?? "",
+    contentMdx: received.contentMdx ?? "",
+    coverUrl: received.coverUrl ?? "",
+    status: received.status ?? "DRAFT",
+    tags: Array.isArray(received.tags) ? received.tags.map(getTagName).filter(Boolean) : fallbackTags,
+    publishedAt: received.publishedAt ?? null,
+    updatedAt: received.updatedAt ?? new Date().toISOString(),
+  };
+}
+
 type UseEditorDraftOptions = {
   initialPost?: EditorPost;
   mode: "create" | "edit";
@@ -59,6 +91,7 @@ export function useEditorDraft({ initialPost, mode }: UseEditorDraftOptions) {
   );
   const [isInitializing, setIsInitializing] = useState(true);
   const [pendingRestore, setPendingRestore] = useState<PersistedDraft | null>(null);
+  const [conflict, setConflict] = useState<EditorConflict | null>(null);
 
   const latestState = useRef(post);
   const lastSavedSnapshot = useRef<string>(serialize(post));
@@ -112,9 +145,7 @@ export function useEditorDraft({ initialPost, mode }: UseEditorDraftOptions) {
       if (!initialPost) {
         setPendingRestore(normalized);
       } else {
-        const serverUpdatedAt = initialPost.updatedAt ? new Date(initialPost.updatedAt).getTime() : null;
-        const localUpdatedAt = new Date(normalized.autosavedAt).getTime();
-        if (!serverUpdatedAt || localUpdatedAt > serverUpdatedAt + 500) {
+        if (serializeEditableFields(normalized.snapshot) !== serializeEditableFields(initialPost)) {
           setPendingRestore(normalized);
         }
       }
@@ -151,12 +182,14 @@ export function useEditorDraft({ initialPost, mode }: UseEditorDraftOptions) {
         return `Terakhir disimpan pukul ${formatTime(lastSavedAt)}`;
       case "error":
         return "Tidak tersambung — versi lokal disimpan.";
+      case "conflict":
+        return "Post changed in another tab — review before saving again.";
       default:
         return "Perubahan akan tersimpan otomatis.";
     }
   }, [autosaveState, lastSavedAt]);
 
-  const persistChanges = useCallback(async () => {
+  const persistChanges = useCallback(async (revisionReason: "autosave" | "manual" = "autosave") => {
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       setAutosaveState("error");
       return null;
@@ -177,6 +210,8 @@ export function useEditorDraft({ initialPost, mode }: UseEditorDraftOptions) {
       status: submitted.status,
       tags: submitted.tags,
       publishedAt: submitted.publishedAt,
+      revisionReason,
+      expectedUpdatedAt: submitted.updatedAt,
     };
 
     const endpoint = submitted.id
@@ -192,6 +227,16 @@ export function useEditorDraft({ initialPost, mode }: UseEditorDraftOptions) {
     });
 
     if (!response.ok) {
+      if (response.status === 409) {
+        const data = await response.json();
+        const received = data.post;
+        setConflict({
+          message: typeof data.error === "string" ? data.error : "Post changed in another tab.",
+          serverPost: normalizeEditorPost(received, latestState.current.tags),
+        });
+        setAutosaveState("conflict");
+        return null;
+      }
       setAutosaveState("error");
       throw new Error(`Failed to persist post: ${response.status}`);
     }
@@ -230,6 +275,7 @@ export function useEditorDraft({ initialPost, mode }: UseEditorDraftOptions) {
     setPost(updated);
     latestState.current = updated;
     setPendingRestore(null);
+    setConflict(null);
 
     const savedAt = updated.updatedAt ? new Date(updated.updatedAt) : new Date();
     setLastSavedAt(savedAt);
@@ -284,6 +330,24 @@ export function useEditorDraft({ initialPost, mode }: UseEditorDraftOptions) {
       latestState.current = next;
       return next;
     });
+    if (!conflict) {
+      setAutosaveState("idle");
+    }
+  }
+
+  function handleUseServerVersion() {
+    if (!conflict) return;
+
+    setPost(conflict.serverPost);
+    latestState.current = conflict.serverPost;
+    setLastSavedAt(conflict.serverPost.updatedAt ? new Date(conflict.serverPost.updatedAt) : new Date());
+    lastSavedSnapshot.current = serialize(conflict.serverPost);
+    setConflict(null);
+    setAutosaveState("saved");
+  }
+
+  function handleKeepLocalVersion() {
+    setConflict(null);
     setAutosaveState("idle");
   }
 
@@ -328,6 +392,9 @@ export function useEditorDraft({ initialPost, mode }: UseEditorDraftOptions) {
     pendingRestore,
     handleRestoreDraft,
     handleDiscardDraft,
+    conflict,
+    handleUseServerVersion,
+    handleKeepLocalVersion,
     persistChanges,
     cancelAutosave,
     clearPersistedDraft,

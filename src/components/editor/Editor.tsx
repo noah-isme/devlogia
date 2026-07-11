@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { EditorPost, PostStatus } from "@/components/editor/types";
+import type { EditorPost, EditorRevision, PostStatus } from "@/components/editor/types";
 import type { Role } from "@/lib/rbac";
 import { postStatusValues } from "@/lib/validations/post";
 import { slugify } from "@/lib/utils";
@@ -22,12 +22,13 @@ import { OutlineHeadlinePanel } from "@/components/editor/ai/OutlineHeadlinePane
 
 type PostEditorProps = {
   initialPost?: EditorPost;
+  initialRevisions?: readonly EditorRevision[];
   mode: "create" | "edit";
   role: Role;
   aiEnabled: boolean;
 };
 
-export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorProps) {
+export function PostEditor({ initialPost, initialRevisions = [], mode, role, aiEnabled }: PostEditorProps) {
   const {
     post,
     setPost,
@@ -38,6 +39,9 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
     pendingRestore,
     handleRestoreDraft,
     handleDiscardDraft,
+    conflict,
+    handleUseServerVersion,
+    handleKeepLocalVersion,
     persistChanges,
     cancelAutosave,
     clearPersistedDraft,
@@ -54,8 +58,10 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
   const contentRef = useRef<HTMLTextAreaElement | null>(null);
   const [selectionRange, setSelectionRange] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
   const [lastAiContent, setLastAiContent] = useState<string | null>(null);
+  const [revisions, setRevisions] = useState<readonly EditorRevision[]>(initialRevisions);
   const [seoKeywords, setSeoKeywords] = useState<string[]>([]);
   const [seoFaqs, setSeoFaqs] = useState<string[]>([]);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const actionTimeout = useRef<NodeJS.Timeout | null>(null);
   const router = useRouter();
 
@@ -193,7 +199,7 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
     setActionState("saving");
 
     try {
-      const saved = await persistChanges();
+      const saved = await persistChanges("manual");
       if (!saved) {
         throw new Error("Unable to save post");
       }
@@ -242,6 +248,68 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
     }
   }
 
+  async function handleSharePreview() {
+    if (!post.id) {
+      setActionState("error");
+      return;
+    }
+
+    setActionState("saving");
+    try {
+      const response = await fetch(`/api/admin/posts/${post.id}/preview-token`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create preview link");
+      }
+
+      const data = await response.json();
+      setPreviewUrl(data.previewUrl ?? null);
+      setActionState("success");
+    } catch (error) {
+      console.error("Preview link failed", error);
+      setPreviewUrl(null);
+      setActionState("error");
+    }
+  }
+
+  async function handleRestoreRevision(revisionId: string) {
+    if (!initialPost?.id) return;
+
+    setActionState("saving");
+    const response = await fetch(`/api/admin/posts/${initialPost.id}/revisions/${revisionId}/restore`, {
+      method: "POST",
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      setActionState("error");
+      setAutosaveState("error");
+      return;
+    }
+
+    const data = await response.json();
+    const restored: EditorPost = {
+      id: data.post.id,
+      title: data.post.title,
+      slug: data.post.slug,
+      summary: data.post.summary ?? "",
+      contentMdx: data.post.contentMdx,
+      coverUrl: data.post.coverUrl ?? "",
+      status: data.post.status,
+      tags: post.tags,
+      publishedAt: data.post.publishedAt ?? null,
+      updatedAt: data.post.updatedAt ?? new Date().toISOString(),
+    };
+    setPost(restored);
+    latestState.current = restored;
+    setRevisions((previous) => previous.filter((revision) => revision.id !== revisionId));
+    setActionState("success");
+    setAutosaveState("saved");
+  }
+
   return (
     <div className="space-y-6">
       <div className="rounded-lg border border-dashed border-border bg-muted/50 px-4 py-3">
@@ -267,6 +335,21 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
             </Button>
             <Button size="sm" variant="ghost" onClick={handleDiscardDraft}>
               Abaikan
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {conflict ? (
+        <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-900 dark:text-red-100">
+          <p className="font-medium">Post changed in another tab</p>
+          <p className="mt-1 text-xs">{conflict.message} Keep your local draft or replace it with the latest database version.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" onClick={handleKeepLocalVersion}>
+              Keep local draft
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleUseServerVersion}>
+              Use database version
             </Button>
           </div>
         </div>
@@ -303,6 +386,11 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
           >
             {isPrimarySaving ? "Saving…" : primaryLabel}
           </Button>
+          {mode === "edit" && post.id ? (
+            <Button type="button" variant="outline" onClick={() => void handleSharePreview()} disabled={isPrimarySaving}>
+              Share draft preview
+            </Button>
+          ) : null}
           {mode === "edit" && initialPost?.id ? (
             <Button
               type="button"
@@ -319,6 +407,15 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
           ) : null}
         </div>
       </div>
+
+      {previewUrl ? (
+        <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
+          <p className="font-medium">Draft preview link ready</p>
+          <a className="mt-1 block break-all text-xs text-muted-foreground underline" href={previewUrl} target="_blank" rel="noreferrer">
+            {previewUrl}
+          </a>
+        </div>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
         <div className="space-y-6">
@@ -531,6 +628,33 @@ export function PostEditor({ initialPost, mode, role, aiEnabled }: PostEditorPro
             />
             <p className="text-xs text-muted-foreground">Leave blank to auto-fill when publishing.</p>
           </div>
+          {mode === "edit" ? (
+            <div className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
+              <div>
+                <h2 className="text-sm font-semibold">Revision history</h2>
+                <p className="text-xs text-muted-foreground">Restore an earlier autosave, save, or publish snapshot.</p>
+              </div>
+              {revisions.length ? (
+                <ul className="space-y-2">
+                  {revisions.map((revision) => (
+                    <li key={revision.id} className="flex items-center justify-between gap-3 rounded-md border border-border bg-background p-2 text-xs">
+                      <span>
+                        <span className="block font-medium">{revision.title}</span>
+                        <span className="text-muted-foreground">
+                          {revision.reason} · {new Date(revision.createdAt).toLocaleString()}
+                        </span>
+                      </span>
+                      <Button type="button" size="sm" variant="outline" onClick={() => void handleRestoreRevision(revision.id)}>
+                        Restore
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-muted-foreground">No revisions yet.</p>
+              )}
+            </div>
+          ) : null}
         </aside>
       </div>
     </div>
