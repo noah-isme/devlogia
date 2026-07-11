@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import type { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import type { TenantPlanTier } from "@/lib/tenant";
@@ -25,7 +26,19 @@ type MarketplaceCheckoutInput = {
   customerEmail?: string | null;
 };
 
-type MarketplaceProduct = Exclude<Awaited<ReturnType<typeof prisma.product.findUnique>>, null>;
+const marketplaceProductInclude = {
+  beneficiaryTenant: { include: { billingAccount: true } },
+  plugin: { include: { publisherTenant: { include: { billingAccount: true } } } },
+  extension: {
+    include: {
+      plugin: { include: { publisherTenant: { include: { billingAccount: true } } } },
+    },
+  },
+} satisfies Prisma.ProductInclude;
+
+type MarketplaceProduct = Prisma.ProductGetPayload<{
+  include: typeof marketplaceProductInclude;
+}>;
 
 function resolveConnectAccountId(product: MarketplaceProduct) {
   return (
@@ -174,15 +187,7 @@ export async function createMarketplaceCheckoutSession(input: MarketplaceCheckou
 
   const product = await prisma.product.findUnique({
     where: { id: input.productId },
-    include: {
-      beneficiaryTenant: { include: { billingAccount: true } },
-      plugin: { include: { publisherTenant: { include: { billingAccount: true } } } },
-      extension: {
-        include: {
-          plugin: { include: { publisherTenant: { include: { billingAccount: true } } } },
-        },
-      },
-    },
+    include: marketplaceProductInclude,
   });
 
   if (!product || !product.active) {
