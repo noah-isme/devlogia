@@ -22,6 +22,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
     { href: "/admin/dashboard", label: "Dashboard" },
     { href: "/admin/posts", label: "Posts" },
     { href: "/admin/pages", label: "Pages" },
+    { href: "/admin/media", label: "Media" },
   ];
 
   if (role === "superadmin") {
@@ -30,6 +31,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
     navItems.splice(3, 0, { href: "/admin/federation", label: "Federation" });
     navItems.push({ href: "/admin/topics", label: "Topics" });
     navItems.push({ href: "/admin/users", label: "Users" });
+    navItems.push({ href: "/admin/audit", label: "Audit" });
     navItems.push({ href: "/admin/settings", label: "Settings" });
   } else if (role === "editor") {
     navItems.push({ href: "/admin/topics", label: "Topics" });

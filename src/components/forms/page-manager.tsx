@@ -15,6 +15,14 @@ export type PageSummary = {
   slug: string;
   contentMdx: string;
   published: boolean;
+  revisions: PageRevisionSummary[];
+};
+
+export type PageRevisionSummary = {
+  id: string;
+  reason: string;
+  title: string;
+  createdAt: string;
 };
 
 type PageManagerProps = {
@@ -59,6 +67,7 @@ export function PageManager({ initialPages }: PageManagerProps) {
         slug: data.page.slug,
         contentMdx: data.page.contentMdx,
         published: data.page.published,
+        revisions: [],
       };
 
       setPages((prev) => [...prev, newPage]);
@@ -106,6 +115,7 @@ export function PageManager({ initialPages }: PageManagerProps) {
         slug: data.page.slug,
         contentMdx: data.page.contentMdx,
         published: data.page.published,
+        revisions: draft.revisions,
       };
 
       setPages((prev) => prev.map((page) => (page.id === updated.id ? updated : page)));
@@ -114,6 +124,38 @@ export function PageManager({ initialPages }: PageManagerProps) {
     } catch (error) {
       console.error(error);
       toast.error("Unable to save page", { description: "Review your changes and try again." });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRestoreRevision = async (revisionId: string) => {
+    if (!draft) return;
+
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/admin/pages/${draft.id}/revisions/${revisionId}/restore`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!response.ok) {
+        throw new Error("Failed to restore page revision");
+      }
+      const data = await response.json();
+      const restored: PageSummary = {
+        id: data.page.id,
+        title: data.page.title,
+        slug: data.page.slug,
+        contentMdx: data.page.contentMdx,
+        published: data.page.published,
+        revisions: draft.revisions.filter((revision) => revision.id !== revisionId),
+      };
+      setPages((prev) => prev.map((page) => (page.id === restored.id ? restored : page)));
+      setDraft(restored);
+      toast.success("Revision restored", { description: "The page now matches the selected snapshot." });
+    } catch (error) {
+      console.error(error);
+      toast.error("Unable to restore revision", { description: "Please try another revision." });
     } finally {
       setIsSaving(false);
     }
@@ -243,6 +285,31 @@ export function PageManager({ initialPages }: PageManagerProps) {
             <Button type="submit" disabled={isSaving}>
               {isSaving ? "Saving…" : "Save changes"}
             </Button>
+            <div className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
+              <div>
+                <h3 className="text-sm font-semibold">Revision history</h3>
+                <p className="text-xs text-muted-foreground">Restore a previous save or publish snapshot.</p>
+              </div>
+              {draft.revisions.length ? (
+                <ul className="space-y-2">
+                  {draft.revisions.map((revision) => (
+                    <li key={revision.id} className="flex items-center justify-between gap-3 rounded-md border border-border bg-background p-2 text-xs">
+                      <span>
+                        <span className="block font-medium">{revision.title}</span>
+                        <span className="text-muted-foreground">
+                          {revision.reason} · {new Date(revision.createdAt).toLocaleString()}
+                        </span>
+                      </span>
+                      <Button type="button" size="sm" variant="outline" disabled={isSaving} onClick={() => void handleRestoreRevision(revision.id)}>
+                        Restore
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-muted-foreground">No revisions yet.</p>
+              )}
+            </div>
           </form>
         ) : (
           <p className="text-sm text-muted-foreground">Select a page to start editing.</p>

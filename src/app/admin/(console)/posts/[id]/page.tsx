@@ -60,11 +60,18 @@ export default async function EditPostPage({ params }: PageProps) {
   let loadError: unknown | null = null;
   type EditablePost = Prisma.PostGetPayload<{ include: { tags: { include: { tag: true } } } }>;
   let post: EditablePost | null = null;
+  let revisions: Array<{ id: string; reason: string; title: string; status: EditablePost["status"]; createdAt: Date }> = [];
 
   try {
     post = await prisma.post.findUnique({
       where: { id },
       include: { tags: { include: { tag: true } } },
+    });
+    revisions = await prisma.postRevision.findMany({
+      where: { postId: id },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: { id: true, reason: true, title: true, status: true, createdAt: true },
     });
   } catch (error) {
     loadError = error;
@@ -104,5 +111,13 @@ export default async function EditPostPage({ params }: PageProps) {
   const role = session?.user?.role ?? "writer";
   const aiEnabled = (process.env.AI_PROVIDER ?? "none").toLowerCase() !== "none";
 
-  return <PostEditor mode="edit" initialPost={initialPost} role={role} aiEnabled={aiEnabled} />;
+  return (
+    <PostEditor
+      mode="edit"
+      initialPost={initialPost}
+      initialRevisions={revisions.map((revision) => ({ ...revision, createdAt: revision.createdAt.toISOString() }))}
+      role={role}
+      aiEnabled={aiEnabled}
+    />
+  );
 }

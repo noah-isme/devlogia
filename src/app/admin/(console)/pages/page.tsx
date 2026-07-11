@@ -40,6 +40,25 @@ export default async function PagesPage() {
       slug: page.slug,
       contentMdx: page.contentMdx,
       published: page.published,
+      revisions: [],
+    }));
+    const revisions = await prisma.pageRevision.findMany({
+      where: { pageId: { in: summaries.map((page) => page.id) } },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: { id: true, pageId: true, reason: true, title: true, createdAt: true },
+    });
+    summaries = summaries.map((page) => ({
+      ...page,
+      revisions: revisions
+        .filter((revision) => revision.pageId === page.id)
+        .slice(0, 10)
+        .map((revision) => ({
+          id: revision.id,
+          reason: revision.reason,
+          title: revision.title,
+          createdAt: revision.createdAt.toISOString(),
+        })),
     }));
   } catch (error) {
     console.error("Failed to load pages", error);
