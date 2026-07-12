@@ -5,7 +5,7 @@ import { renderMdx } from "@/lib/mdx";
 import { buildMetadata, siteConfig } from "@/lib/seo";
 
 type PageProps = {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 };
 
 async function getPage(slug: string, prismaModule?: typeof import("@/lib/prisma")) {
@@ -26,12 +26,13 @@ async function getPage(slug: string, prismaModule?: typeof import("@/lib/prisma"
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const prismaModule = await import("@/lib/prisma");
+  const { slug } = await params;
 
   if (!prismaModule.isDatabaseEnabled) {
     return buildMetadata({ title: "Page unavailable" });
   }
 
-  const page = await getPage(params.slug, prismaModule);
+  const page = await getPage(slug, prismaModule);
   if (!page) {
     return buildMetadata({ title: "Page not found" });
   }
@@ -47,7 +48,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function StaticPage({ params }: PageProps) {
   const prismaModule = await import("@/lib/prisma");
-  const page = await getPage(params.slug, prismaModule);
+  const { slug } = await params;
+  const page = await getPage(slug, prismaModule);
   if (!page) {
     if (!prismaModule.isDatabaseEnabled) {
       return (
