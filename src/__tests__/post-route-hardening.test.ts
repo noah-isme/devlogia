@@ -109,6 +109,27 @@ describe("post admin route hardening", () => {
     expect(prismaMock.post.update).not.toHaveBeenCalled();
   });
 
+  it("rejects scheduled posts without a future publish time", async () => {
+    const { PATCH } = await import("@/app/api/admin/posts/[id]/route");
+    authMock.mockResolvedValue({ user: editorUser });
+    prismaMock.post.findUnique.mockResolvedValue({
+      id: "post_1",
+      authorId: "writer_1",
+      status: "DRAFT",
+      publishedAt: null,
+      slug: "scheduled-post",
+      updatedAt: new Date("2026-07-11T10:00:00.000Z"),
+    });
+
+    const response = await PATCH(makePatchRequest(validPayload({ status: "SCHEDULED", publishedAt: null })), {
+      params: Promise.resolve({ id: "post_1" }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Scheduled posts require a future publish time" });
+    expect(prismaMock.post.update).not.toHaveBeenCalled();
+  });
+
   it("mints an expiring draft preview link for an authorized editor", async () => {
     const { POST } = await import("@/app/api/admin/posts/[id]/preview-token/route");
     authMock.mockResolvedValue({ user: editorUser });

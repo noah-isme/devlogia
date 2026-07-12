@@ -10,11 +10,11 @@ describe("logAIExtensionUsage", () => {
   let quotaModule: typeof import("@/lib/ai/quota");
   let loggerModule: typeof import("@/lib/logger");
 
-  let findExtensionSpy: any;
-  let createUsageSpy: any;
-  let applyQuotaUsageSpy: any;
-  let getTenantQuotaStatusSpy: any;
-  let loggerWarnSpy: any;
+  let findExtensionSpy: ReturnType<typeof vi.fn>;
+  let createUsageSpy: ReturnType<typeof vi.fn>;
+  let applyQuotaUsageSpy: ReturnType<typeof vi.fn>;
+  let getTenantQuotaStatusSpy: ReturnType<typeof vi.fn>;
+  let loggerWarnSpy: ReturnType<typeof vi.fn>;
   let extensionDelegate: { findFirst: ReturnType<typeof vi.fn> };
   let usageDelegate: { create: ReturnType<typeof vi.fn> };
   let originalExtensionDelegate: unknown;
@@ -39,12 +39,12 @@ describe("logAIExtensionUsage", () => {
     Object.defineProperty(prisma, "aIExtension", {
       configurable: true,
       writable: true,
-      value: extensionDelegate as any,
+      value: extensionDelegate,
     });
     Object.defineProperty(prisma, "aIUsageLog", {
       configurable: true,
       writable: true,
-      value: usageDelegate as any,
+      value: usageDelegate,
     });
   });
 

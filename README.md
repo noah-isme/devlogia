@@ -8,9 +8,10 @@ The current release scope is the **CMS/blog product**: public blog browsing, pos
 
 The repository also contains platform work for AI recommendations, tenant workspaces, marketplace billing, federation, and developer ecosystem features. Those areas are treated as **beta/foundation code** for now. They should not be positioned as production-ready release scope until their migrations, type checks, UI workflows, and E2E coverage are completed.
 
-Known release blocker outside the CMS/blog path:
+Current release-gate status:
 
-- `pnpm typecheck` currently fails in `src/lib/billing/stripe/checkout.ts` because marketplace checkout uses Prisma relation payloads that are not represented by its local product type.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build` pass for the current CMS/blog release gate.
+- Full E2E coverage remains the final local/staging confirmation step before promotion.
 
 ## Highlights
 

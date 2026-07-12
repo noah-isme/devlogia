@@ -83,8 +83,8 @@ Post-promotion checklist:
 
 ## Current Release Blockers
 
-- `pnpm typecheck` fails in `src/lib/billing/stripe/checkout.ts` due a beta marketplace checkout type mismatch. This does not affect the CMS/blog E2E path, but it must be fixed before enforcing the full engineering gate.
 - Prisma migrations do not yet cover every model in `schema.prisma`. The CMS/blog tables are migrated; beta tenant, marketplace, workspace, and ecosystem tables need migration coverage before those features can be released.
+- Full E2E remains the final promotion gate for each target environment, because it validates database reset/seed, browser flows, and visual smoke output against that environment.
 
 ## Rollback
 

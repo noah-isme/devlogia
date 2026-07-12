@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 
+import type { SentimentLabel } from "@/lib/ai/sentiment";
 import { aggregateTelemetry, type TelemetryRecord } from "@/lib/analytics/insights";
 
 const stubClassifier = async (messages: string[]) =>
-  messages.map((message) => ({
-    label: (message.includes("love") ? "positive" : message.includes("bad") ? "negative" : "neutral") as any,
-    score: message.includes("love") ? 0.9 : message.includes("bad") ? 0.8 : 0.5,
-  }));
+  messages.map((message) => {
+    const label: SentimentLabel = message.includes("love") ? "positive" : message.includes("bad") ? "negative" : "neutral";
+    return {
+      label,
+      score: message.includes("love") ? 0.9 : message.includes("bad") ? 0.8 : 0.5,
+    };
+  });
 
 describe("aggregateTelemetry", () => {
   it("summarizes sessions, sentiment, and top pages", async () => {

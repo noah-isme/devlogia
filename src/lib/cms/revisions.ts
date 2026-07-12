@@ -117,7 +117,7 @@ export async function createPageRevisionSnapshot(input: {
 }
 
 export async function restorePostRevision(input: {
-  readonly prisma: PostRevisionRestoreClient;
+  readonly prisma: PostRevisionRestoreClient & PostRevisionCreateClient;
   readonly postId: string;
   readonly revisionId: string;
   readonly userId: string | null;
@@ -130,6 +130,20 @@ export async function restorePostRevision(input: {
   await input.prisma.post.update({
     where: { id: input.postId },
     data: {
+      title: revision.title,
+      slug: revision.slug,
+      summary: revision.summary,
+      contentMdx: revision.contentMdx,
+      coverUrl: revision.coverUrl,
+      status: revision.status,
+      publishedAt: revision.publishedAt,
+    },
+  });
+  await input.prisma.postRevision.create({
+    data: {
+      postId: input.postId,
+      userId: input.userId,
+      reason: "restore",
       title: revision.title,
       slug: revision.slug,
       summary: revision.summary,

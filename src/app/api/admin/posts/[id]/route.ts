@@ -27,6 +27,10 @@ function writerPublishForbiddenResponse() {
   return NextResponse.json({ error: "Writers can only save drafts" }, { status: 403 });
 }
 
+function badRequestResponse(message: string) {
+  return NextResponse.json({ error: message }, { status: 400 });
+}
+
 function conflictResponse(post: { updatedAt: Date }) {
   return NextResponse.json(
     { error: "Post changed in another tab", post: { ...post, updatedAt: post.updatedAt.toISOString() } },
@@ -132,9 +136,18 @@ export async function PATCH(
   const slug = await ensureUniqueSlug(prisma, baseSlug, id);
 
   const publishedAt = (() => {
+    const requestedPublishedAt = data.publishedAt ? new Date(data.publishedAt) : null;
+
+    if (data.status === "SCHEDULED") {
+      if (!requestedPublishedAt) {
+        return null;
+      }
+      return requestedPublishedAt;
+    }
+
     if (data.status === "PUBLISHED") {
-      if (data.publishedAt) {
-        return new Date(data.publishedAt);
+      if (requestedPublishedAt) {
+        return requestedPublishedAt;
       }
       return post.publishedAt ?? new Date();
     }
@@ -143,12 +156,17 @@ export async function PATCH(
       return null;
     }
 
-    if (data.publishedAt) {
-      return new Date(data.publishedAt);
-    }
-
-    return null;
+    return requestedPublishedAt;
   })();
+
+  if (!isWriter && data.status === "SCHEDULED") {
+    if (!publishedAt) {
+      return badRequestResponse("Scheduled posts require a future publish time");
+    }
+    if (publishedAt.getTime() <= Date.now()) {
+      return badRequestResponse("Scheduled publish time must be in the future");
+    }
+  }
 
   const updated = await prisma.post.update({
     where: { id },
@@ -193,6 +211,15 @@ export async function PATCH(
       status: updated.status,
     },
   });
+
+  if (post.status !== "SCHEDULED" && updated.status === "SCHEDULED") {
+    await recordAuditLog({
+      userId: session.user.id,
+      action: "post:scheduled",
+      targetId: updated.id,
+      meta: { slug: updated.slug, publishedAt: updated.publishedAt?.toISOString() ?? null },
+    });
+  }
 
   if (post.status !== "PUBLISHED" && updated.status === "PUBLISHED") {
     await recordAuditLog({

@@ -53,11 +53,12 @@ describe("post revisions", () => {
     };
     const findUnique = vi.fn(async () => revision);
     const update = vi.fn(async () => ({ id: "post_1", title: "Old title" }));
+    const postRevisionCreate = vi.fn(async () => ({ id: "rev_restore" }));
     const auditLogCreate = vi.fn(async () => ({ id: "audit_1" }));
 
     await restorePostRevision({
       prisma: {
-        postRevision: { findUnique },
+        postRevision: { findUnique, create: postRevisionCreate },
         post: { update },
         auditLog: { create: auditLogCreate },
       },
@@ -69,6 +70,20 @@ describe("post revisions", () => {
     expect(update).toHaveBeenCalledWith({
       where: { id: "post_1" },
       data: {
+        title: "Old title",
+        slug: "old-title",
+        summary: null,
+        contentMdx: "# Old",
+        coverUrl: null,
+        status: "DRAFT",
+        publishedAt: null,
+      },
+    });
+    expect(postRevisionCreate).toHaveBeenCalledWith({
+      data: {
+        postId: "post_1",
+        userId: "user_1",
+        reason: "restore",
         title: "Old title",
         slug: "old-title",
         summary: null,

@@ -3,10 +3,10 @@ export function SocialProof() {
     <section className="py-8">
       <div className="text-center space-y-4">
         <p className="text-sm text-muted-foreground">
-          Dipercaya oleh kreator, tim konten, dan startup
+          Built for release-ready publishing teams
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-8 opacity-60">
-          {["Startup A", "Team B", "Creator C", "Studio D"].map((name) => (
+        <div className="flex flex-wrap items-center justify-center gap-8 opacity-70">
+          {["CMS Blog", "MDX Editor", "RBAC Admin", "SEO Feeds"].map((name) => (
             <div key={name} className="text-muted-foreground font-medium">
               {name}
             </div>

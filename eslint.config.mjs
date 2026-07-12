@@ -12,6 +12,15 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated and local runtime artifacts:
+    "node_modules/**",
+    "packages/*/node_modules/**",
+    "coverage/**",
+    "playwright-report/**",
+    "test-results/**",
+    "public/uploads/**",
+    ".qwen/**",
+    ".omo/**",
   ]),
 ]);
 

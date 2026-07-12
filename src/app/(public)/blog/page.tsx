@@ -86,7 +86,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const tags = await tagsPromise;
   const activeTag = tagSlug ? tags.find((tag) => tag.slug === tagSlug) : undefined;
   const tagName = activeTag?.name ?? (tagSlug ? tagSlug : null);
-  const hasFilters = Boolean(searchQuery || tagSlug);
   const hasPrevious = stack.length > 0;
   const archiveBuckets = buildArchiveBuckets(posts);
   const baseQuery = { q: searchQuery || undefined, tag: tagSlug || undefined, limit: limit !== DEFAULT_POSTS_PER_PAGE ? String(limit) : undefined };

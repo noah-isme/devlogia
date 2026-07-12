@@ -23,6 +23,10 @@ function forbiddenResponse() {
   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 }
 
+function badRequestResponse(message: string) {
+  return NextResponse.json({ error: message }, { status: 400 });
+}
+
 function normalizeTags(tags: string[] | undefined) {
   return Array.from(
     new Set(
@@ -98,12 +102,21 @@ export async function POST(request: Request) {
   const slug = await ensureUniqueSlug(prisma, baseSlug);
   const normalizedTags = normalizeTags(data?.tags);
   const status = (isWriter ? "DRAFT" : data?.status ?? "DRAFT") as PostStatus;
+  const requestedPublishedAt = data?.publishedAt ? new Date(data.publishedAt) : null;
+  if (!isWriter && status === "SCHEDULED") {
+    if (!requestedPublishedAt) {
+      return badRequestResponse("Scheduled posts require a future publish time");
+    }
+    if (requestedPublishedAt.getTime() <= Date.now()) {
+      return badRequestResponse("Scheduled publish time must be in the future");
+    }
+  }
   const publishedAt = !isWriter
     ? status === "PUBLISHED"
-      ? new Date()
-      : data?.publishedAt
-        ? new Date(data.publishedAt)
-        : null
+      ? requestedPublishedAt ?? new Date()
+      : status === "SCHEDULED"
+        ? requestedPublishedAt
+        : requestedPublishedAt
     : null;
 
   const post = await prisma.post.create({
@@ -148,6 +161,15 @@ export async function POST(request: Request) {
     userId: session.user.id,
     reason: post.status === "PUBLISHED" ? "publish" : data?.revisionReason ?? "autosave",
   });
+
+  if (post.status === "SCHEDULED") {
+    await recordAuditLog({
+      userId: session.user.id,
+      action: "post:scheduled",
+      targetId: post.id,
+      meta: { slug: post.slug, publishedAt: post.publishedAt?.toISOString() ?? null },
+    });
+  }
 
   if (post.status === "PUBLISHED") {
     await recordAuditLog({
