@@ -30,7 +30,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: mysql://root:root@localhost:3306/devlogia
+      DATABASE_URL: mysql://root:root@mysql:3306/devlogia
       NEXTAUTH_SECRET: ci-secret
       NEXTAUTH_URL: http://localhost:3000
       SUPABASE_URL: ${{ matrix.storage == 'supabase' && secrets.SUPABASE_URL || '' }}
