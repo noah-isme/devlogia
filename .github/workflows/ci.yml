@@ -109,6 +109,11 @@ jobs:
       - name: Validate OpenAPI
         run: pnpm openapi:validate
 
+      - name: Install MySQL client
+        run: |
+          apt-get update
+          apt-get install --no-install-recommends --yes default-mysql-client
+
       - name: Capture CI database backup
         run: pnpm db:backup -- --out backups/ci
       - name: Install Playwright browsers
