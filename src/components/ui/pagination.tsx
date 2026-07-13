@@ -12,7 +12,10 @@ type PaginationProps = {
   nextQuery?: Record<string, string | undefined>;
 };
 
-function buildHref(basePath: string, query?: Record<string, string | undefined>) {
+function buildHref(
+  basePath: string,
+  query?: Record<string, string | undefined>,
+) {
   if (!query) {
     return basePath;
   }
@@ -41,11 +44,18 @@ export function Pagination({
   }
 
   return (
-    <nav className={cn("flex items-center justify-between gap-4", className)} aria-label="Pagination">
+    <nav
+      className={cn(
+        "flex items-center justify-between gap-4 border-t border-border/70 pt-8",
+        className,
+      )}
+      aria-label="Pagination"
+    >
       <Link
         href={buildHref(basePath, previousQuery)}
         className={cn(
-          buttonVariants({ variant: "outline" }),
+          buttonVariants({ variant: "outline", size: "lg" }),
+          "rounded-full",
           !hasPrevious && "pointer-events-none opacity-50",
         )}
         aria-disabled={!hasPrevious}
@@ -55,7 +65,11 @@ export function Pagination({
       </Link>
       <Link
         href={buildHref(basePath, nextQuery)}
-        className={cn(buttonVariants({ variant: "outline" }), !hasNext && "pointer-events-none opacity-50")}
+        className={cn(
+          buttonVariants({ variant: "outline", size: "lg" }),
+          "rounded-full",
+          !hasNext && "pointer-events-none opacity-50",
+        )}
         aria-disabled={!hasNext}
         tabIndex={hasNext ? undefined : -1}
       >

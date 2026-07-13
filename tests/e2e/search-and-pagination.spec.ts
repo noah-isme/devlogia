@@ -20,20 +20,22 @@ test("public readers can paginate and filter", async ({ page }) => {
   await expect(page).toHaveURL(/\/blog/);
   await expect(page).not.toHaveURL(/cursor=/);
 
-  await page.getByPlaceholder("Search posts…").fill("Prisma");
+  await page.getByRole("searchbox", { name: "Search articles" }).fill("Prisma");
   await page.getByRole("button", { name: "Search" }).click();
   const searchUrl = new URL(page.url());
   expect(searchUrl.pathname).toBe("/blog");
   expect(searchUrl.searchParams.get("q")).toBe("Prisma");
   await expect(page.getByRole("heading", { name: /Prisma/ })).toBeVisible();
 
-  const prismaTagLink = page.locator('a[href*="tag="]', {
-    hasText: "#Prisma",
-  });
-  await expect(prismaTagLink.first()).toHaveAttribute("href", /\/blog\?.*tag=/);
+  const prismaTagLink = page.getByRole("link", { name: "Prisma", exact: true });
+  await expect(prismaTagLink.first()).toHaveAttribute(
+    "href",
+    /\/blog\/tags\/prisma/,
+  );
   await prismaTagLink.first().click();
+  await expect(page).toHaveURL(/\/blog\/tags\/prisma/);
   const tagUrl = new URL(page.url());
-  expect(tagUrl.pathname).toBe("/blog");
+  expect(tagUrl.pathname).toBe("/blog/tags/prisma");
   await expect(prismaTagLink.first()).toHaveAttribute("aria-current", "page");
   await expect(page.getByText(/No posts found/i)).toHaveCount(0);
 });

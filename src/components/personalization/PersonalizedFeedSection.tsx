@@ -17,8 +17,16 @@ type FeedState = {
   fallback: boolean;
 };
 
-export function PersonalizedFeedSection({ title = "Recommended for you", contextPostId }: PersonalizedFeedSectionProps) {
-  const [state, setState] = useState<FeedState>({ loading: true, error: null, items: [], fallback: false });
+export function PersonalizedFeedSection({
+  title = "Recommended for you",
+  contextPostId,
+}: PersonalizedFeedSectionProps) {
+  const [state, setState] = useState<FeedState>({
+    loading: true,
+    error: null,
+    items: [],
+    fallback: false,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -26,9 +34,17 @@ export function PersonalizedFeedSection({ title = "Recommended for you", context
       setState((prev) => ({ ...prev, loading: true, error: null }));
       const params = new URLSearchParams();
       if (contextPostId) params.set("postId", contextPostId);
-      const response = await fetch(`/api/feed/personal?${params.toString()}`, { cache: "no-store" });
+      const response = await fetch(`/api/feed/personal?${params.toString()}`, {
+        cache: "no-store",
+      });
       if (!response.ok) {
-        if (!cancelled) setState({ loading: false, error: "Unable to load personalized feed", items: [], fallback: false });
+        if (!cancelled)
+          setState({
+            loading: false,
+            error: "Unable to load personalized feed",
+            items: [],
+            fallback: false,
+          });
         return;
       }
       const data = (await response.json()) as {
@@ -37,12 +53,23 @@ export function PersonalizedFeedSection({ title = "Recommended for you", context
         fallback: boolean;
       };
       if (!cancelled) {
-        setState({ loading: false, error: null, items: data.items, segment: data.segment, fallback: data.fallback });
+        setState({
+          loading: false,
+          error: null,
+          items: data.items,
+          segment: data.segment,
+          fallback: data.fallback,
+        });
       }
     }
     load().catch((error) => {
       if (!cancelled) {
-        setState({ loading: false, error: String(error), items: [], fallback: false });
+        setState({
+          loading: false,
+          error: String(error),
+          items: [],
+          fallback: false,
+        });
       }
     });
     return () => {
@@ -52,44 +79,76 @@ export function PersonalizedFeedSection({ title = "Recommended for you", context
 
   if (state.loading) {
     return (
-      <section className="rounded-xl border border-border/60 bg-muted/30 p-4">
-        <h2 className="text-base font-semibold">{title}</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Personalizing your feed…</p>
+      <section className="premium-surface rounded-3xl p-6 sm:p-8">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+          Personalized reading
+        </p>
+        <h2 className="mt-2 text-xl font-semibold tracking-[-0.025em]">
+          {title}
+        </h2>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Curating ideas around your interests…
+        </p>
       </section>
     );
   }
 
   if (state.error || state.items.length === 0) {
     return (
-      <section className="rounded-xl border border-border/60 bg-muted/30 p-4">
-        <h2 className="text-base font-semibold">{title}</h2>
+      <section className="premium-surface rounded-3xl p-6 sm:p-8">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+          Personalized reading
+        </p>
+        <h2 className="mt-2 text-xl font-semibold tracking-[-0.025em]">
+          {title}
+        </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          {state.error ? state.error : "We don’t have enough data to personalize recommendations yet."}
+          {state.error
+            ? state.error
+            : "We don’t have enough data to personalize recommendations yet."}
         </p>
       </section>
     );
   }
 
   return (
-    <section className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
-      <header className="flex flex-wrap items-baseline justify-between gap-2">
+    <section className="premium-surface rounded-3xl p-6 sm:p-8">
+      <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 className="text-base font-semibold">{title}</h2>
-          <p className="text-xs text-muted-foreground">
-            {state.segment ? `Segment: ${state.segment}` : "Personalized recommendations"}
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+            Personalized reading
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">
+            {title}
+          </h2>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {state.segment
+              ? `Segment: ${state.segment}`
+              : "Personalized recommendations"}
             {state.fallback ? " · blended with trending" : ""}
           </p>
         </div>
       </header>
-      <ul className="space-y-3">
+      <ul className="mt-6 grid gap-4 md:grid-cols-3">
         {state.items.map((item) => (
-          <li key={item.id} className="rounded-lg border border-border/50 bg-background/70 p-3 shadow-sm">
-            <a href={`/blog/${item.slug}`} className="text-sm font-semibold hover:underline">
+          <li
+            key={item.id}
+            className="group rounded-2xl border border-border/60 bg-background/70 p-5 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-foreground/5"
+          >
+            <a
+              href={`/blog/${item.slug}`}
+              className="text-base font-semibold leading-6 tracking-[-0.015em] transition group-hover:text-primary group-hover:no-underline"
+            >
               {item.title}
             </a>
-            {item.summary ? <p className="mt-1 text-sm text-muted-foreground">{item.summary}</p> : null}
-            <p className="mt-2 text-xs text-muted-foreground">
-              Score {(item.score * 100).toFixed(0)}% · {item.reason.slice(0, 2).join(" · ")}
+            {item.summary ? (
+              <p className="mt-3 line-clamp-3 text-sm leading-6 text-muted-foreground">
+                {item.summary}
+              </p>
+            ) : null}
+            <p className="mt-5 border-t border-border/60 pt-3 text-[11px] uppercase tracking-wide text-muted-foreground">
+              Score {(item.score * 100).toFixed(0)}% ·{" "}
+              {item.reason.slice(0, 2).join(" · ")}
             </p>
           </li>
         ))}

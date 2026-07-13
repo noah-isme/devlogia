@@ -4,42 +4,64 @@ import { siteConfig } from "@/lib/seo";
 
 export function LandingNavbar() {
   return (
-    <>
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
-      >
-        Skip to content
-      </a>
-      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center space-x-2">
-            <span className="text-xl font-bold">{siteConfig.name}</span>
+    <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
+      <div className="mx-auto flex h-[4.5rem] max-w-[90rem] items-center justify-between px-4 sm:px-6 lg:px-10">
+        <Link
+          href="/"
+          className="group flex items-center gap-3"
+          aria-label={`${siteConfig.name} home`}
+        >
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-foreground text-sm font-bold text-background shadow-lg shadow-foreground/10 transition-transform group-hover:-rotate-3">
+            D
+          </span>
+          <span className="text-lg font-semibold tracking-[-0.025em]">
+            {siteConfig.name}
+          </span>
+        </Link>
+        <nav className="hidden items-center gap-1 rounded-full border border-border/60 bg-card/70 p-1 text-sm font-medium shadow-sm md:flex">
+          <Link
+            href="/#features"
+            className="rounded-full px-4 py-2 text-muted-foreground transition hover:bg-muted hover:text-foreground hover:no-underline"
+          >
+            Features
           </Link>
-          <nav className="hidden items-center gap-6 text-sm font-medium md:flex">
-            <Link href="/#features" className="transition hover:text-foreground text-muted-foreground">
-              Features
-            </Link>
-            <Link href="/#pricing" className="transition hover:text-foreground text-muted-foreground">
-              Pricing
-            </Link>
-            <Link href="/developers" className="transition hover:text-foreground text-muted-foreground">
-              Docs
-            </Link>
-            <Link href="/blog" className="transition hover:text-foreground text-muted-foreground">
-              Blog
-            </Link>
-          </nav>
-          <div className="flex items-center gap-3">
-            <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-              <Link href="/admin/login">Login</Link>
-            </Button>
-            <Button asChild size="sm">
-              <Link href="/admin/login">Start Free</Link>
-            </Button>
-          </div>
+          <Link
+            href="/#pricing"
+            className="rounded-full px-4 py-2 text-muted-foreground transition hover:bg-muted hover:text-foreground hover:no-underline"
+          >
+            Pricing
+          </Link>
+          <Link
+            href="/developers"
+            className="rounded-full px-4 py-2 text-muted-foreground transition hover:bg-muted hover:text-foreground hover:no-underline"
+          >
+            Docs
+          </Link>
+          <Link
+            href="/blog"
+            className="rounded-full bg-foreground px-4 py-2 text-background transition hover:bg-foreground/90 hover:text-background hover:no-underline"
+          >
+            Journal
+          </Link>
+        </nav>
+        <div className="flex items-center gap-3">
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="hidden sm:inline-flex"
+          >
+            <Link href="/admin/login">Login</Link>
+          </Button>
+          <Button
+            asChild
+            size="sm"
+            className="rounded-full bg-foreground px-5 text-background shadow-lg shadow-foreground/10 hover:bg-foreground/90 hover:text-background"
+          >
+            <Link href="/admin/login">Start writing</Link>
+          </Button>
         </div>
-      </header>
-    </>
+      </div>
+    </header>
   );
 }

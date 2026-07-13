@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { EditorialCover } from "@/components/blog/editorial-cover";
 import { JsonLd } from "@/components/json-ld";
 import { PostShareSection } from "@/components/post-share-section";
 import { FeedbackForm } from "@/components/feedback-form";
@@ -29,7 +30,10 @@ type PublishedSlug = {
   slug: string;
 };
 
-async function getPost(slug: string, prismaModule?: typeof import("@/lib/prisma")) {
+async function getPost(
+  slug: string,
+  prismaModule?: typeof import("@/lib/prisma"),
+) {
   const moduleRef = prismaModule ?? (await import("@/lib/prisma"));
   const { prisma, isDatabaseEnabled } = moduleRef;
 
@@ -48,7 +52,10 @@ async function getPost(slug: string, prismaModule?: typeof import("@/lib/prisma"
   }
 }
 
-async function getRelatedPosts(post: BlogPostWithRelations, prismaModule: typeof import("@/lib/prisma")) {
+async function getRelatedPosts(
+  post: BlogPostWithRelations,
+  prismaModule: typeof import("@/lib/prisma"),
+) {
   const tagSlugs = post.tags.map(({ tag }) => tag.slug);
   if (tagSlugs.length === 0) {
     return [];
@@ -66,7 +73,9 @@ async function getRelatedPosts(post: BlogPostWithRelations, prismaModule: typeof
   });
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const prismaModule = await import("@/lib/prisma");
   const { slug } = await params;
 
@@ -148,9 +157,12 @@ export default async function BlogPostPage({ params }: PageProps) {
       return (
         <article className="prose prose-neutral dark:prose-invert">
           <header className="not-prose mb-6 space-y-2">
-            <h1 className="text-3xl font-semibold tracking-tight">Post unavailable</h1>
+            <h1 className="text-3xl font-semibold tracking-tight">
+              Post unavailable
+            </h1>
             <p className="text-sm text-muted-foreground">
-              Configure the <code>DATABASE_URL</code> environment variable to load published articles.
+              Configure the <code>DATABASE_URL</code> environment variable to
+              load published articles.
             </p>
           </header>
         </article>
@@ -183,57 +195,153 @@ export default async function BlogPostPage({ params }: PageProps) {
   });
 
   return (
-    <article className="prose prose-neutral dark:prose-invert">
-      <header className="not-prose mb-8 space-y-4">
-        <p className="text-sm text-muted-foreground">
-          {post.publishedAt ? formatDate(post.publishedAt) : "Draft"} · {estimateReadingTime(post.contentMdx)}
-        </p>
-        <h1 className="text-4xl font-bold tracking-tight">{post.title}</h1>
-        {post.summary ? (
-          <p className="max-w-2xl text-base text-muted-foreground">{post.summary}</p>
-        ) : null}
-        {post.tags.length ? (
-          <div className="flex flex-wrap gap-2">
-            {post.tags.map(({ tag }) => (
-              <Link
-                key={tag.id}
-                href={buildTagHref(tag.slug)}
-                className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground"
-              >
-                #{tag.name}
-              </Link>
-            ))}
+    <article>
+      <nav
+        aria-label="Breadcrumb"
+        className="mb-8 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground"
+      >
+        <ol className="flex flex-wrap items-center gap-2">
+          <li>
+            <Link href="/">Home</Link>
+          </li>
+          <li aria-hidden="true" className="text-border">
+            /
+          </li>
+          <li>
+            <Link href="/blog">Journal</Link>
+          </li>
+          <li aria-hidden="true" className="text-border">
+            /
+          </li>
+          <li aria-current="page" className="max-w-56 truncate text-foreground">
+            {post.title}
+          </li>
+        </ol>
+      </nav>
+
+      <header className="mb-12 grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-14">
+        <div className="order-2 space-y-6 lg:order-1">
+          <div className="flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.15em] text-primary">
+            <span>{post.tags[0]?.tag.name ?? "Devlogia Journal"}</span>
+            <span
+              className="h-1 w-1 rounded-full bg-border"
+              aria-hidden="true"
+            />
+            <span className="text-muted-foreground">
+              {post.publishedAt ? formatDate(post.publishedAt) : "Draft"}
+            </span>
           </div>
-        ) : null}
+          <h1 className="text-balance text-4xl font-semibold leading-[1.03] tracking-[-0.045em] sm:text-6xl lg:text-7xl">
+            {post.title}
+          </h1>
+          {post.summary ? (
+            <p className="max-w-2xl text-lg leading-8 text-muted-foreground">
+              {post.summary}
+            </p>
+          ) : null}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-border/70 pt-5 text-sm">
+            <div>
+              <p className="font-semibold text-foreground">
+                Devlogia Editorial
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {post.author?.email ?? siteConfig.author}
+              </p>
+            </div>
+            <span className="h-8 w-px bg-border" aria-hidden="true" />
+            <p className="text-muted-foreground">
+              {estimateReadingTime(post.contentMdx)}
+            </p>
+            {post.tags.length ? (
+              <div className="flex flex-wrap gap-2">
+                {post.tags.slice(0, 3).map(({ tag }) => (
+                  <Link
+                    key={tag.id}
+                    href={buildTagHref(tag.slug)}
+                    className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:no-underline"
+                  >
+                    {tag.name}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </div>
+        <EditorialCover
+          title={post.title}
+          eyebrow={post.tags[0]?.tag.name ?? "Featured perspective"}
+          className="order-1 min-h-[24rem] lg:order-2"
+        />
       </header>
-      {hasTableOfContents ? (
-        <aside className="not-prose mb-8 rounded-lg border border-border bg-muted/30 p-4" aria-label="Table of contents">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">On this page</h2>
-          <nav className="mt-3">
-            <ol className="space-y-2 text-sm text-muted-foreground">
-              {tableOfContents.map((item) => (
-                <li
-                  key={item.id}
-                  className={item.level === 3 ? "pl-4" : item.level >= 4 ? "pl-6" : "pl-0"}
-                >
-                  <a href={`#${item.id}`} className="hover:text-foreground hover:underline">
-                    {item.title}
-                  </a>
-                </li>
-              ))}
-            </ol>
-          </nav>
+
+      <div className="mx-auto grid max-w-6xl gap-10 border-t border-border/70 pt-10 lg:grid-cols-[minmax(0,47rem)_17rem] lg:gap-16">
+        <div className="min-w-0">
+          <div className="mb-10">
+            <KeyHighlights slug={post.slug} />
+          </div>
+          <div className="prose prose-lg max-w-none prose-neutral prose-headings:scroll-mt-24 prose-headings:tracking-[-0.025em] prose-p:leading-8 prose-a:text-primary prose-pre:rounded-2xl prose-pre:bg-foreground dark:prose-invert">
+            {content}
+          </div>
+          <div className="mt-12 border-t border-border/70 pt-10">
+            <PostShareSection url={shareUrl} title={post.title} />
+          </div>
+          <FeedbackForm slug={post.slug} />
+        </div>
+
+        <aside
+          className="space-y-6 lg:sticky lg:top-28 lg:self-start"
+          aria-label="Article tools"
+        >
+          {hasTableOfContents ? (
+            <section className="rounded-2xl border border-border/70 bg-card/70 p-5 shadow-sm">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                In this article
+              </h2>
+              <nav className="mt-4">
+                <ol className="space-y-3 text-sm leading-5 text-muted-foreground">
+                  {tableOfContents.map((item) => (
+                    <li
+                      key={item.id}
+                      className={
+                        item.level === 3
+                          ? "pl-3"
+                          : item.level >= 4
+                            ? "pl-5"
+                            : "pl-0"
+                      }
+                    >
+                      <a
+                        href={`#${item.id}`}
+                        className="block border-l border-border pl-3 transition hover:border-primary hover:text-foreground hover:no-underline"
+                      >
+                        {item.title}
+                      </a>
+                    </li>
+                  ))}
+                </ol>
+              </nav>
+            </section>
+          ) : null}
+          <section className="rounded-2xl bg-foreground p-5 text-background">
+            <p className="text-xs font-semibold uppercase tracking-[0.17em] text-background/55">
+              Reading principle
+            </p>
+            <p className="mt-3 text-sm leading-6 text-background/80">
+              Save what is useful. Question what is familiar. Share what moves
+              the work forward.
+            </p>
+          </section>
         </aside>
-      ) : null}
-      <PostShareSection url={shareUrl} title={post.title} />
-      <KeyHighlights slug={post.slug} />
-      <div className="prose-headings:scroll-mt-24 prose-a:text-foreground prose-pre:bg-muted/60">
-        {content}
       </div>
-      <FeedbackForm slug={post.slug} />
-      <RelatedPosts posts={relatedPosts} />
-      <div className="not-prose mt-10">
-        <PersonalizedFeedSection contextPostId={post.id} title="More for you" />
+
+      <div className="mx-auto mt-16 max-w-6xl border-t border-border/70 pt-12">
+        <RelatedPosts posts={relatedPosts} />
+        <div className="mt-10">
+          <PersonalizedFeedSection
+            contextPostId={post.id}
+            title="Continue your reading journey"
+          />
+        </div>
       </div>
       <JsonLd id="breadcrumbs-jsonld" data={breadcrumbs} />
       <JsonLd id="blogposting-jsonld" data={blogPosting} />

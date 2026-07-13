@@ -8,7 +8,10 @@ type PageProps = {
   params: Promise<{ slug: string }>;
 };
 
-async function getPage(slug: string, prismaModule?: typeof import("@/lib/prisma")) {
+async function getPage(
+  slug: string,
+  prismaModule?: typeof import("@/lib/prisma"),
+) {
   const moduleRef = prismaModule ?? (await import("@/lib/prisma"));
   const { prisma, isDatabaseEnabled } = moduleRef;
 
@@ -24,7 +27,9 @@ async function getPage(slug: string, prismaModule?: typeof import("@/lib/prisma"
   }
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const prismaModule = await import("@/lib/prisma");
   const { slug } = await params;
 
@@ -55,9 +60,12 @@ export default async function StaticPage({ params }: PageProps) {
       return (
         <article className="prose prose-neutral dark:prose-invert">
           <header className="not-prose mb-6 space-y-2">
-            <h1 className="text-3xl font-semibold tracking-tight">Page unavailable</h1>
+            <h1 className="text-3xl font-semibold tracking-tight">
+              Page unavailable
+            </h1>
             <p className="text-sm text-muted-foreground">
-              Configure the <code>DATABASE_URL</code> environment variable to load this page content.
+              Configure the <code>DATABASE_URL</code> environment variable to
+              load this page content.
             </p>
           </header>
         </article>
@@ -70,9 +78,18 @@ export default async function StaticPage({ params }: PageProps) {
   const content = await renderMdx(page.contentMdx);
 
   return (
-    <article className="prose prose-neutral dark:prose-invert">
-      <h1>{page.title}</h1>
-      <div className="prose-headings:scroll-mt-24 prose-pre:bg-muted/60">{content}</div>
+    <article className="mx-auto max-w-5xl">
+      <header className="mb-12 border-b border-border/70 pb-10 sm:pb-14">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+          {siteConfig.name}
+        </p>
+        <h1 className="text-balance mt-4 text-4xl font-semibold leading-tight tracking-[-0.04em] sm:text-6xl">
+          {page.title}
+        </h1>
+      </header>
+      <div className="prose prose-lg mx-auto max-w-3xl prose-neutral prose-headings:scroll-mt-24 prose-headings:tracking-[-0.025em] prose-p:leading-8 prose-a:text-primary prose-pre:rounded-2xl prose-pre:bg-foreground dark:prose-invert">
+        {content}
+      </div>
     </article>
   );
 }

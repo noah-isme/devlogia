@@ -66,9 +66,14 @@ export function LoginForm() {
   );
 
   return (
-    <form className="space-y-6" method="post" onSubmit={handleSubmit}>
-      <div className="space-y-2 text-center">
-        <h1 className="text-xl font-semibold">Welcome back</h1>
+    <form className="space-y-7" method="post" onSubmit={handleSubmit}>
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+          Secure access
+        </p>
+        <h1 className="text-3xl font-semibold tracking-[-0.035em]">
+          Welcome back
+        </h1>
         <p className="text-sm text-muted-foreground">
           Enter your admin credentials to continue.
         </p>
@@ -76,7 +81,14 @@ export function LoginForm() {
       <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
-          <Input id="email" name="email" type="email" required autoComplete="email" />
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            className="h-12 rounded-xl"
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
@@ -86,6 +98,7 @@ export function LoginForm() {
             type="password"
             required
             autoComplete="current-password"
+            className="h-12 rounded-xl"
           />
         </div>
       </div>
@@ -94,7 +107,11 @@ export function LoginForm() {
           {errorToShow}
         </p>
       ) : null}
-      <Button type="submit" className="w-full" disabled={isPending}>
+      <Button
+        type="submit"
+        className="h-12 w-full rounded-xl"
+        disabled={isPending}
+      >
         {isPending ? "Signing in…" : "Sign in"}
       </Button>
     </form>
