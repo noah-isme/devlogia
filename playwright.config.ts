@@ -26,7 +26,9 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "pnpm exec next dev --hostname 0.0.0.0 --port 3000",
+    command: process.env.CI
+      ? "pnpm start"
+      : "pnpm exec next dev --hostname 0.0.0.0 --port 3000",
     port: 3000,
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
