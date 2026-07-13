@@ -7,7 +7,7 @@ export type LogtailTransportOptions = {
 
 const DEFAULT_ENDPOINT = "https://in.logtail.com";
 
-export default async function logtailTransport(options: LogtailTransportOptions) {
+export default function logtailTransport(options: LogtailTransportOptions) {
   const token = options.token;
   if (!token) {
     throw new Error("Logtail transport requires a token");
