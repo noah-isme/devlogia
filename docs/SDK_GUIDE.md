@@ -1,55 +1,52 @@
-# Devlogia SDK Guide
+# Devlogia SDK guide (beta)
 
-The Devlogia SDK packages frequently used API flows into a lightweight TypeScript client. This guide covers installation, authentication, and module usage.
+`packages/sdk` contains the beta `@devlogia/sdk` TypeScript client. It is source-available in this workspace and is not part of the stable CMS/blog release contract.
 
-## Installation
+## Build and install
+
+Build from the repository:
+
+```bash
+pnpm sdk:build
+```
+
+The package emits CommonJS, ESM, and declarations to `packages/sdk/dist`. If the package is published to your configured registry, consumers can install it with:
 
 ```bash
 pnpm add @devlogia/sdk
 ```
 
-If you prefer npm or yarn:
-
-```bash
-npm install @devlogia/sdk
-# or
-yarn add @devlogia/sdk
-```
-
-## Authentication
-
-Obtain an SDK token from the Devlogia admin console. Set it in the environment as `SDK_PUBLISH_TOKEN` or pass it explicitly when instantiating the client:
+## Client
 
 ```ts
 import { DevlogiaSDK } from "@devlogia/sdk";
 
 const sdk = new DevlogiaSDK({
-  token: process.env.DEVLOGIA_PARTNER_TOKEN!,
-  baseUrl: "https://api.devlogia.com",
+  token: process.env.SDK_PUBLISH_TOKEN,
+  baseUrl: "http://localhost:3000",
   tenantId: "tenant_123",
 });
 ```
 
-The SDK automatically adds the bearer token to all requests and scopes queries to the optional `tenantId` query parameter.
+`token` falls back to `SDK_PUBLISH_TOKEN`. `baseUrl` defaults to `https://api.devlogia.com`; override it for local, staging, or self-hosted deployments. When present, `tenantId` is appended to request query strings.
 
-## Modules
+The HTTP client sends JSON-oriented bearer-token requests and records the most recent request latency in `globalThis.__DEVLOGIA_SDK_LAST_LATENCY__`.
 
-### Feed
+## Exported modules
+
+The current `DevlogiaSDK` class exposes:
+
+- `feed` — personal feed requests.
+- `insights` — summary/analytics requests.
+- `federation` — beta federation queries.
+- `auth` — beta SDK token exchange client.
+- `ai` — beta extension, workspace, and usage requests.
+
+Example:
 
 ```ts
 const { items } = await sdk.feed.list({ limit: 10, tag: "ai" });
-```
-
-### Insights
-
-```ts
 const summary = await sdk.insights.summary("30d");
-console.log(summary.topPages);
-```
-
-### Federation
-
-```ts
 const recommendations = await sdk.federation.query({
   query: "vector search",
   tags: ["llm"],
@@ -57,21 +54,25 @@ const recommendations = await sdk.federation.query({
 });
 ```
 
-### Auth
+## Route compatibility
 
-```ts
-const session = await sdk.auth.exchange({ apiKey: "tenant-api-key" });
+The SDK is ahead of the stable CMS release in a few places. Before integrating a method, compare its request path in `packages/sdk/src/modules/` with the App Router handlers in `src/app/api/`.
+
+In the 14 July 2026 audit:
+
+- `feed.list()` targets `/api/feed`, while the repository route is `/api/feed/personal`.
+- `insights.summary()` targets `/api/insights`, while the repository route is `/api/insights/summary`.
+- `auth.exchange()` targets `/api/auth/sdk-exchange`, which is not implemented.
+- `federation.query()` matches `/api/federation/query`.
+- AI methods match beta `/api/ai/*` and `/api/workspaces` routes, but those flows can require schema tables not covered by current migrations.
+
+Treat mismatched methods as unimplemented previews until the client and server paths are reconciled.
+
+## Publishing
+
+```bash
+pnpm sdk:build
+pnpm sdk:publish
 ```
 
-## Publishing Workflow
-
-The repository exposes helper scripts:
-
-- `pnpm sdk:build` – Builds the SDK with `tsup`.
-- `pnpm sdk:publish` – Publishes the package from `packages/sdk`.
-
-Ensure the environment variable `SDK_PUBLISH_TOKEN` is set in CI so SDK builds run authenticated end-to-end.
-
-## Observability
-
-SDK requests record latency in `globalThis.__DEVLOGIA_SDK_LAST_LATENCY__`. This integrates with the `sdk_latency_ms` metric surfaced in the admin metrics dashboard.
+`sdk:publish` publishes `@devlogia/sdk` with public access. Registry authentication is environment-specific; do not confuse the registry token with `SDK_PUBLISH_TOKEN`, which is the SDK client's runtime fallback token.

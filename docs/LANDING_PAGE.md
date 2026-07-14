@@ -4,6 +4,10 @@
 
 The Devlogia landing page has been redesigned to replace the sprint documentation view with a focused marketing page that communicates product value, drives sign-ups, and showcases key features.
 
+![Current landing page preview](assets/preview/landing.png)
+
+The preview was captured from the seeded application on 14 July 2026. See [`README.md`](README.md) for regeneration instructions and the rest of the application gallery.
+
 ## Architecture
 
 ### Routes
@@ -38,18 +42,21 @@ src/components/
 ## Sections
 
 ### 1. Hero Section
+
 - **Headline**: "Publish smarter. Grow faster."
 - **Subhead**: CMS modern dengan AI writing, SEO, dan analytics
-- **CTAs**: 
+- **CTAs**:
   - Primary: "Mulai Gratis" → `/admin/login`
   - Secondary: "Lihat Demo" → `/developers`
 - **Product Preview**: Tabbed interface showing Editor, AI Assist, Analytics
 
 ### 2. Social Proof
+
 - Logo strip showing trust indicators
 - Caption: "Dipercaya oleh kreator, tim konten, dan startup"
 
 ### 3. Features Grid (6 features)
+
 1. **AI Writer** - Draft → refine → publish dengan guardrails & audit
 2. **SEO Suite** - Schema, OG, JSON-LD, sitemaps otomatis
 3. **MDX Editor** - Komponen React di dalam konten
@@ -58,22 +65,28 @@ src/components/
 6. **Multi-tenant** - Tim & brand dalam satu atap
 
 ### 4. Personalization Section
+
 - Headline: "Feed yang beradaptasi dengan audiens"
 - Explains AI-powered content recommendations
 - Benefits: behavior-based learning, A/B testing, audience segmentation
 
 ### 5. Integrations Section
+
 - Headline: "Terhubung dengan stack Anda"
 - Shows integration logos: Stripe, Supabase, S3/R2, NextAuth, PostHog, Sentry, Algolia
 
 ### 6. Pricing Section
+
 Three plans with monthly/annual toggle:
+
 - **Free**: $0/month - 1 workspace, AI basic, custom domain add-on
 - **Pro**: $19/month - AI advanced, analytics pro, unlimited posts
 - **Enterprise**: Custom - SSO, SLA, custom quota, white-label
 
 ### 7. FAQ Section
+
 6 common questions in accordion format:
+
 - Migrasi dari WordPress
 - Kuota AI calculation
 - Plugin store availability
@@ -82,6 +95,7 @@ Three plans with monthly/annual toggle:
 - Education discounts
 
 ### 8. Final CTA
+
 - Strong final call-to-action
 - "Mulai menulis hari ini"
 - Emphasizes: "Gratis selamanya. Tidak perlu kartu kredit."
@@ -89,6 +103,7 @@ Three plans with monthly/annual toggle:
 ## Design System
 
 ### Typography
+
 - **H1**: 48-60px (text-4xl to text-6xl)
 - **H2**: 36-48px (text-3xl to text-4xl)
 - **H3**: 28-36px (text-xl to text-2xl)
@@ -96,6 +111,7 @@ Three plans with monthly/annual toggle:
 - **Font**: Inter (CSS variable)
 
 ### Colors (from globals.css)
+
 - **Background**: `hsl(var(--color-background))`
 - **Foreground**: `hsl(var(--color-foreground))`
 - **Primary**: `hsl(var(--color-primary))`
@@ -105,11 +121,13 @@ Three plans with monthly/annual toggle:
 Dark mode supported via `[data-theme="dark"]`
 
 ### Spacing
+
 - Uses Tailwind's spacing scale (4px base unit)
 - Section spacing: `space-y-24` between major sections
 - Component spacing: `space-y-4` to `space-y-8`
 
 ### Layout
+
 - Max width: `max-w-7xl` (1280px)
 - Responsive grid: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`
 - Padding: `px-4 sm:px-6 lg:px-8`
@@ -117,6 +135,7 @@ Dark mode supported via `[data-theme="dark"]`
 ## Accessibility
 
 ### WCAG AA Compliance
+
 - ✅ Contrast ratio ≥ 4.5:1 for all text
 - ✅ Focusable states with visible outlines
 - ✅ Skip-to-content link
@@ -125,12 +144,14 @@ Dark mode supported via `[data-theme="dark"]`
 - ✅ Semantic HTML structure
 
 ### Keyboard Navigation
+
 - Tab order is logical and follows visual flow
 - Accordion items: Arrow keys + Enter/Space
 - Tabs: Arrow keys for navigation
 - All interactive elements have visible focus states
 
 ### Screen Readers
+
 - Proper heading hierarchy (h1 → h2 → h3)
 - ARIA labels on interactive components
 - Alt text for decorative icons (aria-hidden)
@@ -139,11 +160,13 @@ Dark mode supported via `[data-theme="dark"]`
 ## Performance
 
 ### Targets
+
 - **LCP**: < 2.0s (Largest Contentful Paint)
 - **CLS**: < 0.02 (Cumulative Layout Shift)
 - **FID**: < 100ms (First Input Delay)
 
 ### Optimizations
+
 - Next.js Image optimization (when images added)
 - Server-side rendering for initial load
 - Minimal JavaScript for static sections
@@ -153,6 +176,7 @@ Dark mode supported via `[data-theme="dark"]`
 ## SEO
 
 ### Meta Tags
+
 ```tsx
 export const metadata: Metadata = {
   title: "Devlogia - Publish smarter. Grow faster.",
@@ -166,11 +190,13 @@ export const metadata: Metadata = {
 ```
 
 ### JSON-LD
+
 - Organization schema implemented in layout
 - WebSite schema for homepage
 - Breadcrumb schema for navigation
 
 ### Best Practices
+
 - Canonical URL set
 - Sitemap.xml generated
 - Robots.txt configured
@@ -180,26 +206,26 @@ export const metadata: Metadata = {
 ## Analytics & Conversion Tracking
 
 ### Key Events to Track
+
 1. **CTA Clicks**
    - Primary: "Mulai Gratis" (Hero, Final CTA)
    - Secondary: "Lihat Demo" (Hero)
-   
 2. **Navigation**
    - Features section scroll
    - Pricing section scroll
    - FAQ accordion interactions
-   
 3. **Pricing**
    - Plan card clicks
    - Billing toggle (Monthly/Annual)
-   
 4. **Engagement**
    - Tab switches in product preview
    - Time on page
    - Scroll depth
 
 ### Implementation
+
 Use existing `<Analytics />` component in layout. Track events with:
+
 ```tsx
 // Example tracking code (to be implemented)
 onClick={() => {
@@ -213,11 +239,9 @@ onClick={() => {
   - Single column layout
   - Stacked sections
   - Hamburger menu (future enhancement)
-  
 - **Tablet**: 640px - 1024px
   - 2-column grids
   - Visible navigation
-  
 - **Desktop**: > 1024px
   - 3-column grids for features
   - Full navigation
@@ -226,6 +250,7 @@ onClick={() => {
 ## Implementation Tasks
 
 ### Completed ✅
+
 - [x] LP-01: Implement Landing Route '/'
 - [x] LP-02: HeroPreview Tabs + autoplay
 - [x] LP-03: Feature Grid + Integrations
@@ -235,8 +260,10 @@ onClick={() => {
 - [x] LP-07: A11y features (skip link, ARIA)
 
 ### Future Enhancements 🔄
+
 - [ ] Add real integration logos (replace emoji placeholders)
-- [ ] Implement actual product preview screenshots/videos
+- [x] Add repository documentation screenshots generated by Playwright
+- [ ] Replace the hero's illustrative product-preview panel with approved product video or interactive media
 - [ ] Add analytics event tracking
 - [ ] A/B test headline variations
 - [ ] Add mobile hamburger menu
@@ -247,19 +274,21 @@ onClick={() => {
 ## Migration Notes
 
 ### Old Home Page
-The original blog listing has been moved to `/blog`. The old page.tsx is backed up at:
-```
-src/app/(public)/page.tsx.backup
-```
+
+The original blog listing lives at `/blog`. There is no checked-in backup page; use Git history if the pre-landing implementation is needed.
 
 ### Layout Changes
+
 The public layout has been updated to:
+
 - Use the new LandingNavbar component
 - Increase max-width to `max-w-7xl` for landing page
 - Add improved footer with multi-column links
 
 ### Content Updates
+
 To update copy, edit the respective component files in `src/components/landing/`:
+
 - Hero copy: `hero-section.tsx`
 - Feature descriptions: `features-grid.tsx`
 - Pricing details: `pricing-section.tsx`
@@ -268,6 +297,7 @@ To update copy, edit the respective component files in `src/components/landing/`
 ## Testing Checklist
 
 ### Manual Testing
+
 - [ ] All CTAs navigate correctly
 - [ ] Tabs switch without layout shift
 - [ ] Accordion expands/collapses smoothly
@@ -278,35 +308,42 @@ To update copy, edit the respective component files in `src/components/landing/`
 - [ ] Screen reader announces content properly
 
 ### Automated Testing
+
 ```bash
 # Build test
-npm run build
+pnpm build
 
-# Lighthouse (performance, a11y, SEO)
-npm run lighthouse
+# Lighthouse (performance, a11y, SEO; no package script is defined)
+pnpm dlx @lhci/cli@0.13.1 autorun --config=lighthouserc.json
 
 # Type checking
-npm run type-check
+pnpm typecheck
 
 # Linting
-npm run lint
+pnpm lint
+
+# Visual smoke and screenshots (requires seeded MySQL)
+pnpm exec playwright test tests/e2e/visual-smoke.spec.ts --project=chromium
 ```
 
 ## Deployment
 
 The landing page is production-ready and follows Next.js best practices:
+
 1. Static optimization where possible
 2. Server-side rendering for dynamic content
 3. Edge-ready (middleware disabled for compatibility)
 4. Environment variables properly configured
 
 Deploy with:
+
 ```bash
-npm run build
-npm start
+pnpm build
+pnpm start
 ```
 
 Or deploy to Vercel:
+
 ```bash
 vercel --prod
 ```
@@ -314,6 +351,7 @@ vercel --prod
 ## Support & Maintenance
 
 For questions or issues with the landing page:
+
 1. Check this documentation
 2. Review component files in `src/components/landing/`
 3. Verify environment variables are set
@@ -322,6 +360,6 @@ For questions or issues with the landing page:
 
 ---
 
-**Last Updated**: 2025-11-10
-**Version**: 1.0.0
+**Last Updated**: 2026-07-14
+**Version**: 1.0.1
 **Author**: Landing Page Redesign Team

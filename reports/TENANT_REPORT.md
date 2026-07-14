@@ -1,5 +1,7 @@
 # Devlogia Tenant Performance Report
 
+> Beta report template, not generated production data. Tenant analytics belongs to the platform foundation and requires the corresponding database migration before use.
+
 - **Tenant:** {{tenant_name}}
 - **Slug:** {{tenant_slug}}
 - **Period:** {{period}}
@@ -11,11 +13,11 @@
 
 ## Key Metrics
 
-| Metric | Value |
-| --- | --- |
-| Visits | {{visits}} |
-| AI Usage (USD) | {{ai_usage_usd}} |
-| Revenue (USD) | {{revenue_usd}} |
+| Metric           | Value                |
+| ---------------- | -------------------- |
+| Visits           | {{visits}}           |
+| AI Usage (USD)   | {{ai_usage_usd}}     |
+| Revenue (USD)    | {{revenue_usd}}      |
 | Federation Share | {{federation_share}} |
 
 ## Highlights

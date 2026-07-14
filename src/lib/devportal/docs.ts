@@ -13,16 +13,17 @@ const docs: DeveloperDoc[] = [
   {
     slug: ["auth"],
     title: "Authentication & Access",
-    description: "Authenticate requests with sandbox tokens and OAuth flows.",
+    description:
+      "Exercise the beta playground with short-lived sandbox tokens.",
     category: "Getting started",
     order: 1,
     content: `
 # Authentication
 
-Devlogia APIs require a bearer token on every request. Use the [sandbox token minting endpoint](/developers/playground) during development and switch to OAuth when publishing to production tenants.
+The current developer portal is beta. Use the [sandbox token minting endpoint](/developers/playground) to exercise the playground, then verify authentication on each target API route before integrating.
 
 <Callout title="Local development" type="info">
-  Configure \`DEVPORTAL_SANDBOX_API_KEY\` and run \`pnpm devportal:seed\` to mint scoped tokens for your sandbox workspace.
+  Configure \`DEVPORTAL_SANDBOX_API_KEY\` for the playground. The route validates a supplied \`X-Devportal-Sandbox-Key\`; returned random tokens expire after one hour and are not persisted.
 </Callout>
 
 ## Sandbox token flow
@@ -51,27 +52,20 @@ Devlogia APIs require a bearer token on every request. Use the [sandbox token mi
   ]}
 />
 
-Tokens expire after 1 hour. Refresh proactively using the \`X-Devportal-Sandbox-Key\` header.
-
-## OAuth for production
-
-1. Redirect users to \`https://devlogia.app/oauth/authorize\` with your client ID and requested scopes.
-2. Exchange the authorization code at \`https://api.devlogia.app/oauth/token\`.
-3. Store the returned access token securely and refresh before expiry.
-
-Scopes map directly to plugin permissions. Request the minimum set that unlocks your integration features.
+Tokens expire after 1 hour. The repository does not currently implement OAuth authorize/token routes, and the sandbox token is not a production tenant credential. Production ecosystem authentication remains future work.
 `,
   },
   {
     slug: ["sdk"],
     title: "TypeScript SDK",
-    description: "Use the official SDK for typed API calls and webhook helpers.",
+    description:
+      "Inspect the beta typed client and its current route compatibility.",
     category: "Getting started",
     order: 2,
     content: `
 # TypeScript SDK
 
-Install \`@devlogia/sdk\` to quickly integrate with APIs, webhook verifiers, and realtime helpers.
+The beta \`@devlogia/sdk\` package exposes feed, insights, federation, auth, and AI clients. Build it from this repository and verify route compatibility before use.
 
 \`\`\`bash
 pnpm add @devlogia/sdk
@@ -86,46 +80,33 @@ pnpm add @devlogia/sdk
       id: "ts",
       label: "TypeScript",
       language: "ts",
-      code: 'import { Devlogia } from "@devlogia/sdk";\n\nconst client = new Devlogia({\n  token: process.env.DEVLOGIA_TOKEN!,\n});\n\nconst submissions = await client.submissions.list();\n'
+      code: 'import { DevlogiaSDK } from "@devlogia/sdk";\n\nconst client = new DevlogiaSDK({\n  token: process.env.SDK_PUBLISH_TOKEN!,\n  baseUrl: "http://localhost:3000",\n});\n\nconst extensions = await client.ai.listExtensions({ tenantId: "tenant_123" });\n'
     },
     {
       id: "js",
       label: "JavaScript",
       language: "js",
-      code: 'const { Devlogia } = require("@devlogia/sdk");\n\nconst client = new Devlogia({ token: process.env.DEVLOGIA_TOKEN });\nclient.submissions.list().then(console.log);\n'
+      code: 'const { DevlogiaSDK } = require("@devlogia/sdk");\n\nconst client = new DevlogiaSDK({ token: process.env.SDK_PUBLISH_TOKEN });\nclient.federation.query({ query: "publishing" }).then(console.log);\n'
     },
     {
       id: "curl",
       label: "cURL",
       language: "bash",
-      code: 'curl -H "Authorization: Bearer $DEVLOGIA_TOKEN" https://api.devlogia.app/submissions\n'
+      code: 'curl -X POST -H "Authorization: Bearer $SDK_PUBLISH_TOKEN" -H "Content-Type: application/json" -d \'{"query":"publishing"}\' https://devlogia.app/api/federation/query\n'
     }
   ]}
 />
 
-## Webhook utilities
+## Compatibility note
 
-The SDK exports a \`createWebhookVerifier\` helper that understands the Devlogia signature scheme.
-
-\`\`\`ts
-import { createWebhookVerifier } from "@devlogia/sdk";
-
-const verify = createWebhookVerifier({ signingKey: process.env.WEBHOOK_SIGNING_KEY! });
-const result = verify({
-  payload: requestBody,
-  signature: request.headers.get("x-devlogia-signature")!,
-  timestamp: request.headers.get("x-devlogia-timestamp")!,
-  nonce: request.headers.get("x-devlogia-nonce")!,
-});
-\`\`\`
-
-The verifier automatically enforces the replay protection window defined by \`WEBHOOK_REPLAY_TTL_SEC\`.
+The SDK is ahead of stable CMS routes: feed, insights, and auth modules currently target paths that are not implemented under those exact names. Federation targets \`/api/federation/query\`; AI targets beta routes backed by models that may not be migrated. The SDK does not export a webhook verifier. See \`docs/SDK_GUIDE.md\` in the repository for the current mismatch inventory.
 `,
   },
   {
     slug: ["plugin", "api"],
     title: "Plugin API",
-    description: "Publish UI plugins that extend the editor and dashboard surfaces.",
+    description:
+      "Prototype plugin manifests and the in-memory review workflow.",
     category: "Build integrations",
     order: 1,
     content: `
@@ -152,15 +133,16 @@ Plugins can render components inside the Devlogia editor, dashboard, or analytic
 1. Draft your manifest locally.
 2. Upload via the [submission console](/developers/submissions).
 3. Wait for review feedback on the [internal console](/internal/reviews).
-4. Receive marketplace badges after approval.
+4. Inspect the review decision in the prototype console.
 
-Use the Webhook Tester to validate \`submission.updated\` payloads during review cycles.
+Submission/review records currently use an in-memory store; they are lost on restart and do not publish to a marketplace. Use the Webhook Tester to validate \`submission.updated\` payload delivery during prototype review cycles.
 `,
   },
   {
     slug: ["ai", "extensions"],
     title: "AI Extensions",
-    description: "Build AI-powered extensions that run on server, edge, or client runtimes.",
+    description:
+      "Inspect the beta AI-extension API and its migration requirements.",
     category: "Build integrations",
     order: 2,
     content: `
@@ -177,12 +159,12 @@ AI extensions augment author workflows with summarisation, rewriting, and federa
       id: "ts",
       label: "TypeScript",
       language: "ts",
-      code: 'import { defineExtension } from "@devlogia/sdk/extensions";\n\nexport default defineExtension({\n  surface: "editor",\n  runtime: "edge",\n  entry: "./src/index.ts",\n  scopes: ["ai:write", "content:read"],\n});\n'
+      code: 'const extension = await client.ai.createExtension({\n  tenantId: "tenant_123",\n  name: "Editorial helper",\n  provider: "openai",\n  model: "gpt-4o-mini",\n  capability: "writer",\n});\n'
     }
   ]}
 />
 
-Edge extensions run inside the Devlogia global edge runtime with access to fetch, cache, and KV primitives. Server extensions execute in your infrastructure and communicate using signed webhooks.
+The package does not currently export \`defineExtension\` or an \`@devlogia/sdk/extensions\` entry point. Extension persistence depends on beta tables that are not covered by the checked-in migrations.
 
 ## Usage metrics
 
@@ -192,13 +174,14 @@ Monitor \`playground_requests\`, \`submission_created\`, and \`submission_approv
   {
     slug: ["billing"],
     title: "Billing & Monetisation",
-    description: "Charge customers for premium extensions using Devlogia billing flows.",
+    description:
+      "Review the beta Stripe route foundation and release constraints.",
     category: "Operate",
     order: 1,
     content: `
 # Billing
 
-Devlogia handles subscription checkout, invoicing, and payouts. Configure pricing in the partner console and handle lifecycle webhooks.
+Billing routes and Stripe helpers exist as beta foundation code. Billing, product, order, revenue-split, and payout models are not covered by the checked-in migrations, so this flow is not part of the stable CMS release.
 
 ## Checkout session
 
@@ -209,7 +192,7 @@ Devlogia handles subscription checkout, invoicing, and payouts. Configure pricin
       id: "ts",
       label: "TypeScript",
       language: "ts",
-      code: 'const response = await client.billing.createCheckout({\n  productId: "prod_123",\n  returnUrl: "https://example.com/success",\n});\nwindow.location.href = response.url;\n'
+      code: 'const response = await fetch("/api/billing/checkout", {\n  method: "POST",\n  headers: { "Content-Type": "application/json" },\n  body: JSON.stringify({ productId: "prod_123", returnUrl: "https://example.com/success" }),\n});\n'
     },
     {
       id: "curl",
@@ -220,13 +203,14 @@ Devlogia handles subscription checkout, invoicing, and payouts. Configure pricin
   ]}
 />
 
-Payouts settle weekly once balances exceed your threshold. Track \`submission_approval_rate\` and \`avg_review_time_hours\` to optimise go-to-market velocity.
+The current SDK has no \`billing\` module. Do not promise settlement cadence or payouts until migrations, entitlement checks, Stripe lifecycle E2E coverage, and reconciliation operations are complete.
 `,
   },
   {
     slug: ["federation"],
     title: "Federation & Webhooks",
-    description: "Federate content across the Devlogia network and validate webhook signatures.",
+    description:
+      "Federate content across the Devlogia network and validate webhook signatures.",
     category: "Operate",
     order: 2,
     content: `
@@ -245,26 +229,32 @@ Use the [Webhook Tester](/developers/webhooks/tester) to send signed payloads to
       id: "ts",
       label: "TypeScript",
       language: "ts",
-      code: 'import { createWebhookVerifier } from "@devlogia/sdk";\n\nconst verify = createWebhookVerifier({ signingKey: process.env.WEBHOOK_SIGNING_KEY! });\n\nexport async function handler(request: Request) {\n  const signature = request.headers.get("x-devlogia-signature");\n  const timestamp = request.headers.get("x-devlogia-timestamp");\n  const nonce = request.headers.get("x-devlogia-nonce");\n  const body = await request.text();\n\n  if (!verify({ payload: body, signature, timestamp, nonce })) {\n    return new Response("Invalid signature", { status: 400 });\n  }\n\n  console.log("Received webhook", body);\n  return new Response(null, { status: 204 });\n}\n'
+      code: 'export async function handler(request: Request) {\n  const body = await request.text();\n  const signature = request.headers.get("x-devlogia-signature");\n  const timestamp = request.headers.get("x-devlogia-timestamp");\n  const nonce = request.headers.get("x-devlogia-nonce");\n\n  // Recompute HMAC-SHA256 over the exact body with WEBHOOK_SIGNING_KEY,\n  // compare signatures timing-safely, and reject stale or repeated nonces.\n  return new Response(null, { status: signature && timestamp && nonce ? 204 : 400 });\n}\n'
     }
   ]}
 />
 
-## Federation index
+The current SDK does not export a webhook verifier. The tester signs the serialized envelope with HMAC-SHA256 and sends signature, timestamp, and nonce headers; receiver-side verification remains the integrator's responsibility.
 
-Fetch the [Federation index](/developers/docs/federation) to discover partner surfaces and capabilities. Cache the response for at least 15 minutes to avoid unnecessary load.
+## Federation query
+
+The beta SDK federation module posts to \`/api/federation/query\`. It depends on federation data/models that are not in the stable CMS migration scope.
 `,
   },
 ];
 
 export const developerDocs = docs;
 
-export const getDeveloperDocs = cache(() => developerDocs.slice().sort((a, b) => a.order - b.order));
+export const getDeveloperDocs = cache(() =>
+  developerDocs.slice().sort((a, b) => a.order - b.order),
+);
 
 export function findDeveloperDoc(slug: string[]): DeveloperDoc | undefined {
   const normalised = slug.filter(Boolean).map((part) => part.toLowerCase());
   return developerDocs.find(
-    (doc) => doc.slug.length === normalised.length && doc.slug.every((part, index) => part === normalised[index]),
+    (doc) =>
+      doc.slug.length === normalised.length &&
+      doc.slug.every((part, index) => part === normalised[index]),
   );
 }
 
@@ -283,7 +273,11 @@ export const getDeveloperDocNav = cache(() => {
       items: [],
     };
 
-    section.items.push({ title: doc.title, href, description: doc.description });
+    section.items.push({
+      title: doc.title,
+      href,
+      description: doc.description,
+    });
     grouped.set(doc.category, section);
   }
 
@@ -305,7 +299,10 @@ export function extractDocHeadings(content: string) {
       }
       const [, hashes, title] = match;
       const level = hashes.length;
-      const cleaned = title.replace(/<[^>]+>/g, "").replace(/\`([^`]+)\`/g, "$1").trim();
+      const cleaned = title
+        .replace(/<[^>]+>/g, "")
+        .replace(/\`([^`]+)\`/g, "$1")
+        .trim();
       return cleaned
         ? {
             id: cleaned
@@ -318,7 +315,9 @@ export function extractDocHeadings(content: string) {
           }
         : null;
     })
-    .filter((entry): entry is { id: string; title: string; level: number } => Boolean(entry));
+    .filter((entry): entry is { id: string; title: string; level: number } =>
+      Boolean(entry),
+    );
 }
 
 export function listDocInternalLinks() {

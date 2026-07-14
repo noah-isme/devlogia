@@ -1,5 +1,7 @@
 # Phase 2 — CI + Polish Status
 
+> Historical phase record. Current local setup uses Docker Compose MySQL through `pnpm db:up` / `pnpm db:reset`; use the root README for the maintained quality-gate workflow.
+
 ## ✅ Delivered Enhancements
 
 - GitHub Actions workflow provisions MySQL 8, runs Prisma migrations/seeds, and executes lint → typecheck → unit → build → Playwright E2E.
@@ -38,11 +40,11 @@ pnpm test:e2e
 
 ## 🔌 Feature Flags & Environment Variables
 
-| Feature      | Variables |
-| ------------ | --------- |
-| Analytics    | `ANALYTICS_PROVIDER`, `ANALYTICS_DOMAIN`, `ANALYTICS_SCRIPT_URL`, `ANALYTICS_WEBSITE_ID` |
-| Newsletter   | `NEWSLETTER_PROVIDER`, `BUTTONDOWN_API_KEY`, `RESEND_API_KEY`, `RESEND_AUDIENCE_ID` |
-| Uploads      | `SUPABASE_*` credentials (local stub fallback by default) |
+| Feature    | Variables                                                                                |
+| ---------- | ---------------------------------------------------------------------------------------- |
+| Analytics  | `ANALYTICS_PROVIDER`, `ANALYTICS_DOMAIN`, `ANALYTICS_SCRIPT_URL`, `ANALYTICS_WEBSITE_ID` |
+| Newsletter | `NEWSLETTER_PROVIDER`, `BUTTONDOWN_API_KEY`, `RESEND_API_KEY`, `RESEND_AUDIENCE_ID`      |
+| Uploads    | `SUPABASE_*` credentials (local stub fallback by default)                                |
 
 Leave providers blank to disable the feature—the UI degrades gracefully.
 

@@ -1,135 +1,69 @@
-# CMS Revision, Scheduling, and Audit Trail Plan
+# CMS revisions and scheduled publishing audit
+
+Last verified: **14 July 2026**.
 
 ## Scope
 
-This plan covers CMS/blog only: `Post`, `Page`, editor autosave, admin post/page APIs, public `/blog`, and Playwright coverage. It intentionally excludes marketplace, workspaces, federation, tenant platform, and AI extension features.
+This document tracks the implemented CMS/blog revision and scheduling slice: `Post`, `Page`, editor autosave, admin APIs, audit entries, the scheduled publisher, and related tests. Marketplace, workspaces, federation, tenants, and AI extensions remain outside this audit.
 
-## Current Baseline
+## Implemented
 
-- `Post` already has `status` with `DRAFT`, `PUBLISHED`, and `SCHEDULED`, plus `publishedAt`.
-- `Page` has a boolean `published` flag but no scheduled publish timestamp.
-- `AuditLog` records CMS actions through `recordAuditLog`, including post/page create, update, publish, unpublish, and delete events.
-- The editor persists drafts through `/api/admin/posts` and `/api/admin/posts/[id]`, with localStorage recovery when autosave cannot reach the server.
-- There is no first-class revision table, no scheduler worker, and no normalized audit target type.
+### Revision storage
 
-## Schema Changes
+- `PostRevision` and `PageRevision` are defined in `prisma/schema.prisma`.
+- Migration `20260711130000_cms_priority2` creates both tables, indexes them by parent/time, and adds parent foreign keys.
+- Successful post/page creates and updates call snapshot helpers in `src/lib/cms/revisions.ts`.
+- Revision reasons are `autosave`, `manual`, `publish`, or `restore`.
+- Post snapshots include title, slug, summary, MDX, cover, status, and publish time. Page snapshots include title, slug, MDX, and published state.
 
-Add revision history tables:
+### Restore flow
 
-```prisma
-model PostRevision {
-  id          String   @id @default(cuid()) @db.VarChar(191)
-  postId      String   @db.VarChar(191)
-  version     Int
-  title       String   @db.VarChar(191)
-  slug        String   @db.VarChar(191)
-  summary     String?  @db.VarChar(512)
-  contentMdx  String   @db.LongText
-  coverUrl    String?  @db.VarChar(512)
-  status      PostStatus
-  tags        Json     @default("[]")
-  publishedAt DateTime?
-  authorId    String?  @db.VarChar(191)
-  createdById String?  @db.VarChar(191)
-  createdAt   DateTime @default(now())
+- `POST /api/admin/posts/[id]/revisions/[revisionId]/restore` restores a post snapshot, creates a new `restore` snapshot, and writes `post:restore_revision` to `AuditLog`.
+- `POST /api/admin/pages/[id]/revisions/[revisionId]/restore` restores a page snapshot and writes `page:restore_revision`.
+- The post editor and page manager display recent revisions and expose restore controls.
+- Restore helpers reject revision IDs that do not belong to the requested parent record.
 
-  @@unique([postId, version])
-  @@index([postId, createdAt])
-}
+### Scheduled publishing
 
-model PageRevision {
-  id          String   @id @default(cuid()) @db.VarChar(191)
-  pageId      String   @db.VarChar(191)
-  version     Int
-  title       String   @db.VarChar(191)
-  slug        String   @db.VarChar(191)
-  contentMdx  String   @db.LongText
-  published   Boolean
-  createdById String?  @db.VarChar(191)
-  createdAt   DateTime @default(now())
+- `Post.status` supports `DRAFT`, `SCHEDULED`, and `PUBLISHED`; `publishedAt` stores the due time.
+- `pnpm posts:publish-scheduled` runs `scripts/utils/publish-scheduled.ts`.
+- `publishDueScheduledPosts` selects up to 50 due scheduled posts ordered by due time, publishes them, writes `post:publish` with `source: scheduled-worker`, triggers outbound publish webhooks, and notifies search engines once per non-empty batch.
+- Filtering by `SCHEDULED` makes repeated runs idempotent for records already published.
+- The editor exposes status and publish-time inputs. RBAC continues to keep writers draft-only.
 
-  @@unique([pageId, version])
-  @@index([pageId, createdAt])
-}
+### Tests
+
+- Unit coverage verifies due-post publication and its audit/webhook behavior.
+- Revision helper tests verify snapshot/restore behavior.
+- Playwright covers post lifecycle and editor behavior, while visual smoke captures current editor views.
+
+## Known gaps
+
+- No deployment scheduler is declared in `vercel.json`; production must invoke `pnpm posts:publish-scheduled` from an external cron/container scheduler.
+- Pages use a boolean `published` flag and do not support scheduled publication.
+- Revision lists are loaded with their parent edit pages; there is no dedicated revision-detail/diff endpoint.
+- The page restore helper does not create an additional `restore` snapshot after applying the selected revision, unlike the post restore flow.
+- Scheduled publishing updates posts one at a time and does not wrap the content update, audit entry, and webhook in one transaction/outbox.
+- The scheduled-publishing behavior has unit coverage but no dedicated browser test that advances a due post through the command into the public journal.
+
+## Recommended next work
+
+1. Configure an authenticated production scheduler and monitor its exit/result count.
+2. Add an E2E flow for future scheduled post → due worker run → public visibility.
+3. Add revision detail/diff UI and explicit restore confirmation.
+4. Make page restore semantics consistent with post restore by recording the resulting snapshot.
+5. Consider transaction/outbox semantics so database publication and webhook delivery are recoverable independently.
+
+## Release check
+
+Before enabling scheduled publication in an environment:
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm test:e2e:full
 ```
 
-Extend scheduling fields:
-
-- Keep `Post.status = SCHEDULED` and `Post.publishedAt` as the scheduled time when status is scheduled.
-- Add `Page.publishedAt DateTime?` and `Page.status` only if pages need parity with posts. If page scheduling is not needed in v1, keep pages boolean-only and exclude them from the scheduler.
-
-Improve audit metadata without replacing the current table:
-
-- Add optional `targetType String? @db.VarChar(64)` to `AuditLog` for `post`, `page`, or `media`.
-- Keep `action` as the event name for compatibility: `post:create`, `post:update`, `post:publish`, `post:scheduled`, `post:delete`, `page:update`, and similar.
-
-## API Changes
-
-Revision history:
-
-- On successful `POST /api/admin/posts`, create revision `version=1` in the same transaction as the post.
-- On successful `PATCH /api/admin/posts/[id]`, create the next `PostRevision` only when editable fields changed.
-- Add `GET /api/admin/posts/[id]/revisions` to return revision metadata and optional selected snapshot.
-- Add `POST /api/admin/posts/[id]/revisions/[revisionId]/restore` to copy a revision back into the editable post fields, then create a new revision for the restore action.
-- Mirror the same pattern for pages if page revision history is in the release slice.
-
-Scheduled publishing:
-
-- Treat `status=SCHEDULED` with future `publishedAt` as a queued publish.
-- Reject `SCHEDULED` without `publishedAt` and reject past scheduled timestamps at the validation boundary.
-- Keep writers unable to publish or schedule by preserving the existing writer downgrade to `DRAFT`.
-- Emit `post:scheduled` when a post enters the scheduled state.
-
-Audit trail:
-
-- Wrap content mutations in transactions that write the content change, revision row, and audit log together where possible.
-- Include concise metadata: previous status, next status, slug, version, and scheduled timestamp. Do not store full content in `AuditLog.meta`; full snapshots belong in revision tables.
-
-## Worker Design
-
-Implement a small idempotent scheduler command first, then decide deployment mechanism:
-
-- Command: `pnpm cms:publish-scheduled` calls a server-side function that finds `Post` rows where `status=SCHEDULED` and `publishedAt <= now`.
-- Transaction per post: update status to `PUBLISHED`, keep `publishedAt`, create an audit log `post:publish`, trigger outbound publish webhook, and notify search engines.
-- Idempotency: filter by `SCHEDULED` so repeated runs do not republish the same post.
-- Deployment options: Vercel Cron hitting an authenticated route, container cron running the pnpm command, or CI scheduled workflow for lower environments.
-
-## UI Changes
-
-Post editor:
-
-- Add explicit schedule controls next to status and published date.
-- Show validation when scheduled timestamp is missing or in the past.
-- Show a revision panel with version, actor, timestamp, status, and restore action.
-- Preserve the existing autosave and local draft recovery UX.
-
-Pages:
-
-- Add revision panel if page revisions are included.
-- Add scheduling controls only if page scheduling is explicitly added to schema.
-
-Admin listings:
-
-- Keep the existing `Scheduled` post filter.
-- Display scheduled publish time for scheduled posts.
-- Add audit/revision links from post/page edit pages rather than changing public layout.
-
-## E2E Coverage
-
-Add or extend Playwright specs for:
-
-- Creating a draft, editing it twice, and seeing two or more revision entries.
-- Restoring an older post revision and verifying the editor content changes.
-- Scheduling a post for a future timestamp and verifying it remains hidden on `/blog`.
-- Running the scheduler against a due scheduled post and verifying it appears on `/blog`.
-- Verifying writer users cannot publish, schedule, restore another user's post, or delete another user's content.
-- Verifying audit entries are created for create, update, scheduled, publish, restore, and delete actions through an admin-visible audit endpoint or a test-only database assertion.
-
-## Rollout Steps
-
-1. Add Prisma migration for revisions and any audit metadata fields.
-2. Add revision writer helpers and unit tests around version increments.
-3. Transactionalize post/page mutation routes so content, revision, and audit writes stay consistent.
-4. Add scheduler service and command with unit tests for idempotent due-post selection.
-5. Add editor revision/scheduling UI with Playwright coverage.
-6. Run `pnpm typecheck`, `pnpm test`, and `pnpm test:e2e:full` before enabling scheduled publishing in production.
+Also execute the scheduler once against a seeded non-production database and confirm that only due `SCHEDULED` posts transition to `PUBLISHED`.

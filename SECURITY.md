@@ -2,9 +2,9 @@
 
 ## HTTP Security Headers
 
-The edge middleware (`src/proxy.ts`) enforces the following headers on every response:
+The proxy (`src/proxy.ts`) applies these headers to responses it handles:
 
-- `Content-Security-Policy`: `default-src 'self'; img-src 'self' https: data:; media-src 'self' https:; connect-src 'self' https:; frame-ancestors 'none'; report-uri <CSP_REPORT_URI>`
+- `Content-Security-Policy`: self-only defaults, HTTPS/data images, HTTPS media, inline styles/scripts, local fonts, restricted frames/base/forms, and an optional `report-uri`. Development/CI also allow eval and WebSocket sources for Next.js tooling.
 - `Strict-Transport-Security`: `max-age=63072000; includeSubDomains; preload`
 - `X-Frame-Options`: `DENY`
 - `X-Content-Type-Options`: `nosniff`
@@ -15,9 +15,9 @@ Set `CSP_REPORT_URI` to a collector URL (e.g. Sentry or Report URI) to capture v
 
 ## Authentication & RBAC
 
-* Admin routes live under `/admin`. The middleware requires an authenticated NextAuth session before routing.
-* RBAC logic resides in `src/lib/rbac.ts`. Audit all admin mutations to call `assertCan` with the proper resource context.
-* Session cookies must be marked `Secure` and `HttpOnly` (NextAuth does this by default in production).
+- Admin routes live under `/admin`. The middleware requires an authenticated NextAuth session before routing.
+- RBAC logic resides in `src/lib/rbac.ts`. Audit all admin mutations to call `assertCan` with the proper resource context.
+- Session cookies must be marked `Secure` and `HttpOnly` (NextAuth does this by default in production).
 
 ## Supabase Storage Policies
 
@@ -50,18 +50,18 @@ The upload utility (`src/lib/storage.ts`) enforces:
 
 - SHA-256 checksums for all uploads
 - MIME allowlist (`SUPABASE_ALLOWED_MIME_TYPES`) and max size (`SUPABASE_MAX_FILE_SIZE_MB`)
-- Server-side fallback to stub storage when Supabase fails
+- Local stub storage when Supabase is not fully configured. A configured Supabase upload error is surfaced; it does not silently fall back to local disk.
 
 ## Secret Rotation
 
-See `ROTATION.md` for detailed steps. Key highlights:
+See [`docs/ROTATION.md`](docs/ROTATION.md) for detailed steps. Key highlights:
 
-| Secret | Rotation | Notes |
-| --- | --- | --- |
-| `SUPABASE_SERVICE_ROLE_KEY` | Quarterly | Requires Supabase dashboard update + redeploy |
-| `LOGTAIL_TOKEN` | On leak | Update on Vercel + GitHub Actions |
-| `NEXTAUTH_SECRET` | Annual | Rotate after invalidating sessions |
-| `SENTRY_DSN` | On leak | Test event via `pnpm sentry test` |
+| Secret                      | Rotation  | Notes                                                                         |
+| --------------------------- | --------- | ----------------------------------------------------------------------------- |
+| `SUPABASE_SERVICE_ROLE_KEY` | Quarterly | Requires Supabase dashboard update + redeploy                                 |
+| `LOGTAIL_TOKEN`             | On leak   | Update on Vercel + GitHub Actions                                             |
+| `NEXTAUTH_SECRET`           | Annual    | Rotate after invalidating sessions                                            |
+| `SENTRY_DSN`                | On leak   | Trigger a controlled test event from the deployed app and verify it in Sentry |
 
 ## Credential Hygiene
 
@@ -73,11 +73,11 @@ See `ROTATION.md` for detailed steps. Key highlights:
 
 - `/api/health` includes database, storage, Redis, and rate limit diagnostics.
 - `/api/ready` fails when `MAINTENANCE_MODE=true` or when migrations are pending.
-- Configure alerting thresholds from `ALERTS.md` in your observability platform.
+- Configure alerting thresholds from [`docs/ALERTS.md`](docs/ALERTS.md) in your observability platform.
 
 ## Incident Response
 
 1. Enable maintenance mode (`MAINTENANCE_MODE=true`).
 2. Capture logs via Logtail search and Sentry timeline.
-3. Evaluate rollback plan in `ROLLOUT.md` if customer impact persists > 5 minutes.
+3. Evaluate the rollback plan in [`docs/ROLLOUT.md`](docs/ROLLOUT.md) if customer impact persists > 5 minutes.
 4. After mitigation, publish RCA and rotate impacted keys.

@@ -23,31 +23,21 @@ Ensure staging and production share the same Prisma schema and Supabase bucket p
 
 ## Required Environment Variables
 
-See `.env.example` for the complete list. The deployment scripts require the following at minimum:
+See `.env.example` for the complete list. `deploy:staging` currently requires all of these values to be non-empty:
 
 ```
 DATABASE_URL
 NEXT_PUBLIC_APP_URL
-NEXTAUTH_URL
-NEXTAUTH_SECRET
-```
-
-For production uploads, configure:
-
-```
 SUPABASE_URL
 SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY
 SUPABASE_STORAGE_BUCKET
-```
-
-For production monitoring and rate limiting, configure:
-
-```
 SENTRY_DSN
 LOGTAIL_TOKEN
 RATE_LIMIT_REDIS_URL
 ```
+
+The application itself also requires `NEXTAUTH_URL` and a strong `NEXTAUTH_SECRET` for authentication and preview tokens. The staging script does not currently validate those two keys, so verify them separately before deployment.
 
 Leave beta platform integrations disabled unless they are explicitly being tested in a non-production environment.
 
@@ -57,13 +47,13 @@ Leave beta platform integrations disabled unless they are explicitly being teste
 pnpm deploy:staging -- --staging https://staging.devlogia.app
 ```
 
-The script performs linting, unit tests, build, OpenAPI validation, database backup, and smoke tests before prompting for the platform-specific deploy command (Vercel/Fly/etc.).
+The script validates its required environment, then performs linting, unit tests, build, OpenAPI validation, a database backup, and Playwright smoke tests. It prepares the package but does not deploy or prompt; run the platform-specific deployment command afterwards.
 
 After deployment:
 
 1. Hit `/api/_version` and `/api/health` to confirm the new build and schema version.
 2. Run targeted CMS/blog end-to-end tests (`pnpm test:e2e` or `pnpm test:e2e:full` against the staging database).
-3. Inspect the Playwright HTML report and visual smoke screenshots for `/admin/login`, `/admin/dashboard`, `/blog`, and `/admin/posts/new`.
+3. Inspect the Playwright HTML report and all 19 visual smoke captures. Curated examples and the regeneration command are documented in the [root README](../README.md).
 4. Ensure Logtail and Sentry receive sample events.
 
 ## Production Promotion
@@ -72,7 +62,7 @@ After deployment:
 pnpm deploy:promote -- --staging https://staging.devlogia.app
 ```
 
-This script checks staging readiness, captures the version metadata, takes a production snapshot, and guides you through the alias promotion.
+This script checks staging readiness, logs version metadata, takes a production snapshot, and prints alias-promotion guidance. It does not change the production alias itself.
 
 Post-promotion checklist:
 
@@ -85,6 +75,8 @@ Post-promotion checklist:
 
 - Prisma migrations do not yet cover every model in `schema.prisma`. The CMS/blog tables are migrated; beta tenant, marketplace, workspace, and ecosystem tables need migration coverage before those features can be released.
 - Full E2E remains the final promotion gate for each target environment, because it validates database reset/seed, browser flows, and visual smoke output against that environment.
+
+The local documentation audit on 14 July 2026 passed lint, typecheck, 44 Vitest files / 133 tests, production build, and the visual Playwright smoke scenario. Those results validate the repository state only; rerun the gate against each release candidate and target environment.
 
 ## Rollback
 

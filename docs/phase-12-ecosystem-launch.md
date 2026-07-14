@@ -2,14 +2,14 @@
 
 ## Current Status
 
-Phase 12 is **not part of the current CMS/blog release scope**. Treat this document as a backlog and design brief for a future ecosystem launch.
+Phase 12 is **not part of the current CMS/blog release scope**. Treat this document as a backlog and design brief. A beta `/developers` portal, submissions/review screens, playground, webhook tester, API routes, and SDK foundation now exist, but the complete ecosystem described below is not production-ready.
 
 The current production release is limited to the CMS/blog product: public `/blog`, post/page publishing, media uploads, admin auth/RBAC, SEO feeds, and the related Playwright E2E/visual smoke coverage.
 
 Before Phase 12 can be promoted to release scope, complete the following prerequisites:
 
 - Add Prisma migrations for the ecosystem, partner, submission, review, plugin, extension, billing, and workspace tables that are referenced by schema or planned API flows.
-- Fix the current TypeScript gate, including the marketplace checkout product payload type issue.
+- Keep lint, typecheck, unit, and build gates green while beta modules evolve (all four passed in the 14 July 2026 documentation audit).
 - Build complete admin/partner UI flows for publishing, review, installation, entitlement, billing, and webhook testing.
 - Add E2E coverage for submission review, plugin installation, extension registration, checkout, webhook delivery, and developer portal playground flows.
 - Document production environment variables and failure modes for DocSearch, webhook signing, plugin scanning, billing, and sandbox credentials.

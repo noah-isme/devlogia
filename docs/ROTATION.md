@@ -29,7 +29,7 @@
 
 1. Create a new client key in Sentry → Project Settings → Client Keys.
 2. Update `SENTRY_DSN` in environment settings.
-3. Trigger a test event via `pnpm exec sentry-cli send-event`.
+3. Trigger a controlled test event from staging and verify that it reaches the replacement Sentry project/client key. The repository does not include a `sentry-cli` dependency or package script.
 4. Deploy staging, then production.
 5. Deactivate the old DSN in Sentry.
 

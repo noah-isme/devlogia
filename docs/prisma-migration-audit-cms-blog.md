@@ -2,7 +2,7 @@
 
 ## Scope
 
-This audit compares `prisma/schema.prisma` with the SQL migrations under `prisma/migrations/**`. It is limited to the CMS/blog release path: public blog browsing, post/page publishing, media uploads, admin auth/RBAC, SEO feeds, and the tests around those flows.
+This audit compares `prisma/schema.prisma` with the SQL migrations under `prisma/migrations/**` as of 14 July 2026. It is limited to the CMS/blog release path: public blog browsing, post/page publishing, revisions, scheduled publishing, media uploads, admin auth/RBAC, SEO feeds, and the tests around those flows.
 
 No schema or migration files were changed.
 
@@ -21,10 +21,12 @@ The CMS/blog release tables are created by `20250101000000_mysql_init`:
 - `Page`
 - `Media`
 - `AuditLog`
+- `PostRevision`
+- `PageRevision`
 
-The `Role.name` enum was extended by `20260710000000_extend_role_enum` to include `TENANTADMIN` and `VIEWER`, matching the current `RoleName` enum in `schema.prisma`.
+The `Role.name` enum was extended by `20260710000000_extend_role_enum` to include `TENANTADMIN` and `VIEWER`, matching the current `RoleName` enum in `schema.prisma`. Migration `20260711130000_cms_priority2` adds post/page revision tables and their foreign keys.
 
-These tables cover the core release flows: auth users, roles, post/page CRUD, tags, media metadata, and CMS audit logging.
+These tables cover the core release flows: auth users, roles, post/page CRUD, revision restore, tags, media metadata, and CMS audit logging. Scheduled posts reuse `Post.status` and `Post.publishedAt`, so the idempotent scheduled-publishing worker requires no additional table.
 
 ### Foundation tables covered by migrations
 

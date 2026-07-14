@@ -14,7 +14,7 @@ Platform modules for AI recommendations, tenants, workspaces, marketplace billin
 
 Operational caveats from the current audit:
 
-- The full TypeScript gate is blocked by a beta marketplace checkout type issue in `src/lib/billing/stripe/checkout.ts`.
+- Lint, TypeScript, unit tests, and production build pass as of 14 July 2026. The build still emits non-blocking notices for stale browser baseline data, database-disabled static rendering, unavailable Prisma `$use` middleware, and an edge-runtime page.
 - Prisma migrations do not yet cover every model in `schema.prisma`; deploy only the CMS/blog scope with the checked-in migrations until the beta platform tables receive migration coverage.
 
 ## 📦 Environment Overview
@@ -100,7 +100,8 @@ Server-side uploads use the service role key and bypass RLS; client-side preview
 
 ## 🩺 Health & Monitoring
 
-- The `/api/health` endpoint reports database latency and storage status. Hook this into uptime monitoring (Pingdom, Better Uptime, etc.).
+- The `/api/health` endpoint reports overall state plus database, storage, Redis, rate-limit, version, latency, and schema diagnostics. Hook it into uptime monitoring (Pingdom, Better Uptime, etc.).
+- The `/api/ready` endpoint returns HTTP 503 when maintenance mode is enabled, the database check fails, or migrations are pending; use it for readiness rather than liveness.
 - Logs are structured JSON via `pino`. Configure your platform's log drain to forward to Logtail, DataDog, or CloudWatch.
 - Enable Sentry by setting `SENTRY_DSN`, `SENTRY_TRACES_SAMPLE_RATE`, and `SENTRY_PROFILES_SAMPLE_RATE`. Adjust sampling for production traffic.
 
@@ -132,7 +133,7 @@ Server-side uploads use the service role key and bypass RLS; client-side preview
 
 ## 🔁 Data Migration Aids
 
-- `pnpm etl` — ETL script for migrating data from the legacy PostgreSQL database to MySQL.
+- `pnpm etl` — ETL helper for importing data from the legacy PostgreSQL source into MySQL.
 - `pnpm shadow:compare` — Compare JSON hashes between the legacy API and the new stack for parity verification.
 - Always run migrations in a staging environment before touching production data.
 

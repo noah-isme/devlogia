@@ -1,201 +1,54 @@
-# NextAuth JWT Troubleshooting
+# NextAuth JWT troubleshooting
 
-## ✅ FIXED: Centralized AUTH_SECRET Implementation
+Devlogia currently uses **NextAuth 4.24** with credential login and JWT sessions. `NEXTAUTH_SECRET` is the canonical environment key in `.env.example`, `.env.test`, `.env.ci`, and `.env.production.example`.
 
-**Status**: Issue resolved with single source of truth pattern.
+Middleware and the NextAuth configuration also accept `AUTH_SECRET` as a compatibility override:
 
-All JWT operations now use `src/lib/auth/secret.ts` which ensures:
-- ✅ Consistent secret across all processes (NextAuth, getToken, middleware)
-- ✅ Proper fallback mechanism (AUTH_SECRET → NEXTAUTH_SECRET)
-- ✅ Runtime validation with helpful error messages
-- ✅ Self-test endpoint at `/api/auth/self-test` for verification
-
----
-
-## Common Issue: JWE Decryption Failed
-
-### Symptoms
-- Error: `JWEDecryptionFailed: decryption operation failed`
-- Users can't login or get logged out randomly
-- Session errors in console
-
-### Root Causes
-
-#### 1. **Inconsistent SECRET between processes**
-- Token encrypted with secret A, server using secret B
-- NextAuth v5 uses `AUTH_SECRET`, v4 uses `NEXTAUTH_SECRET`
-- Multiple processes reading different env vars
-
-#### 2. **Old cookies with different encryption**
-- Secret was changed but old session cookies still exist
-- Browser still sending tokens encrypted with old secret
-
-#### 3. **Missing secret in specific routes**
-- API routes use one secret, middleware uses another (or default)
-- Edge runtime vs Node.js runtime using different configs
-
----
-
-## Solution (✅ IMPLEMENTED)
-
-### 1. Single Source of Truth Pattern
-
-**File: `src/lib/auth/secret.ts`** (centralized secret management)
-
-```typescript
-export const AUTH_SECRET =
-  process.env.AUTH_SECRET ??
-  process.env.NEXTAUTH_SECRET ??
-  (() => {
-    throw new Error("AUTH_SECRET/NEXTAUTH_SECRET missing");
-  })();
+```ts
+process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
 ```
 
-This ensures ALL parts of the app use the **exact same secret**:
-- NextAuth configuration (`authOptions`)
-- Token validation (`getToken`)
-- Middleware (if re-enabled)
-- Any custom auth logic
+CMS preview tokens read `NEXTAUTH_SECRET` directly, so deployments should always set a strong `NEXTAUTH_SECRET` even when `AUTH_SECRET` is also present.
 
-### 2. Set Consistent Secrets in `.env`
+## JWE decryption failures
 
-```bash
-# NextAuth v5 (primary)
-AUTH_SECRET="gmNVWP88UHPAwQOIdKN2WJeL6tXQWnQet2AcZVK6GJFrJRoOufcGmKSwaaVjR9dd"
-AUTH_URL="http://localhost:3000"
+Common symptoms include `JWEDecryptionFailed`, a login that immediately returns to `/admin/login`, or sessions disappearing between requests.
 
-# NextAuth v4 (backward compatibility)
-NEXTAUTH_SECRET="gmNVWP88UHPAwQOIdKN2WJeL6tXQWnQet2AcZVK6GJFrJRoOufcGmKSwaaVjR9dd"
-NEXTAUTH_URL="http://localhost:3000"
-```
+Likely causes:
 
-**Important**: 
-- Both secrets must have **exactly the same value**
-- Use 48+ characters for production (generated with `openssl rand -base64 48`)
+- The application instances use different secrets.
+- `NEXTAUTH_SECRET` changed while an old browser cookie remained.
+- Middleware and the server were started with different environment files.
+- `NEXTAUTH_URL` does not match the hostname/scheme used by the browser.
 
-### 3. Update Auth Configuration
+## Recovery
 
-**File: `src/lib/auth.ts`**
+1. Set one strong secret in the active environment:
 
-```typescript
-import { AUTH_SECRET } from "@/lib/auth/secret"; // ✅ Import centralized secret
-
-export const authOptions: NextAuthOptions = {
-  secret: AUTH_SECRET, // ✅ Single source of truth
-  session: { strategy: "jwt" },
-  // ... rest of config
-};
-```
-
-### 4. Update Token Validation
-
-**File: `src/proxy.ts`**
-
-```typescript
-import { AUTH_SECRET } from "@/lib/auth/secret"; // ✅ Import same secret
-
-export default async function proxy(request: NextRequest) {
-  const token = await getToken({ req: request, secret: AUTH_SECRET });
-  // ...
-}
-```
-
-### 5. Clear Browser Cookies & Next.js Cache
-
-After implementing the fix:
-
-1. **Clear Next.js build cache**:
    ```bash
-   rm -rf .next
-   pnpm dev
+   openssl rand -base64 48
    ```
 
-2. **Clear browser cookies**:
-   - Open DevTools → Application/Storage → Cookies
-   - Delete `next-auth.session-token` and `__Secure-next-auth.session-token`
-   - Or use **Incognito/Private mode** for testing
+   ```env
+   NEXTAUTH_SECRET="replace-with-the-generated-value"
+   NEXTAUTH_URL="http://localhost:3000"
+   ```
 
----
+2. If `AUTH_SECRET` is set by the hosting platform, either remove it or make it identical to `NEXTAUTH_SECRET`.
+3. Restart every application instance so all processes load the same value.
+4. Delete the `next-auth.session-token` cookie (and its secure-prefixed production equivalent), then sign in again.
+5. Test `GET /api/auth/self-test`. It should return `ok: true` without exposing the secret.
 
-## Verification Checklist
+## Verification checklist
 
-- [x] `src/lib/auth/secret.ts` created as single source of truth
-- [x] `AUTH_SECRET` and `NEXTAUTH_SECRET` have identical values in `.env`
-- [x] `authOptions` in `src/lib/auth.ts` imports and uses `AUTH_SECRET`
-- [x] All `getToken()` calls import and use `AUTH_SECRET`
-- [x] `.next` cache cleared after changes
-- [x] Server restarted with clean build
-- [x] Self-test endpoint created at `/api/auth/self-test`
+- `src/lib/auth.ts`, `middleware.ts`, and `src/proxy.ts` resolve the same secret.
+- `src/lib/cms/preview-token.ts` can read `NEXTAUTH_SECRET`.
+- `NEXTAUTH_URL` matches the external application URL.
+- Login redirects to `/admin/dashboard` and a refresh preserves the session.
+- `/admin` routes reject anonymous users and retain role restrictions after login.
 
-### Test Verification
+## Production rotation
 
-Run the self-test endpoint to confirm everything works:
+Changing `NEXTAUTH_SECRET` invalidates active JWT sessions and CMS preview tokens. Plan the rotation, update all instances atomically, redeploy, and communicate that users must sign in again. See [`ROTATION.md`](ROTATION.md) for the operational sequence.
 
-```bash
-curl http://localhost:3000/api/auth/self-test
-```
-
-Expected response:
-```json
-{
-  "ok": true,
-  "payload": { "ping": "pong", ... },
-  "secretLength": 64,
-  "message": "JWT encode/decode working correctly with AUTH_SECRET"
-}
-```
-
-If `"ok": false`, check:
-1. `.env` file has both `AUTH_SECRET` and `NEXTAUTH_SECRET` set
-2. Both values are identical
-3. Server was restarted after changes
-
----
-
-## Generate New Secret (if needed)
-
-```bash
-# Generate secure 32-byte secret
-openssl rand -base64 32
-```
-
-Or:
-
-```bash
-# Using Node.js
-node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-```
-
----
-
-## Production Considerations
-
-1. **Never commit secrets** to Git
-2. **Use different secrets** for dev/staging/production
-3. **Rotate secrets** periodically (requires user re-login)
-4. **Set `trustHost: true`** if behind proxy/load balancer
-
-```typescript
-export const authOptions: NextAuthOptions = {
-  secret: process.env.AUTH_SECRET,
-  trustHost: true, // ✅ For production behind proxy
-  // ...
-};
-```
-
----
-
-## Related Files
-
-- `src/lib/auth.ts` - Main auth configuration
-- `src/app/api/auth/[...nextauth]/route.ts` - Auth API handler
-- `src/proxy.ts` - Token validation in middleware
-- `.env` - Environment variables
-
----
-
-## References
-
-- [NextAuth.js v5 Migration](https://authjs.dev/getting-started/migrating-to-v5)
-- [JWT Strategy](https://next-auth.js.org/configuration/options#jwt)
-- [JWE Encryption](https://jose.dev/jwe/compact/decrypt)
+Never log, paste, or commit a real secret. The values in checked-in environment templates are placeholders for local/test use only.

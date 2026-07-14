@@ -14,9 +14,13 @@ export default function DevelopersLandingPage() {
           <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
             Phase 12B · Developer experience
           </span>
-          <h1 className="text-4xl font-bold tracking-tight">Build, launch, and scale on Devlogia</h1>
+          <h1 className="text-4xl font-bold tracking-tight">
+            Build, launch, and scale on Devlogia
+          </h1>
           <p className="text-lg text-muted-foreground">
-            Access production-ready documentation, OpenAPI playground, submission workflow, and secure webhook tooling in a single portal.
+            Explore the beta SDK and platform APIs, OpenAPI playground,
+            in-memory submission workflow, and webhook testing tools in one
+            portal.
           </p>
           <div className="flex flex-wrap gap-3">
             <Button asChild>
@@ -31,11 +35,19 @@ export default function DevelopersLandingPage() {
 
       <section className="grid gap-6 md:grid-cols-3">
         {featured.map((item) => (
-          <article key={item.href} className="flex flex-col gap-2 rounded-xl border border-border bg-background p-6 shadow-sm transition hover:-translate-y-1 hover:shadow">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Featured doc</p>
+          <article
+            key={item.href}
+            className="flex flex-col gap-2 rounded-xl border border-border bg-background p-6 shadow-sm transition hover:-translate-y-1 hover:shadow"
+          >
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Featured doc
+            </p>
             <h2 className="text-lg font-semibold">{item.title}</h2>
             <p className="text-sm text-muted-foreground">{item.description}</p>
-            <Link href={item.href} className="mt-auto text-sm font-medium text-primary hover:underline">
+            <Link
+              href={item.href}
+              className="mt-auto text-sm font-medium text-primary hover:underline"
+            >
               Explore →
             </Link>
           </article>
@@ -46,12 +58,19 @@ export default function DevelopersLandingPage() {
         <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-6">
           <h2 className="text-xl font-semibold">Submission workflow</h2>
           <p className="text-sm text-muted-foreground">
-            Submit plugins and AI extensions, monitor review status, and capture marketplace badges. Real-time updates keep partners aligned with internal reviewers.
+            Exercise the current in-memory plugin/extension submission and
+            review prototype before persistent ecosystem tables are migrated.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li>• Draft manifests and upload via the submission console.</li>
-            <li>• Reviewers collaborate in the internal console with checklists and notes.</li>
-            <li>• Approved integrations automatically surface in the marketplace with earned badges.</li>
+            <li>
+              • Reviewers collaborate in the internal console with checklists
+              and notes.
+            </li>
+            <li>
+              • Review decisions stay in process memory and do not publish to a
+              production marketplace.
+            </li>
           </ul>
           <div className="flex gap-3">
             <Button asChild size="sm">
@@ -65,7 +84,10 @@ export default function DevelopersLandingPage() {
         <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-6">
           <h2 className="text-xl font-semibold">Telemetry & tooling</h2>
           <p className="text-sm text-muted-foreground">
-            Track key metrics like <code>playground_requests</code>, <code>submission_created</code>, and <code>rate_limit_block_count</code> across the portal. Use the webhook tester to validate signatures before going live.
+            Track key metrics like <code>playground_requests</code>,{" "}
+            <code>submission_created</code>, and{" "}
+            <code>rate_limit_block_count</code> across the portal. Use the
+            webhook tester to validate signatures before going live.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li>• Sandbox API playground with automatic bearer tokens.</li>
