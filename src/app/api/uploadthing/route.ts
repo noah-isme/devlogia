@@ -45,7 +45,7 @@ async function uploadWithFallback(buffer: Buffer, filename: string, mimeType: st
   } catch (error) {
     if (isSupabaseStorageEnabled()) {
       logger.error({ err: error }, "Supabase upload failed, switching to stub storage");
-      configureStorage({ supabaseUrl: "", supabaseBucket: "", supabaseServiceRoleKey: "" });
+      configureStorage({ supabaseUrl: "", supabaseBucket: "", supabaseSecretKey: "" });
       try {
         return await uploadBuffer(buffer, filename, mimeType);
       } finally {

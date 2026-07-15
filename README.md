@@ -117,7 +117,7 @@ Operational/API routes:
 Use `.env.example` as the complete local reference, `.env.test` for deterministic tests, and `.env.production.example` as the deployment checklist. Important groups are:
 
 - Core: `DATABASE_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `NEXT_PUBLIC_APP_URL`.
-- Storage: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET`.
+- Storage: `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_STORAGE_BUCKET`.
 - AI: `AI_PROVIDER`, model variables, provider keys, and rate-limit/TTL settings.
 - Operations: `MAINTENANCE_MODE`, `RATE_LIMIT_REDIS_URL`, `SENTRY_*`, `LOGTAIL_TOKEN`, and CSP reporting.
 - Optional/beta: analytics, newsletter, tenant, billing, federation, SDK, and developer-portal variables.

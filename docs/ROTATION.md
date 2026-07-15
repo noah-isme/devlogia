@@ -2,11 +2,10 @@
 
 ## Supabase Keys
 
-1. Generate new keys via Supabase Dashboard → Settings → API.
+1. Generate a new secret key via Supabase Dashboard → Settings → API Keys.
 2. Update the following secrets in CI/CD and hosting provider:
    - `SUPABASE_URL`
-   - `SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `SUPABASE_SECRET_KEY`
 3. Redeploy staging with `pnpm deploy:staging` and verify uploads.
 4. Promote to production via `pnpm deploy:promote`.
 5. Revoke the old keys in Supabase once both environments confirm `/api/ready`.

@@ -29,7 +29,7 @@ describe("storage", () => {
     configureStorage({
       supabaseUrl: "",
       supabaseBucket: "",
-      supabaseServiceRoleKey: "",
+      supabaseSecretKey: "",
       localUploadDir: tmpDir,
       maxFileSizeBytes: 1024,
       allowedMimeTypes: ["text/plain"],
@@ -66,7 +66,7 @@ test("uploadBuffer rejects disallowed mime types", async () => {
   configureStorage({
     supabaseUrl: "",
     supabaseBucket: "",
-    supabaseServiceRoleKey: "",
+    supabaseSecretKey: "",
     localUploadDir: path.join(os.tmpdir(), "devlogia-invalid"),
     allowedMimeTypes: ["image/png"],
     maxFileSizeBytes: 1024,
@@ -80,7 +80,7 @@ test("uploadBuffer enforces size limits", async () => {
   configureStorage({
     supabaseUrl: "",
     supabaseBucket: "",
-    supabaseServiceRoleKey: "",
+    supabaseSecretKey: "",
     localUploadDir: path.join(os.tmpdir(), "devlogia-size"),
     allowedMimeTypes: ["text/plain"],
     maxFileSizeBytes: 4,

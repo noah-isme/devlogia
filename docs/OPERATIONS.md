@@ -32,8 +32,7 @@ Operational caveats from the current audit:
 | Secret                      | Rotation Cadence                                            | Where to Update                                         |
 | --------------------------- | ----------------------------------------------------------- | ------------------------------------------------------- |
 | `DATABASE_URL`              | Rotate when credentials change or cluster is reprovisioned. | GitHub Actions, deployment platform, `.env.production`. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Treat as highly privileged (server-only). Rotate quarterly. | CI secrets, serverless runtime env vars.                |
-| `SUPABASE_ANON_KEY`         | Public clients. Rotate annually or on leak.                 | `NEXT_PUBLIC_SUPABASE_URL/BUCKET`, web runtime.         |
+| `SUPABASE_SECRET_KEY`       | Treat as highly privileged (server-only). Rotate quarterly. | CI secrets, serverless runtime env vars.                |
 | `NEXTAUTH_SECRET`           | Rotate annually or on incident.                             | CI/deployment env.                                      |
 | `SENTRY_DSN`                | On demand.                                                  | Deployment env + CI (optional).                         |
 
@@ -89,12 +88,12 @@ create policy "Authenticated write"
   with check (bucket_id = 'devlogia-media');
 ```
 
-Server-side uploads use the service role key and bypass RLS; client-side previews rely on the public bucket flag.
+Server-side uploads use a secret key and bypass RLS; client-side previews rely on the public bucket flag.
 
 ### Key Rotation
 
-1. Generate a new service-role key in the Supabase dashboard (`Settings → API`).
-2. Update CI secrets (`SUPABASE_SERVICE_ROLE_KEY`) and deployment environment variables.
+1. Generate a new secret key in the Supabase dashboard (`Settings → API Keys`).
+2. Update CI secrets (`SUPABASE_SECRET_KEY`) and deployment environment variables.
 3. Redeploy the application.
 4. Revoke the old key once the rollout is confirmed.
 

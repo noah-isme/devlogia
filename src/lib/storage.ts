@@ -18,7 +18,7 @@ export type UploadResult = {
 export type StorageConfig = {
   supabaseUrl: string;
   supabaseBucket: string;
-  supabaseServiceRoleKey: string;
+  supabaseSecretKey: string;
   localUploadDir: string;
   maxFileSizeBytes: number;
   allowedMimeTypes: string[];
@@ -28,7 +28,7 @@ const defaultConfig: StorageConfig = {
   supabaseUrl: process.env.SUPABASE_URL ?? "",
   supabaseBucket:
     process.env.SUPABASE_STORAGE_BUCKET ?? process.env.NEXT_PUBLIC_SUPABASE_BUCKET ?? "",
-  supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
+  supabaseSecretKey: process.env.SUPABASE_SECRET_KEY ?? "",
   localUploadDir: process.env.LOCAL_UPLOAD_DIR ?? path.join(process.cwd(), "public", "uploads"),
   maxFileSizeBytes:
     Number.parseInt(process.env.SUPABASE_MAX_FILE_SIZE_MB ?? "10", 10) * 1024 * 1024 || 10 * 1024 * 1024,
@@ -52,7 +52,7 @@ export function getStorageConfig(): StorageConfig {
 
 export function isSupabaseStorageEnabled() {
   const config = getStorageConfig();
-  return Boolean(config.supabaseUrl && config.supabaseBucket && config.supabaseServiceRoleKey);
+  return Boolean(config.supabaseUrl && config.supabaseBucket && config.supabaseSecretKey);
 }
 
 function getSupabaseClient(): SupabaseClient {
@@ -61,7 +61,7 @@ function getSupabaseClient(): SupabaseClient {
   }
 
   if (!supabaseClient) {
-    supabaseClient = createClient(cachedConfig.supabaseUrl, cachedConfig.supabaseServiceRoleKey, {
+    supabaseClient = createClient(cachedConfig.supabaseUrl, cachedConfig.supabaseSecretKey, {
       auth: { persistSession: false },
       global: { headers: { "X-Client-Info": "devlogia-storage" } },
     });

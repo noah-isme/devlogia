@@ -58,7 +58,7 @@ See [`docs/ROTATION.md`](docs/ROTATION.md) for detailed steps. Key highlights:
 
 | Secret                      | Rotation  | Notes                                                                         |
 | --------------------------- | --------- | ----------------------------------------------------------------------------- |
-| `SUPABASE_SERVICE_ROLE_KEY` | Quarterly | Requires Supabase dashboard update + redeploy                                 |
+| `SUPABASE_SECRET_KEY`       | Quarterly | Requires Supabase dashboard update + redeploy                                 |
 | `LOGTAIL_TOKEN`             | On leak   | Update on Vercel + GitHub Actions                                             |
 | `NEXTAUTH_SECRET`           | Annual    | Rotate after invalidating sessions                                            |
 | `SENTRY_DSN`                | On leak   | Trigger a controlled test event from the deployed app and verify it in Sentry |
