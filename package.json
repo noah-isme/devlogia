@@ -48,6 +48,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",
+    "prisma:seed:production": "tsx --env-file=.env prisma/seed-production.ts",
     "embeddings:generate": "tsx scripts/utils/generate-embeddings.ts",
     "insights:ai-report": "tsx scripts/ai/ai-report.ts",
     "ai:usage-report": "tsx scripts/ai/ai-usage-report.ts",
