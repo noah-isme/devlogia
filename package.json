@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postinstall": "prisma generate",
     "analyze": "next build --analyze",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
