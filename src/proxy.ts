@@ -57,9 +57,27 @@ export default async function proxy(request: NextRequest) {
   let response: NextResponse | null = null;
 
   try {
-    // Use inline secret - same as authOptions
+    const isAdminPage = pathname.startsWith("/admin");
+    const isAdminApi = pathname.startsWith("/api/admin");
+    const isLoginPage = pathname === "/admin/login";
     const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
-    const token = await getToken({ req: request, secret });
+    const requiresAuth = (isAdminPage && !isLoginPage) || isAdminApi;
+
+    if (requiresAuth && !secret) {
+      console.error("[Proxy] No AUTH_SECRET or NEXTAUTH_SECRET configured");
+      response = isAdminApi
+        ? NextResponse.json(
+            { error: "Server configuration error" },
+            { status: 500 },
+          )
+        : NextResponse.redirect(new URL("/admin/login", request.url));
+      return response;
+    }
+
+    const token =
+      secret && (isAdminPage || isAdminApi)
+        ? await getToken({ req: request, secret })
+        : null;
 
     if (process.env.MAINTENANCE_MODE === "true") {
       const maintenanceAllowed =
@@ -77,17 +95,38 @@ export default async function proxy(request: NextRequest) {
       }
     }
 
-    if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
+    if (requiresAuth) {
       if (!token) {
+        if (isAdminApi) {
+          response = NextResponse.json(
+            { error: "Unauthorized" },
+            { status: 401 },
+          );
+          return response;
+        }
         const loginUrl = new URL("/admin/login", request.url);
-        loginUrl.searchParams.set("callbackUrl", request.nextUrl.pathname + request.nextUrl.search);
+        loginUrl.searchParams.set(
+          "callbackUrl",
+          request.nextUrl.pathname + request.nextUrl.search,
+        );
         response = NextResponse.redirect(loginUrl);
+        return response;
+      }
+
+      if (token.isActive === false) {
+        response = isAdminApi
+          ? NextResponse.json({ error: "Account disabled" }, { status: 403 })
+          : NextResponse.redirect(
+              new URL("/admin/login?error=disabled", request.url),
+            );
         return response;
       }
     }
 
-    if (pathname === "/admin/login" && token) {
-      response = NextResponse.redirect(new URL("/admin/dashboard", request.url));
+    if (isLoginPage && token) {
+      response = NextResponse.redirect(
+        new URL("/admin/dashboard", request.url),
+      );
       return response;
     }
 
