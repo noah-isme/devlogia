@@ -5,6 +5,7 @@ import { Analytics } from "@/components/analytics";
 import { JsonLd } from "@/components/json-ld";
 import { TelemetryProvider } from "@/components/telemetry-provider";
 import { LandingNavbar } from "@/components/landing/landing-navbar";
+import { billingFrontendEnabled } from "@/lib/features";
 import { buildOrganizationJsonLd, siteConfig } from "@/lib/seo";
 
 type PublicLayoutProps = {
@@ -49,14 +50,16 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
                       Features
                     </Link>
                   </li>
-                  <li>
-                    <Link
-                      href="/#pricing"
-                      className="transition hover:text-background"
-                    >
-                      Pricing
-                    </Link>
-                  </li>
+                  {billingFrontendEnabled ? (
+                    <li>
+                      <Link
+                        href="/#pricing"
+                        className="transition hover:text-background"
+                      >
+                        Pricing
+                      </Link>
+                    </li>
+                  ) : null}
                   <li>
                     <Link
                       href="/admin/marketplace"

@@ -8,7 +8,17 @@ const integrations = [
   { name: "Algolia", logo: "🔍" },
 ];
 
-export function IntegrationsSection() {
+type IntegrationsSectionProps = {
+  showBilling?: boolean;
+};
+
+export function IntegrationsSection({
+  showBilling = false,
+}: IntegrationsSectionProps) {
+  const visibleIntegrations = showBilling
+    ? integrations
+    : integrations.filter((integration) => integration.name !== "Stripe");
+
   return (
     <section className="py-16 space-y-8">
       <div className="text-center space-y-4">
@@ -20,7 +30,7 @@ export function IntegrationsSection() {
         </p>
       </div>
       <div className="flex flex-wrap items-center justify-center gap-6">
-        {integrations.map((integration) => (
+        {visibleIntegrations.map((integration) => (
           <div
             key={integration.name}
             className="flex items-center gap-3 rounded-xl border border-border bg-card px-6 py-4 shadow-sm transition hover:shadow-md"

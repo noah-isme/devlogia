@@ -7,13 +7,16 @@ import { IntegrationsSection } from "@/components/landing/integrations-section";
 import { PricingSection } from "@/components/landing/pricing-section";
 import { FAQSection } from "@/components/landing/faq-section";
 import { FinalCTA } from "@/components/landing/final-cta";
+import { billingFrontendEnabled } from "@/lib/features";
 
 export const metadata: Metadata = {
   title: "Devlogia - Publish smarter. Grow faster.",
-  description: "CMS modern dengan AI writing, SEO, dan analytics untuk kreator & tim. MDX editor, personalized feeds, dan marketplace extensions.",
+  description:
+    "CMS modern dengan AI writing, SEO, dan analytics untuk kreator & tim. MDX editor, personalized feeds, dan marketplace extensions.",
   openGraph: {
     title: "Devlogia - Modern CMS with AI",
-    description: "CMS modern dengan AI writing, SEO, dan analytics untuk kreator & tim.",
+    description:
+      "CMS modern dengan AI writing, SEO, dan analytics untuk kreator & tim.",
     type: "website",
   },
 };
@@ -27,10 +30,12 @@ export default function LandingPage() {
         <FeaturesGrid />
       </div>
       <PersonalizationSection />
-      <IntegrationsSection />
-      <div id="pricing">
-        <PricingSection />
-      </div>
+      <IntegrationsSection showBilling={billingFrontendEnabled} />
+      {billingFrontendEnabled ? (
+        <div id="pricing">
+          <PricingSection />
+        </div>
+      ) : null}
       <FAQSection />
       <FinalCTA />
     </div>
