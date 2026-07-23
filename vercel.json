@@ -1,12 +1,7 @@
 {
   "version": 2,
   "framework": "nextjs",
-  "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm build",
-  "outputDirectory": ".next",
-  "routes": [
-    { "src": "/api/health", "dest": "/api/health" }
-  ],
+  "buildCommand": "prisma generate && next build",
   "crons": [
     {
       "path": "/api/cron/publish-scheduled",
