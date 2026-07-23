@@ -60,7 +60,7 @@ export default async function EditPostPage({ params }: PageProps) {
   let loadError: unknown | null = null;
   type EditablePost = Prisma.PostGetPayload<{ include: { tags: { include: { tag: true } } } }>;
   let post: EditablePost | null = null;
-  let revisions: Array<{ id: string; reason: string; title: string; status: EditablePost["status"]; createdAt: Date }> = [];
+  let revisions: Array<{ id: string; reason: string; title: string; summary: string | null; contentMdx: string; status: EditablePost["status"]; createdAt: Date }> = [];
 
   try {
     post = await prisma.post.findUnique({
@@ -71,7 +71,7 @@ export default async function EditPostPage({ params }: PageProps) {
       where: { postId: id },
       orderBy: { createdAt: "desc" },
       take: 10,
-      select: { id: true, reason: true, title: true, status: true, createdAt: true },
+      select: { id: true, reason: true, title: true, summary: true, contentMdx: true, status: true, createdAt: true },
     });
   } catch (error) {
     loadError = error;

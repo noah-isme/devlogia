@@ -80,5 +80,55 @@ export function useEditorUpload({ latestState, setPost, setAutosaveState }: UseE
     }
   }
 
-  return { fileInputRef, uploadState, uploadMessage, openFileDialog, handleFileChange };
+  async function handleUrlImport(imageUrl: string) {
+    if (!imageUrl || (!imageUrl.startsWith("http://") && !imageUrl.startsWith("https://"))) {
+      setUploadState("error");
+      setUploadMessage("Masukkan URL gambar yang valid (http/https).");
+      return;
+    }
+
+    setUploadState("uploading");
+    setUploadMessage(null);
+
+    try {
+      const response = await fetch("/api/uploadthing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: imageUrl }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(`URL import failed with status ${response.status}`);
+      }
+
+      const data = await response.json();
+      const uploaded = data.files?.[0];
+
+      if (!uploaded?.url) {
+        throw new Error("Import response missing URL");
+      }
+
+      const alt = uploaded.alt || "Imported Image";
+
+      setPost((prev) => {
+        const next = {
+          ...prev,
+          coverUrl: uploaded.url,
+          contentMdx: `${prev.contentMdx.trimEnd()}\n\n![${alt}](${uploaded.url})\n`,
+        };
+        latestState.current = next;
+        return next;
+      });
+      setAutosaveState("idle");
+      setUploadState("success");
+      setUploadMessage("Gambar dari URL berhasil diimpor dan disimpan.");
+    } catch (error) {
+      console.error("URL import failed", error);
+      setUploadState("error");
+      setUploadMessage("Gagal mengimpor gambar dari URL.");
+    }
+  }
+
+  return { fileInputRef, uploadState, uploadMessage, openFileDialog, handleFileChange, handleUrlImport };
 }

@@ -21,6 +21,10 @@ The curated screenshots were captured with Playwright against the seeded product
 The production release scope is the CMS/blog experience:
 
 - Public landing page, journal, search, tags, archive, post detail, static pages, and newsletter page.
+- **Automated Multi-Language MDX Translation**: Pipeline preserving code snippets and MDX tags while auto-translating posts into Indonesian, Spanish, French, German, Japanese, Chinese, and English (`/api/ai/translate` & `/api/posts/translate`).
+- **Text-to-Speech (TTS) Audio Article Player**: Clean narration prose extraction, estimated reading duration, chapter generation, and glassmorphic Web Speech API player with playback speed controls (`0.75x`–`2.0x`) and animated audio waves (`/api/tts` & `<AudioArticlePlayer />`).
+- **Editorial Approval Pipeline**: Structured multi-tier editorial approval workflow (`DRAFT` → `IN_REVIEW` → `CHANGES_REQUESTED` → `APPROVED` → `PUBLISHED` / `SCHEDULED`) with review queue dashboard (`/admin/reviews` & `/api/admin/posts/[id]/review`).
+- **API Key & Access Token Manager**: Environment API key loading (`DEVPORTAL_SANDBOX_API_KEY`, `FEDERATION_API_KEY`, `DEVLOGIA_SDK_TOKEN`, `API_KEYS`), cryptographically secure scoped token issuance (`devlogia_sk_...`), scope validation, and Admin Console UI (`/admin/api-keys` & `/api/admin/api-keys`).
 - Admin authentication, dashboard, RBAC, posts, pages, revisions, scheduled publishing, media, users, audit log, settings, and analytics.
 - MDX editing with autosave, local recovery, preview, AI-assist controls, cover media, and tags.
 - RSS, sitemap, Open Graph images, structured data, health/readiness endpoints, rate limiting, telemetry, and webhook revalidation.
@@ -34,8 +38,9 @@ Tenant workspaces, marketplace/billing, plugins/extensions, federation, recommen
 | ------- | ------------------------------------------------------- |
 | Web     | Next.js 16 App Router, React 19, Tailwind CSS 4         |
 | Data    | Prisma 6.18, MySQL 8                                    |
-| Auth    | NextAuth 4 credentials provider with JWT sessions       |
+| Auth    | NextAuth 4 credentials provider with JWT sessions & Scoped API Keys |
 | Content | MDX through `next-mdx-remote`, remark, and rehype       |
+| Audio   | Web Speech API & TTS cleaner narration engine           |
 | Media   | Supabase Storage with a local `public/uploads` fallback |
 | Tests   | Vitest, Testing Library, and Playwright                 |
 | API     | App Router route handlers and generated OpenAPI         |
@@ -57,6 +62,8 @@ Open:
 - Public site: <http://localhost:3000>
 - Journal: <http://localhost:3000/blog>
 - Admin login: <http://localhost:3000/admin/login>
+- Editorial Review Queue: <http://localhost:3000/admin/reviews>
+- API Keys & Access Tokens: <http://localhost:3000/admin/api-keys>
 - Developer portal (beta): <http://localhost:3000/developers>
 
 The deterministic seed creates these local accounts:
@@ -83,7 +90,7 @@ devlogia/
 ├── scripts/              Database, deploy, reporting, and maintenance commands
 ├── src/app/              App Router pages and API route handlers
 ├── src/components/       Public, admin, editor, and developer-portal UI
-├── src/lib/              Auth, CMS, storage, API, telemetry, and domain helpers
+├── src/lib/              Auth, CMS, security, AI translation, TTS, telemetry, and domain helpers
 ├── tests/e2e/            Playwright browser tests
 └── openapi.yaml          Generated API schema
 ```
@@ -100,12 +107,16 @@ Public routes:
 
 Admin routes:
 
-- `/admin/dashboard`, `/admin/posts`, `/admin/pages`, `/admin/media`, `/admin/users`, and `/admin/audit`
+- `/admin/dashboard`, `/admin/posts`, `/admin/reviews`, `/admin/api-keys`, `/admin/pages`, `/admin/media`, `/admin/users`, and `/admin/audit`
 - `/admin/analytics`, `/admin/insights`, `/admin/topics`, and `/admin/settings`
 - `/admin/workspaces`, `/admin/federation`, `/admin/marketplace/revenue`, and `/admin/ai/extensions` (beta)
 
 Operational/API routes:
 
+- `/api/ai/translate` & `/api/posts/translate` perform multi-language MDX translation while keeping code blocks & tags intact.
+- `/api/tts` extracts clean audio narration prose, estimated duration, and chapter breakdown for articles.
+- `/api/admin/posts/[id]/review` & `/api/admin/reviews` manage the editorial review queue pipeline.
+- `/api/admin/api-keys` & `/api/admin/api-keys/[id]` list, issue, and revoke scoped API keys and access tokens.
 - `/api/health` reports component status, latency, version, schema state, and rate-limit diagnostics.
 - `/api/ready` returns `503` during maintenance, database failure, or pending migrations.
 - `/api/docs` renders interactive Swagger UI for the checked-in schema.

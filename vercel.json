@@ -6,5 +6,11 @@
   "outputDirectory": ".next",
   "routes": [
     { "src": "/api/health", "dest": "/api/health" }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/publish-scheduled",
+      "schedule": "*/5 * * * *"
+    }
   ]
 }

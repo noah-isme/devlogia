@@ -1,17 +1,9 @@
 import type { ComponentPropsWithoutRef } from "react";
-
 import { cn } from "@/lib/utils";
+import { InteractiveCodeBlock } from "@/mdx-components/InteractiveCodeBlock";
 
-export function Pre({ className, ...props }: ComponentPropsWithoutRef<"pre">) {
-  return (
-    <pre
-      className={cn(
-        "overflow-x-auto rounded-lg border border-border bg-muted/60 p-4 text-sm",
-        className,
-      )}
-      {...props}
-    />
-  );
+export function Pre(props: ComponentPropsWithoutRef<"pre">) {
+  return <InteractiveCodeBlock {...props} />;
 }
 
 export function InlineCode({

@@ -66,24 +66,58 @@ export async function POST(request: Request) {
   const prismaModule = await import("@/lib/prisma");
   const { prisma } = prismaModule;
 
-  const formData = await request.formData().catch(() => null);
-  if (!formData) {
-    return NextResponse.json({ error: "Invalid form data" }, { status: 400 });
+  let buffer: Buffer;
+  let originalName: string;
+  let mimeType: string | undefined;
+
+  const contentType = request.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    const json = await request.json().catch(() => ({}));
+    const imageUrl = typeof json.url === "string" ? json.url.trim() : "";
+
+    if (!imageUrl || (!imageUrl.startsWith("http://") && !imageUrl.startsWith("https://"))) {
+      return NextResponse.json({ error: "Valid HTTP/HTTPS image URL is required" }, { status: 400 });
+    }
+
+    try {
+      const res = await fetch(imageUrl);
+      if (!res.ok) {
+        return NextResponse.json({ error: `Failed to fetch image from URL: ${res.statusText}` }, { status: 400 });
+      }
+
+      const fetchedBlob = await res.blob();
+      buffer = Buffer.from(await fetchedBlob.arrayBuffer());
+      mimeType = fetchedBlob.type || "image/jpeg";
+      
+      const parsedUrl = new URL(imageUrl);
+      const pathnameName = parsedUrl.pathname.split("/").pop();
+      originalName = pathnameName && pathnameName.includes(".") ? pathnameName : "imported-image.jpg";
+    } catch (err) {
+      logger.error({ err }, `Failed to import image from URL: ${imageUrl}`);
+      return NextResponse.json({ error: "Failed to download image from URL" }, { status: 400 });
+    }
+  } else {
+    const formData = await request.formData().catch(() => null);
+    if (!formData) {
+      return NextResponse.json({ error: "Invalid form data or JSON body" }, { status: 400 });
+    }
+
+    const file = formData.get("file");
+    if (!(file instanceof Blob)) {
+      return NextResponse.json({ error: "Missing file in upload form" }, { status: 400 });
+    }
+
+    const asFile = file as File;
+    originalName = typeof asFile.name === "string" && asFile.name ? asFile.name : "upload.bin";
+    mimeType = asFile.type;
+    buffer = Buffer.from(await asFile.arrayBuffer());
   }
 
-  const file = formData.get("file");
-  if (!(file instanceof Blob)) {
-    return NextResponse.json({ error: "Missing file" }, { status: 400 });
-  }
-
-  const asFile = file as File;
-  const originalName = typeof asFile.name === "string" && asFile.name ? asFile.name : "upload.bin";
   const altText = normalizeFileName(originalName);
 
-  const buffer = Buffer.from(await asFile.arrayBuffer());
-
   try {
-    const uploadResult = await uploadWithFallback(buffer, originalName, asFile.type);
+    const uploadResult = await uploadWithFallback(buffer, originalName, mimeType);
 
     const media = await persistMedia(prisma, {
       path: uploadResult.path,

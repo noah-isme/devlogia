@@ -1,3 +1,5 @@
+import Script from "next/script";
+
 const script = `(() => {
   try {
     const storageKey = "devlogia-theme";
@@ -16,5 +18,12 @@ const script = `(() => {
 })();`;
 
 export function ThemeScript() {
-  return <script dangerouslySetInnerHTML={{ __html: script }} suppressHydrationWarning />;
+  return (
+    // eslint-disable-next-line @next/next/no-before-interactive-script-outside-document
+    <Script
+      id="theme-initializer"
+      strategy="beforeInteractive"
+      dangerouslySetInnerHTML={{ __html: script }}
+    />
+  );
 }

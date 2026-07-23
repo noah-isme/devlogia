@@ -16,10 +16,13 @@ export function HeroSection() {
         </p>
         <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
           <Button asChild size="lg" className="min-w-[140px]">
-            <Link href="/admin/login">Mulai Gratis</Link>
+            <Link href="/blog">Explore Articles 📖</Link>
           </Button>
           <Button asChild variant="outline" size="lg" className="min-w-[140px]">
-            <Link href="/developers">Lihat Demo</Link>
+            <Link href="/admin/login">Start Writing</Link>
+          </Button>
+          <Button asChild variant="ghost" size="lg" className="min-w-[140px]">
+            <Link href="/developers">API Docs</Link>
           </Button>
         </div>
       </div>

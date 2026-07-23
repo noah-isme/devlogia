@@ -2,7 +2,7 @@
 
 This directory separates current operating guidance from historical delivery notes. `README.md`, `package.json`, `.env.example`, Prisma migrations/schema, App Router routes, and executable tests are the implementation sources of truth.
 
-Last synchronized with the codebase: **14 July 2026**.
+Last synchronized with the codebase: **23 July 2026**.
 
 ## Current documentation
 
@@ -13,11 +13,11 @@ Last synchronized with the codebase: **14 July 2026**.
 | [`OPERATIONS.md`](OPERATIONS.md)                                           | Runtime, monitoring, MySQL, storage, and incident operations                  |
 | [`BACKUP_RESTORE.md`](BACKUP_RESTORE.md)                                   | Backup/restore commands and recovery checks                                   |
 | [`ALERTS.md`](ALERTS.md)                                                   | SLOs, alert conditions, routing, and runbook links                            |
-| [`ROTATION.md`](ROTATION.md)                                               | Secret and credential rotation                                                |
-| [`AUTH_TROUBLESHOOTING.md`](AUTH_TROUBLESHOOTING.md)                       | Canonical NextAuth 4/JWT troubleshooting                                      |
+| [`ROTATION.md`](ROTATION.md)                                               | Secret and API key credential rotation                                        |
+| [`AUTH_TROUBLESHOOTING.md`](AUTH_TROUBLESHOOTING.md)                       | Canonical NextAuth 4/JWT troubleshooting & Scoped API Key authentication      |
 | [`SDK_GUIDE.md`](SDK_GUIDE.md)                                             | Current beta SDK surface and known route constraints                          |
 | [`LANDING_PAGE.md`](LANDING_PAGE.md)                                       | Landing page structure and maintenance notes                                  |
-| [`PROMPTS.md`](PROMPTS.md)                                                 | AI prompt templates used by editor tooling                                    |
+| [`PROMPTS.md`](PROMPTS.md)                                                 | AI prompt templates used by editor tooling & multi-language translation       |
 | [`prisma-migration-audit-cms-blog.md`](prisma-migration-audit-cms-blog.md) | Current migration coverage and beta-model risks                               |
 
 ## Plans and beta specifications

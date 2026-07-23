@@ -113,7 +113,7 @@ export function can(user: Actor, action: string, resource?: Resource) {
   if (role === "writer") {
     const own = resource?.authorId === user.id;
     if (action === "post:create") return true;
-    if (action === "post:update" || action === "post:delete") {
+    if (action === "post:update" || action === "post:delete" || action === "post:submit_review") {
       return own;
     }
     if (action === "ai:use") return true;

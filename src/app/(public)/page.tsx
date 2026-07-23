@@ -9,6 +9,8 @@ import { FAQSection } from "@/components/landing/faq-section";
 import { FinalCTA } from "@/components/landing/final-cta";
 import { billingFrontendEnabled } from "@/lib/features";
 
+import { FeaturedArticles, type FeaturedArticleItem } from "@/components/landing/featured-articles";
+
 export const metadata: Metadata = {
   title: "Devlogia - Publish smarter. Grow faster.",
   description:
@@ -21,10 +23,37 @@ export const metadata: Metadata = {
   },
 };
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  let featuredArticles: FeaturedArticleItem[] = [];
+
+  try {
+    const prismaModule = await import("@/lib/prisma");
+    const { isDatabaseEnabled, prisma } = prismaModule;
+    if (isDatabaseEnabled) {
+      const posts = await prisma.post.findMany({
+        where: { status: "PUBLISHED" },
+        orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+        take: 3,
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          summary: true,
+          coverUrl: true,
+          publishedAt: true,
+          tags: { select: { tag: { select: { name: true, slug: true } } } },
+        },
+      });
+      featuredArticles = posts;
+    }
+  } catch (error) {
+    console.error("Failed to load featured landing articles", error);
+  }
+
   return (
     <div className="space-y-24 pb-24">
       <HeroSection />
+      {featuredArticles.length > 0 ? <FeaturedArticles articles={featuredArticles} /> : null}
       <SocialProof />
       <div id="features">
         <FeaturesGrid />

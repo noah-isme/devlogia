@@ -46,7 +46,7 @@ export default async function PagesPage() {
       where: { pageId: { in: summaries.map((page) => page.id) } },
       orderBy: { createdAt: "desc" },
       take: 50,
-      select: { id: true, pageId: true, reason: true, title: true, createdAt: true },
+      select: { id: true, pageId: true, reason: true, title: true, contentMdx: true, createdAt: true },
     });
     summaries = summaries.map((page) => ({
       ...page,
@@ -57,6 +57,7 @@ export default async function PagesPage() {
           id: revision.id,
           reason: revision.reason,
           title: revision.title,
+          contentMdx: revision.contentMdx,
           createdAt: revision.createdAt.toISOString(),
         })),
     }));

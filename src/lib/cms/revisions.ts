@@ -10,6 +10,10 @@ type PostSnapshot = {
   readonly summary: string | null;
   readonly contentMdx: string;
   readonly coverUrl: string | null;
+  readonly seoTitle?: string | null;
+  readonly seoDescription?: string | null;
+  readonly canonicalUrl?: string | null;
+  readonly ogImageUrl?: string | null;
   readonly status: PostStatus;
   readonly publishedAt: Date | null;
 };
@@ -44,6 +48,10 @@ type PostRevisionRestoreClient = {
       readonly summary: string | null;
       readonly contentMdx: string;
       readonly coverUrl: string | null;
+      readonly seoTitle?: string | null;
+      readonly seoDescription?: string | null;
+      readonly canonicalUrl?: string | null;
+      readonly ogImageUrl?: string | null;
       readonly status: PostStatus;
       readonly publishedAt: Date | null;
     } | null>;
@@ -66,6 +74,7 @@ type PageRevisionRestoreClient = {
       readonly contentMdx: string;
       readonly published: boolean;
     } | null>;
+    create(input: { data: Prisma.PageRevisionUncheckedCreateInput }): Promise<unknown>;
   };
   readonly page: {
     update(input: { where: { id: string }; data: Prisma.PageUpdateInput }): Promise<unknown>;
@@ -91,6 +100,10 @@ export async function createPostRevisionSnapshot(input: {
       summary: input.post.summary,
       contentMdx: input.post.contentMdx,
       coverUrl: input.post.coverUrl,
+      seoTitle: input.post.seoTitle ?? null,
+      seoDescription: input.post.seoDescription ?? null,
+      canonicalUrl: input.post.canonicalUrl ?? null,
+      ogImageUrl: input.post.ogImageUrl ?? null,
       status: input.post.status,
       publishedAt: input.post.publishedAt,
     },
@@ -135,6 +148,10 @@ export async function restorePostRevision(input: {
       summary: revision.summary,
       contentMdx: revision.contentMdx,
       coverUrl: revision.coverUrl,
+      seoTitle: revision.seoTitle,
+      seoDescription: revision.seoDescription,
+      canonicalUrl: revision.canonicalUrl,
+      ogImageUrl: revision.ogImageUrl,
       status: revision.status,
       publishedAt: revision.publishedAt,
     },
@@ -149,6 +166,10 @@ export async function restorePostRevision(input: {
       summary: revision.summary,
       contentMdx: revision.contentMdx,
       coverUrl: revision.coverUrl,
+      seoTitle: revision.seoTitle,
+      seoDescription: revision.seoDescription,
+      canonicalUrl: revision.canonicalUrl,
+      ogImageUrl: revision.ogImageUrl,
       status: revision.status,
       publishedAt: revision.publishedAt,
     },
@@ -179,6 +200,17 @@ export async function restorePageRevision(input: {
   await input.prisma.page.update({
     where: { id: input.pageId },
     data: {
+      title: revision.title,
+      slug: revision.slug,
+      contentMdx: revision.contentMdx,
+      published: revision.published,
+    },
+  });
+  await input.prisma.pageRevision.create({
+    data: {
+      pageId: input.pageId,
+      userId: input.userId,
+      reason: "restore",
       title: revision.title,
       slug: revision.slug,
       contentMdx: revision.contentMdx,

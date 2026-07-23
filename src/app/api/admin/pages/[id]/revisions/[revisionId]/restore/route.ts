@@ -25,5 +25,11 @@ export async function POST(
   }
 
   const page = await prisma.page.findUnique({ where: { id } });
-  return NextResponse.json({ page });
+  const revisions = await prisma.pageRevision.findMany({
+    where: { pageId: id },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+    select: { id: true, reason: true, title: true, contentMdx: true, createdAt: true },
+  });
+  return NextResponse.json({ page, revisions });
 }

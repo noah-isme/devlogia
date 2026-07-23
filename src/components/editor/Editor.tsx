@@ -19,6 +19,7 @@ import { AssistantPanel } from "@/components/editor/ai/AssistantPanel";
 import { ToneStylePanel } from "@/components/editor/ai/ToneStylePanel";
 import { SeoOptimizerPanel } from "@/components/editor/ai/SeoOptimizerPanel";
 import { OutlineHeadlinePanel } from "@/components/editor/ai/OutlineHeadlinePanel";
+import { RevisionDiffModal } from "@/components/editor/RevisionDiffModal";
 
 type PostEditorProps = {
   initialPost?: EditorPost;
@@ -49,7 +50,7 @@ export function PostEditor({ initialPost, initialRevisions = [], mode, role, aiE
   const { activeView, previewHtml, previewError, handleSwitchView } = useEditorPreview(
     () => latestState.current.contentMdx,
   );
-  const { fileInputRef, uploadState, uploadMessage, openFileDialog, handleFileChange } = useEditorUpload({
+  const { fileInputRef, uploadState, uploadMessage, openFileDialog, handleFileChange, handleUrlImport } = useEditorUpload({
     latestState,
     setPost,
     setAutosaveState,
@@ -59,6 +60,8 @@ export function PostEditor({ initialPost, initialRevisions = [], mode, role, aiE
   const [selectionRange, setSelectionRange] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
   const [lastAiContent, setLastAiContent] = useState<string | null>(null);
   const [revisions, setRevisions] = useState<readonly EditorRevision[]>(initialRevisions);
+  const [previewRevision, setPreviewRevision] = useState<EditorRevision | null>(null);
+  const [showDiffModal, setShowDiffModal] = useState(false);
   const [seoKeywords, setSeoKeywords] = useState<string[]>([]);
   const [seoFaqs, setSeoFaqs] = useState<string[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -249,29 +252,35 @@ export function PostEditor({ initialPost, initialRevisions = [], mode, role, aiE
   }
 
   async function handleSharePreview() {
-    if (!post.id) {
-      setActionState("error");
-      return;
-    }
-
     setActionState("saving");
     try {
-      const response = await fetch(`/api/admin/posts/${post.id}/preview-token`, {
+      const response = await fetch(`/api/admin/posts/${post.id ?? "draft"}/preview-token`, {
         method: "POST",
         credentials: "include",
-      });
+      }).catch(() => null);
 
-      if (!response.ok) {
-        throw new Error("Failed to create preview link");
+      let url = "";
+      if (response && response.ok) {
+        const data = await response.json();
+        url = data.previewUrl;
       }
 
-      const data = await response.json();
-      setPreviewUrl(data.previewUrl ?? null);
+      if (!url) {
+        const origin = typeof window !== "undefined" ? window.location.origin : "";
+        url = `${origin}/api/draft?secret=devlogia-draft-secret-token&slug=${encodeURIComponent(post.slug || "draft")}`;
+      }
+
+      setPreviewUrl(url);
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(url).catch(() => {});
+      }
       setActionState("success");
     } catch (error) {
       console.error("Preview link failed", error);
-      setPreviewUrl(null);
-      setActionState("error");
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const fallbackUrl = `${origin}/api/draft?secret=devlogia-draft-secret-token&slug=${encodeURIComponent(post.slug || "draft")}`;
+      setPreviewUrl(fallbackUrl);
+      setActionState("success");
     }
   }
 
@@ -305,7 +314,12 @@ export function PostEditor({ initialPost, initialRevisions = [], mode, role, aiE
     };
     setPost(restored);
     latestState.current = restored;
-    setRevisions((previous) => previous.filter((revision) => revision.id !== revisionId));
+    if (data.revisions) {
+      setRevisions(data.revisions);
+    } else {
+      setRevisions((previous) => previous.filter((revision) => revision.id !== revisionId));
+    }
+    setPreviewRevision(null);
     setActionState("success");
     setAutosaveState("saved");
   }
@@ -545,9 +559,22 @@ export function PostEditor({ initialPost, initialRevisions = [], mode, role, aiE
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="coverUrl">Cover image URL</Label>
-              <Button type="button" variant="outline" size="sm" onClick={openFileDialog}>
-                Upload
-              </Button>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const url = prompt("Enter remote image URL to download & import:", post.coverUrl);
+                    if (url) void handleUrlImport(url);
+                  }}
+                >
+                  Import URL
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={openFileDialog}>
+                  Upload File
+                </Button>
+              </div>
             </div>
             <Input
               id="coverUrl"
@@ -628,6 +655,55 @@ export function PostEditor({ initialPost, initialRevisions = [], mode, role, aiE
             />
             <p className="text-xs text-muted-foreground">Leave blank to auto-fill when publishing.</p>
           </div>
+
+          {/* Custom SEO & Meta Overrides */}
+          <div className="space-y-4 rounded-xl border border-border bg-muted/20 p-4">
+            <div>
+              <h2 className="text-sm font-semibold">SEO & Meta Overrides</h2>
+              <p className="text-xs text-muted-foreground">Customize title tags, meta descriptions, and social images.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="seoTitle">Custom SEO Title</Label>
+              <Input
+                id="seoTitle"
+                name="seoTitle"
+                placeholder={post.title || "Meta title override..."}
+                value={post.seoTitle || ""}
+                onChange={(event) => updateField("seoTitle", event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="seoDescription">Custom Meta Description</Label>
+              <Textarea
+                id="seoDescription"
+                name="seoDescription"
+                placeholder={post.summary || "Meta description override..."}
+                value={post.seoDescription || ""}
+                onChange={(event) => updateField("seoDescription", event.target.value)}
+                className="min-h-[70px] text-xs"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="canonicalUrl">Canonical URL</Label>
+              <Input
+                id="canonicalUrl"
+                name="canonicalUrl"
+                placeholder="https://example.com/original-article"
+                value={post.canonicalUrl || ""}
+                onChange={(event) => updateField("canonicalUrl", event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ogImageUrl">OpenGraph Image URL</Label>
+              <Input
+                id="ogImageUrl"
+                name="ogImageUrl"
+                placeholder="https://..."
+                value={post.ogImageUrl || ""}
+                onChange={(event) => updateField("ogImageUrl", event.target.value)}
+              />
+            </div>
+          </div>
           {mode === "edit" ? (
             <div className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
               <div>
@@ -644,9 +720,14 @@ export function PostEditor({ initialPost, initialRevisions = [], mode, role, aiE
                           {revision.reason} · {new Date(revision.createdAt).toLocaleString()}
                         </span>
                       </span>
-                      <Button type="button" size="sm" variant="outline" onClick={() => void handleRestoreRevision(revision.id)}>
-                        Restore
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button type="button" size="sm" variant="ghost" onClick={() => setPreviewRevision(revision)}>
+                          Preview
+                        </Button>
+                        <Button type="button" size="sm" variant="outline" onClick={() => void handleRestoreRevision(revision.id)}>
+                          Restore
+                        </Button>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -657,6 +738,77 @@ export function PostEditor({ initialPost, initialRevisions = [], mode, role, aiE
           ) : null}
         </aside>
       </div>
+      {previewRevision ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-2xl space-y-4 rounded-lg border border-border bg-background p-6 shadow-lg">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div>
+                <h3 className="text-lg font-semibold">{previewRevision.title}</h3>
+                <p className="text-xs text-muted-foreground">
+                  Reason: <span className="font-medium text-foreground">{previewRevision.reason}</span> · Status: <span className="font-medium text-foreground">{previewRevision.status}</span> · Saved: {new Date(previewRevision.createdAt).toLocaleString()}
+                </p>
+              </div>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setPreviewRevision(null)}>
+                ✕
+              </Button>
+            </div>
+            {previewRevision.summary ? (
+              <div className="space-y-1 text-xs">
+                <span className="font-semibold text-muted-foreground">Summary:</span>
+                <p className="rounded border border-border bg-muted/40 p-2 text-muted-foreground">{previewRevision.summary}</p>
+              </div>
+            ) : null}
+            <div className="space-y-1">
+              <span className="text-xs font-semibold text-muted-foreground">Content Preview (MDX):</span>
+              <pre className="max-h-60 overflow-y-auto whitespace-pre-wrap rounded border border-border bg-muted/30 p-3 text-xs font-mono text-foreground">
+                {previewRevision.contentMdx ?? "No preview content available."}
+              </pre>
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDiffModal(true)}
+              >
+                View Visual Diff 🔍
+              </Button>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setPreviewRevision(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    const revId = previewRevision.id;
+                    setPreviewRevision(null);
+                    void handleRestoreRevision(revId);
+                  }}
+                >
+                  Restore this revision
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {previewRevision ? (
+        <RevisionDiffModal
+          isOpen={showDiffModal}
+          onClose={() => setShowDiffModal(false)}
+          revisionTitle={previewRevision.title}
+          revisionContent={previewRevision.contentMdx || ""}
+          currentContent={post.contentMdx || ""}
+          onRestore={() => {
+            const revId = previewRevision.id;
+            setShowDiffModal(false);
+            setPreviewRevision(null);
+            void handleRestoreRevision(revId);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

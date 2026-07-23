@@ -64,6 +64,11 @@
   --shadow-color: 224 80% 2%;
 }
 
+html,
+body {
+  height: 100%;
+}
+
 body {
   background:
     radial-gradient(

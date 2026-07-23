@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { CommandPaletteTrigger } from "@/components/navigation/CommandPalette";
 import { billingFrontendEnabled } from "@/lib/features";
 import { siteConfig } from "@/lib/seo";
 
@@ -48,6 +49,7 @@ export function LandingNavbar() {
           </Link>
         </nav>
         <div className="flex items-center gap-3">
+          <CommandPaletteTrigger />
           <Button
             asChild
             variant="ghost"

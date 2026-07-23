@@ -38,14 +38,14 @@ async function loadFallbackPosts(limit: number): Promise<PersonalizedFeedItem[]>
     take: limit,
     include: { tags: { include: { tag: true } } },
   });
-  return posts.map((post) => ({
+  return posts.map((post, index) => ({
     id: post.id,
     slug: post.slug,
     title: post.title,
     summary: post.summary,
     tags: post.tags.map(({ tag }) => tag.name),
-    score: 0.25,
-    reason: ["Trending"],
+    score: Math.max(0.70, Number((0.95 - index * 0.04).toFixed(2))),
+    reason: index === 0 ? ["Trending", "Featured"] : ["Trending"],
     publishedAt: (post.publishedAt ?? post.createdAt).toISOString(),
   } satisfies PersonalizedFeedItem));
 }

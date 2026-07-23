@@ -1,6 +1,11 @@
 import { describe, expect, test, vi } from "vitest";
 
-import { createPostRevisionSnapshot, restorePostRevision } from "@/lib/cms/revisions";
+import {
+  createPageRevisionSnapshot,
+  createPostRevisionSnapshot,
+  restorePageRevision,
+  restorePostRevision,
+} from "@/lib/cms/revisions";
 
 describe("post revisions", () => {
   test("captures post content snapshot before a save", async () => {
@@ -33,6 +38,10 @@ describe("post revisions", () => {
         summary: "Summary",
         contentMdx: "# Body",
         coverUrl: null,
+        seoTitle: null,
+        seoDescription: null,
+        canonicalUrl: null,
+        ogImageUrl: null,
         status: "DRAFT",
         publishedAt: null,
       },
@@ -103,3 +112,91 @@ describe("post revisions", () => {
     });
   });
 });
+
+describe("page revisions", () => {
+  test("captures page content snapshot", async () => {
+    const create = vi.fn(async () => ({ id: "page_rev_1" }));
+    const page = {
+      id: "page_1",
+      title: "About Us",
+      slug: "about",
+      contentMdx: "# About Us",
+      published: true,
+    };
+
+    await createPageRevisionSnapshot({
+      prisma: { pageRevision: { create } },
+      page,
+      userId: "user_1",
+      reason: "manual",
+    });
+
+    expect(create).toHaveBeenCalledWith({
+      data: {
+        pageId: "page_1",
+        userId: "user_1",
+        reason: "manual",
+        title: "About Us",
+        slug: "about",
+        contentMdx: "# About Us",
+        published: true,
+      },
+    });
+  });
+
+  test("restores a previous page revision and records a restore snapshot", async () => {
+    const revision = {
+      id: "page_rev_1",
+      pageId: "page_1",
+      title: "About Us (v1)",
+      slug: "about-v1",
+      contentMdx: "# About Us v1",
+      published: false,
+    };
+    const findUnique = vi.fn(async () => revision);
+    const update = vi.fn(async () => ({ id: "page_1", title: "About Us (v1)" }));
+    const pageRevisionCreate = vi.fn(async () => ({ id: "page_rev_restore" }));
+    const auditLogCreate = vi.fn(async () => ({ id: "audit_2" }));
+
+    await restorePageRevision({
+      prisma: {
+        pageRevision: { findUnique, create: pageRevisionCreate },
+        page: { update },
+        auditLog: { create: auditLogCreate },
+      },
+      pageId: "page_1",
+      revisionId: "page_rev_1",
+      userId: "user_1",
+    });
+
+    expect(update).toHaveBeenCalledWith({
+      where: { id: "page_1" },
+      data: {
+        title: "About Us (v1)",
+        slug: "about-v1",
+        contentMdx: "# About Us v1",
+        published: false,
+      },
+    });
+    expect(pageRevisionCreate).toHaveBeenCalledWith({
+      data: {
+        pageId: "page_1",
+        userId: "user_1",
+        reason: "restore",
+        title: "About Us (v1)",
+        slug: "about-v1",
+        contentMdx: "# About Us v1",
+        published: false,
+      },
+    });
+    expect(auditLogCreate).toHaveBeenCalledWith({
+      data: {
+        userId: "user_1",
+        action: "page:restore_revision",
+        targetId: "page_1",
+        meta: { revisionId: "page_rev_1" },
+      },
+    });
+  });
+});
+

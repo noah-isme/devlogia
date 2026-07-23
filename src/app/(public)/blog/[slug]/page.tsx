@@ -3,13 +3,21 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { EditorialCover } from "@/components/blog/editorial-cover";
+import { BookmarkButton } from "@/components/blog/bookmark-button";
+import { CommentSection } from "@/components/blog/comment-section";
+import { PostReactions } from "@/components/blog/post-reactions";
+import { TableOfContents } from "@/components/blog/table-of-contents";
+import { extractHeadings } from "@/lib/toc";
+import { RelatedPosts } from "@/components/related-posts";
 import { JsonLd } from "@/components/json-ld";
 import { PostShareSection } from "@/components/post-share-section";
 import { FeedbackForm } from "@/components/feedback-form";
-import { RelatedPosts } from "@/components/related-posts";
 import { KeyHighlights } from "@/components/personalization/KeyHighlights";
 import { PersonalizedFeedSection } from "@/components/personalization/PersonalizedFeedSection";
+import { AudioArticlePlayer } from "@/components/blog/audio-player";
+import { ArticleTranslationControl } from "@/components/blog/article-translation-control";
 import { renderMdx } from "@/lib/mdx";
+import { calculateReadingTime } from "@/lib/reading-time";
 import { buildTagHref, type BlogPostWithRelations } from "@/lib/blog-public";
 import {
   buildBlogPostingJsonLd,
@@ -18,7 +26,7 @@ import {
   buildOgImageUrl,
   siteConfig,
 } from "@/lib/seo";
-import { estimateReadingTime, formatDate, slugify } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 
 export const revalidate = 60;
 
@@ -89,22 +97,26 @@ export async function generateMetadata({
   }
 
   const url = `${siteConfig.url}/blog/${post.slug}`;
+  const metaTitle = post.seoTitle || post.title;
+  const metaDescription = post.seoDescription || post.summary || siteConfig.description;
+  const canonicalUrl = post.canonicalUrl || url;
   const keywords = post.tags.map(({ tag }) => tag.name);
-  const ogImage = buildOgImageUrl({
+  const defaultOgImage = buildOgImageUrl({
     title: post.title,
     slug: post.slug,
     tags: post.tags.map(({ tag }) => tag.name),
     publishedAt: post.publishedAt ?? post.createdAt,
   });
+  const ogImage = post.ogImageUrl || defaultOgImage;
 
   return buildMetadata({
-    title: post.title,
-    description: post.summary ?? siteConfig.description,
-    alternates: { canonical: url },
+    title: metaTitle,
+    description: metaDescription,
+    alternates: { canonical: canonicalUrl },
     openGraph: {
-      title: post.title,
-      description: post.summary ?? siteConfig.description,
-      url,
+      title: metaTitle,
+      description: metaDescription,
+      url: canonicalUrl,
       type: "article",
       publishedTime: post.publishedAt?.toISOString(),
       tags: keywords,
@@ -113,14 +125,14 @@ export async function generateMetadata({
           url: ogImage,
           width: 1200,
           height: 630,
-          alt: post.title,
+          alt: metaTitle,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title: post.title,
-      description: post.summary ?? siteConfig.description,
+      title: metaTitle,
+      description: metaDescription,
       images: [ogImage],
     },
     keywords,
@@ -173,9 +185,7 @@ export default async function BlogPostPage({ params }: PageProps) {
   }
 
   const content = await renderMdx(post.contentMdx);
-  const tableOfContents = extractHeadings(post.contentMdx);
   const relatedPosts = await getRelatedPosts(post, prismaModule);
-  const hasTableOfContents = tableOfContents.length >= 3;
   const shareUrl = `${siteConfig.url}/blog/${post.slug}`;
   const publishedAt = (post.publishedAt ?? post.createdAt).toISOString();
   const updatedAt = post.updatedAt.toISOString();
@@ -250,7 +260,7 @@ export default async function BlogPostPage({ params }: PageProps) {
             </div>
             <span className="h-8 w-px bg-border" aria-hidden="true" />
             <p className="text-muted-foreground">
-              {estimateReadingTime(post.contentMdx)}
+              {calculateReadingTime(post.contentMdx).text}
             </p>
             {post.tags.length ? (
               <div className="flex flex-wrap gap-2">
@@ -267,61 +277,55 @@ export default async function BlogPostPage({ params }: PageProps) {
             ) : null}
           </div>
         </div>
-        <EditorialCover
-          title={post.title}
-          eyebrow={post.tags[0]?.tag.name ?? "Featured perspective"}
-          className="order-1 min-h-[24rem] lg:order-2"
-        />
+        {post.coverUrl ? (
+          <div className="order-1 aspect-video min-h-[20rem] w-full overflow-hidden rounded-3xl bg-muted shadow-2xl lg:order-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={post.coverUrl}
+              alt={post.title}
+              className="h-full w-full object-cover transition-all"
+            />
+          </div>
+        ) : (
+          <EditorialCover
+            title={post.title}
+            eyebrow={post.tags[0]?.tag.name ?? "Featured perspective"}
+            className="order-1 min-h-[24rem] lg:order-2"
+          />
+        )}
       </header>
 
       <div className="mx-auto grid max-w-6xl gap-10 border-t border-border/70 pt-10 lg:grid-cols-[minmax(0,47rem)_17rem] lg:gap-16">
         <div className="min-w-0">
+          <div className="mb-6 space-y-4">
+            <AudioArticlePlayer title={post.title} contentMdx={post.contentMdx} />
+            <ArticleTranslationControl
+              postId={post.id}
+              initialTitle={post.title}
+              initialSummary={post.summary ?? ""}
+              initialContentMdx={post.contentMdx}
+            />
+          </div>
           <div className="mb-10">
             <KeyHighlights slug={post.slug} />
           </div>
           <div className="prose prose-lg max-w-none prose-neutral prose-headings:scroll-mt-24 prose-headings:tracking-[-0.025em] prose-p:leading-8 prose-a:text-primary prose-pre:rounded-2xl prose-pre:bg-foreground dark:prose-invert">
             {content}
           </div>
-          <div className="mt-12 border-t border-border/70 pt-10">
+          <div className="mt-12 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-t border-border/70 pt-10">
             <PostShareSection url={shareUrl} title={post.title} />
+            <BookmarkButton postId={post.id} postTitle={post.title} />
           </div>
+          <PostReactions postId={post.id} />
           <FeedbackForm slug={post.slug} />
+          <CommentSection postId={post.id} />
         </div>
 
         <aside
           className="space-y-6 lg:sticky lg:top-28 lg:self-start"
           aria-label="Article tools"
         >
-          {hasTableOfContents ? (
-            <section className="rounded-2xl border border-border/70 bg-card/70 p-5 shadow-sm">
-              <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                In this article
-              </h2>
-              <nav className="mt-4">
-                <ol className="space-y-3 text-sm leading-5 text-muted-foreground">
-                  {tableOfContents.map((item) => (
-                    <li
-                      key={item.id}
-                      className={
-                        item.level === 3
-                          ? "pl-3"
-                          : item.level >= 4
-                            ? "pl-5"
-                            : "pl-0"
-                      }
-                    >
-                      <a
-                        href={`#${item.id}`}
-                        className="block border-l border-border pl-3 transition hover:border-primary hover:text-foreground hover:no-underline"
-                      >
-                        {item.title}
-                      </a>
-                    </li>
-                  ))}
-                </ol>
-              </nav>
-            </section>
-          ) : null}
+          <TableOfContents headings={extractHeadings(post.contentMdx)} />
           <section className="rounded-2xl bg-foreground p-5 text-background">
             <p className="text-xs font-semibold uppercase tracking-[0.17em] text-background/55">
               Reading principle
@@ -334,7 +338,7 @@ export default async function BlogPostPage({ params }: PageProps) {
         </aside>
       </div>
 
-      <div className="mx-auto mt-16 max-w-6xl border-t border-border/70 pt-12">
+      <div className="mx-auto max-w-6xl">
         <RelatedPosts posts={relatedPosts} />
         <div className="mt-10">
           <PersonalizedFeedSection
@@ -347,37 +351,4 @@ export default async function BlogPostPage({ params }: PageProps) {
       <JsonLd id="blogposting-jsonld" data={blogPosting} />
     </article>
   );
-}
-
-type TocEntry = {
-  id: string;
-  title: string;
-  level: number;
-};
-
-function extractHeadings(source: string): TocEntry[] {
-  return source
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const match = /^(#{2,4})\s+(.+)$/.exec(line);
-      if (!match) {
-        return null;
-      }
-      const level = match[1].length;
-      const rawText = match[2]
-        .replace(/\[(.+?)\]\(.+?\)/g, "$1")
-        .replace(/[*_`~]/g, "")
-        .trim();
-      if (!rawText) {
-        return null;
-      }
-      return {
-        id: slugify(rawText),
-        title: rawText,
-        level,
-      } satisfies TocEntry;
-    })
-    .filter((entry): entry is TocEntry => Boolean(entry));
 }

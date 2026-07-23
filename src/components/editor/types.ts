@@ -9,6 +9,10 @@ export type EditorPost = {
   summary: string;
   contentMdx: string;
   coverUrl: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  canonicalUrl?: string;
+  ogImageUrl?: string;
   status: PostStatus;
   tags: string[];
   publishedAt: string | null;
@@ -29,6 +33,8 @@ export type EditorRevision = {
   readonly id: string;
   readonly reason: string;
   readonly title: string;
+  readonly summary?: string | null;
+  readonly contentMdx?: string;
   readonly status: PostStatus;
   readonly createdAt: string;
 };

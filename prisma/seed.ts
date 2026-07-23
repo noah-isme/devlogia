@@ -71,6 +71,9 @@ async function main() {
   ]);
 
   const tags = [
+    { name: "AI", slug: "ai" },
+    { name: "Engineering", slug: "engineering" },
+    { name: "Technology", slug: "technology" },
     { name: "Next.js", slug: "nextjs" },
     { name: "TypeScript", slug: "typescript" },
     { name: "Prisma", slug: "prisma" },
@@ -88,6 +91,101 @@ async function main() {
 
   const now = Date.now();
   const postsSeed = [
+    {
+      slug: "autonomous-agentic-coding-architecture",
+      title: "The Architecture of Autonomous Agentic Coding Systems in 2026",
+      summary: "Exploring how modern multi-agent orchestration, context window management, and deterministic verification loops enable autonomous AI pair programming.",
+      contentMdx: `# The Architecture of Autonomous Agentic Coding Systems in 2026
+
+Building production-grade AI coding assistants requires moving beyond single-prompt completion to **autonomous multi-agent architecture**.
+
+## Key Architectural Components
+
+### 1. Hierarchical Context Management
+Instead of flooding context windows with full file contents, autonomous agents maintain a dynamic sitemap and extract targeted AST snippets.
+
+### 2. Multi-Agent Delegation
+Complex features are decomposed into specialized roles:
+- **Research Agent**: Scans codebase dependencies and docstrings.
+- **Planner Agent**: Drafts execution steps and API boundaries.
+- **Coder Agent**: Performs surgical file modifications.
+- **Reviewer/Verifier Agent**: Runs automated tests, linters, and typechecks.
+
+### 3. Closed-Loop Verification
+Editing code is only the first step. Every mutation must pass a **deterministic quality gate**:
+- TypeScript typecheck (\`tsc --noEmit\`)
+- Linter checks (\`eslint\`)
+- Unit & regression test suites (\`vitest\`)
+
+\`\`\`typescript
+async function verifyExecutionPipeline(target: CodebaseTarget): Promise<VerificationResult> {
+  const typecheck = await runTypecheck();
+  if (!typecheck.ok) return { success: false, errors: typecheck.errors };
+
+  const testResults = await runVitestSuite();
+  return { success: testResults.failed === 0, summary: testResults };
+}
+\`\`\`
+
+## Looking Ahead
+The future of software engineering is human-curated, AI-executed development with mathematical and runtime verification guarantees.`,
+      seoTitle: "Autonomous Agentic Coding Architecture & Design Patterns (2026)",
+      seoDescription: "Comprehensive architectural guide to building autonomous AI coding assistants with tool execution, verification, and multi-agent coordination.",
+      coverUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80",
+      status: PostStatus.PUBLISHED,
+      publishedAtOffset: 0,
+      tags: ["ai", "engineering", "technology"],
+    },
+    {
+      slug: "next-gen-generative-ai-workflows",
+      title: "Building Enterprise Generative AI Workflows with Vector Embeddings",
+      summary: "A practical guide to combining RAG pipelines, dense vector retrieval, and semantic indexing for domain-specific AI intelligence.",
+      contentMdx: `# Building Enterprise Generative AI Workflows with Vector Embeddings
+
+Retrieval-Augmented Generation (RAG) has matured from basic chunk-and-search into **hybrid semantic vector pipelines**.
+
+## 1. High-Density Vector Embeddings
+Converting technical articles and API specifications into 1536-dimensional embeddings allows applications to query context by semantic intent rather than raw string matches.
+
+## 2. Hybrid Keyword + Dense Vector Search
+Combine lexical BM25 search with dense vector similarity to guarantee exact term matching (e.g. function signatures) alongside semantic topic matching.
+
+\`\`\`typescript
+const hybridScore = (lexicalScore * 0.4) + (vectorSimilarity * 0.6);
+\`\`\`
+
+## 3. Real-Time Index Revalidation
+When articles or documentation update, background workers regenerate vector embeddings incrementally, keeping the knowledge base current without full index rebuilds.`,
+      seoTitle: "Enterprise Generative AI Workflows & Vector Search Guide",
+      seoDescription: "Learn how to construct resilient RAG pipelines and vector search indexes for enterprise generative AI applications.",
+      coverUrl: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1200&q=80",
+      status: PostStatus.PUBLISHED,
+      publishedAtOffset: 0,
+      tags: ["ai", "prisma", "technology"],
+    },
+    {
+      slug: "future-of-ai-native-software-engineering",
+      title: "The Future of AI-Native Software Engineering & DevOps",
+      summary: "How AI-driven continuous integration, self-healing test suites, and automated code review change the daily software delivery pipeline.",
+      contentMdx: `# The Future of AI-Native Software Engineering & DevOps
+
+Software delivery is shifting from manual coding and manual triage to **AI-native continuous delivery**.
+
+## Automated Bug Diagnosis
+When CI/CD pipelines encounter test failures, AI diagnostic subagents fetch exact log tracebacks, identify breaking commits, and generate candidate patch PRs automatically.
+
+## Proactive Anomaly Detection
+Telemetry streams are continuously analyzed for regressions in response latency, database query bottlenecks, and memory leaks before users notice degradation.
+
+## Human-in-the-Loop Governance
+Engineers transition from typing boilerplate to **reviewing architectural intent**, approving security guardrails, and guiding system evolution.`,
+      seoTitle: "AI-Native Software Engineering & DevOps Playbook",
+      seoDescription: "Discover how AI-native pipelines transform software engineering from manual coding to autonomous verification and deployment.",
+      coverUrl: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=1200&q=80",
+      status: PostStatus.PUBLISHED,
+      publishedAtOffset: 0,
+      tags: ["ai", "devops", "technology"],
+    },
     {
       slug: "hello-world",
       title: "Hello World",
@@ -221,6 +319,9 @@ async function main() {
         title: data.title,
         summary: data.summary,
         contentMdx: data.contentMdx,
+        coverUrl: (data as { coverUrl?: string }).coverUrl ?? null,
+        seoTitle: data.seoTitle ?? null,
+        seoDescription: data.seoDescription ?? null,
         status: data.status,
         publishedAt,
         authorId: superadmin.id,
@@ -230,6 +331,9 @@ async function main() {
         slug: data.slug,
         summary: data.summary,
         contentMdx: data.contentMdx,
+        coverUrl: (data as { coverUrl?: string }).coverUrl ?? null,
+        seoTitle: data.seoTitle ?? null,
+        seoDescription: data.seoDescription ?? null,
         status: data.status,
         publishedAt,
         authorId: superadmin.id,
@@ -247,6 +351,34 @@ async function main() {
         },
       },
     });
+
+    // Seed sample reactions & comments for Tech & AI posts
+    if (data.tags.includes("ai")) {
+      await prisma.postReaction.upsert({
+        where: { postId_type: { postId: post.id, type: "clap" } },
+        update: { count: 18 },
+        create: { postId: post.id, type: "clap", count: 18 },
+      });
+      await prisma.postReaction.upsert({
+        where: { postId_type: { postId: post.id, type: "fire" } },
+        update: { count: 9 },
+        create: { postId: post.id, type: "fire", count: 9 },
+      });
+
+      // Add a sample comment if none exists
+      const existingComments = await prisma.comment.count({ where: { postId: post.id } });
+      if (existingComments === 0) {
+        await prisma.comment.create({
+          data: {
+            postId: post.id,
+            authorName: "Sarah Chen (AI Research Lead)",
+            authorEmail: "sarah.chen@techcorp.test",
+            content: "Excellent breakdown of the multi-agent delegation pattern! We've seen similar context window savings using AST snippet extractions.",
+            status: "APPROVED",
+          },
+        });
+      }
+    }
   }
 }
 

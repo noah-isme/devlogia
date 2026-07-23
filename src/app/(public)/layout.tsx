@@ -5,6 +5,7 @@ import { Analytics } from "@/components/analytics";
 import { JsonLd } from "@/components/json-ld";
 import { TelemetryProvider } from "@/components/telemetry-provider";
 import { LandingNavbar } from "@/components/landing/landing-navbar";
+import { CommandPalette } from "@/components/navigation/CommandPalette";
 import { billingFrontendEnabled } from "@/lib/features";
 import { buildOrganizationJsonLd, siteConfig } from "@/lib/seo";
 
@@ -15,6 +16,7 @@ type PublicLayoutProps = {
 export default function PublicLayout({ children }: PublicLayoutProps) {
   return (
     <TelemetryProvider page="public">
+      <CommandPalette />
       <div className="flex min-h-screen w-full flex-col">
         <LandingNavbar />
         <main id="main-content" className="flex-1">

@@ -34,5 +34,12 @@ export async function POST(
     include: { tags: { include: { tag: true } } },
   });
 
-  return NextResponse.json({ post: updated });
+  const revisions = await prisma.postRevision.findMany({
+    where: { postId: id },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+    select: { id: true, reason: true, title: true, summary: true, contentMdx: true, status: true, createdAt: true },
+  });
+
+  return NextResponse.json({ post: updated, revisions });
 }

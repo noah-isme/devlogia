@@ -9,6 +9,9 @@ datasource db {
 
 enum PostStatus {
   DRAFT
+  IN_REVIEW
+  CHANGES_REQUESTED
+  APPROVED
   PUBLISHED
   SCHEDULED
 }
@@ -117,6 +120,7 @@ model User {
   workspaceMemberships WorkspaceMember[]
   presenceStates  PresenceState[]
   createdWorkspaces Workspace[] @relation("WorkspaceCreator")
+  bookmarks       Bookmark[]
 }
 
 model Role {
@@ -146,6 +150,10 @@ model Post {
   summary          String?           @db.VarChar(512)
   contentMdx       String            @db.LongText
   coverUrl         String?           @db.VarChar(512)
+  seoTitle         String?           @db.VarChar(191)
+  seoDescription   String?           @db.VarChar(512)
+  canonicalUrl     String?           @db.VarChar(512)
+  ogImageUrl       String?           @db.VarChar(512)
   status           PostStatus        @default(DRAFT)
   publishedAt      DateTime?
   authorId         String            @db.VarChar(191)
@@ -163,6 +171,9 @@ model Post {
   aiAuditLogs      AIAuditLog[]
   contentVector    ContentVector?
   federationIndex  FederationIndex?
+  comments         Comment[]
+  reactions        PostReaction[]
+  bookmarks        Bookmark[]
 
   @@index([status, publishedAt])
 }
@@ -203,8 +214,12 @@ model PostRevision {
   slug        String     @db.VarChar(191)
   summary     String?    @db.VarChar(512)
   contentMdx  String     @db.LongText
-  coverUrl    String?    @db.VarChar(512)
-  status      PostStatus
+  coverUrl       String?    @db.VarChar(512)
+  seoTitle       String?    @db.VarChar(191)
+  seoDescription String?    @db.VarChar(512)
+  canonicalUrl   String?    @db.VarChar(512)
+  ogImageUrl     String?    @db.VarChar(512)
+  status         PostStatus
   publishedAt DateTime?
   createdAt   DateTime   @default(now())
   post        Post       @relation(fields: [postId], references: [id])
@@ -764,4 +779,54 @@ model PresenceState {
 
   @@unique([sessionId, userId])
   @@index([userId])
+}
+
+enum CommentStatus {
+  APPROVED
+  PENDING
+  SPAM
+}
+
+model Comment {
+  id          String        @id @default(cuid()) @db.VarChar(191)
+  postId      String        @db.VarChar(191)
+  parentId    String?       @db.VarChar(191)
+  authorName  String        @db.VarChar(191)
+  authorEmail String        @db.VarChar(191)
+  content     String        @db.Text
+  status      CommentStatus @default(APPROVED)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  post        Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parent      Comment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     Comment[]     @relation("CommentReplies")
+
+  @@index([postId, status, createdAt])
+  @@index([parentId])
+}
+
+model PostReaction {
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  postId    String   @db.VarChar(191)
+  type      String   @default("clap") @db.VarChar(32)
+  count     Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, type])
+  @@index([postId])
+}
+
+model Bookmark {
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  userId    String   @db.VarChar(191)
+  postId    String   @db.VarChar(191)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
 }

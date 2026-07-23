@@ -22,6 +22,7 @@ export type PageRevisionSummary = {
   id: string;
   reason: string;
   title: string;
+  contentMdx?: string;
   createdAt: string;
 };
 
@@ -33,6 +34,7 @@ export function PageManager({ initialPages }: PageManagerProps) {
   const [pages, setPages] = useState<PageSummary[]>(initialPages);
   const [selectedId, setSelectedId] = useState<string | null>(initialPages[0]?.id ?? null);
   const [draft, setDraft] = useState<PageSummary | null>(initialPages[0] ?? null);
+  const [previewRevision, setPreviewRevision] = useState<PageRevisionSummary | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const orderedPages = useMemo(
@@ -142,16 +144,27 @@ export function PageManager({ initialPages }: PageManagerProps) {
         throw new Error("Failed to restore page revision");
       }
       const data = await response.json();
+      const updatedRevisions = data.revisions
+        ? data.revisions.map((rev: { id: string; reason: string; title: string; contentMdx?: string; createdAt: string | Date }) => ({
+            id: rev.id,
+            reason: rev.reason,
+            title: rev.title,
+            contentMdx: rev.contentMdx,
+            createdAt: typeof rev.createdAt === "string" ? rev.createdAt : new Date(rev.createdAt).toISOString(),
+          }))
+        : draft.revisions.filter((revision) => revision.id !== revisionId);
+
       const restored: PageSummary = {
         id: data.page.id,
         title: data.page.title,
         slug: data.page.slug,
         contentMdx: data.page.contentMdx,
         published: data.page.published,
-        revisions: draft.revisions.filter((revision) => revision.id !== revisionId),
+        revisions: updatedRevisions,
       };
       setPages((prev) => prev.map((page) => (page.id === restored.id ? restored : page)));
       setDraft(restored);
+      setPreviewRevision(null);
       toast.success("Revision restored", { description: "The page now matches the selected snapshot." });
     } catch (error) {
       console.error(error);
@@ -300,9 +313,14 @@ export function PageManager({ initialPages }: PageManagerProps) {
                           {revision.reason} · {new Date(revision.createdAt).toLocaleString()}
                         </span>
                       </span>
-                      <Button type="button" size="sm" variant="outline" disabled={isSaving} onClick={() => void handleRestoreRevision(revision.id)}>
-                        Restore
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button type="button" size="sm" variant="ghost" disabled={isSaving} onClick={() => setPreviewRevision(revision)}>
+                          Preview
+                        </Button>
+                        <Button type="button" size="sm" variant="outline" disabled={isSaving} onClick={() => void handleRestoreRevision(revision.id)}>
+                          Restore
+                        </Button>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -315,6 +333,46 @@ export function PageManager({ initialPages }: PageManagerProps) {
           <p className="text-sm text-muted-foreground">Select a page to start editing.</p>
         )}
       </section>
+      {previewRevision ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-2xl space-y-4 rounded-lg border border-border bg-background p-6 shadow-lg">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div>
+                <h3 className="text-lg font-semibold">{previewRevision.title}</h3>
+                <p className="text-xs text-muted-foreground">
+                  Reason: <span className="font-medium text-foreground">{previewRevision.reason}</span> · Saved: {new Date(previewRevision.createdAt).toLocaleString()}
+                </p>
+              </div>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setPreviewRevision(null)}>
+                ✕
+              </Button>
+            </div>
+            <div className="space-y-1">
+              <span className="text-xs font-semibold text-muted-foreground">Content Preview (MDX):</span>
+              <pre className="max-h-60 overflow-y-auto whitespace-pre-wrap rounded border border-border bg-muted/30 p-3 text-xs font-mono text-foreground">
+                {previewRevision.contentMdx ?? "No preview content available."}
+              </pre>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+              <Button type="button" variant="outline" size="sm" onClick={() => setPreviewRevision(null)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={isSaving}
+                onClick={() => {
+                  const revId = previewRevision.id;
+                  setPreviewRevision(null);
+                  void handleRestoreRevision(revId);
+                }}
+              >
+                Restore this revision
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

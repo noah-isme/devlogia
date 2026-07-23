@@ -146,10 +146,14 @@ export function PersonalizedFeedSection({
                 {item.summary}
               </p>
             ) : null}
-            <p className="mt-5 border-t border-border/60 pt-3 text-[11px] uppercase tracking-wide text-muted-foreground">
-              Score {(item.score * 100).toFixed(0)}% ·{" "}
-              {item.reason.slice(0, 2).join(" · ")}
-            </p>
+            <div className="mt-5 flex items-center justify-between border-t border-border/60 pt-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              <span>
+                {state.fallback || item.reason.includes("Trending")
+                  ? `Trending ${item.tags?.length ? `· #${item.tags[0]}` : ""}`
+                  : `Match ${(item.score * 100).toFixed(0)}% · ${item.reason.slice(0, 2).join(" · ")}`}
+              </span>
+              <span className="text-[10px] font-semibold text-primary">Read →</span>
+            </div>
           </li>
         ))}
       </ul>

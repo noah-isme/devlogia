@@ -1,6 +1,13 @@
 import { z } from "zod";
 
-export const postStatusValues = ["DRAFT", "PUBLISHED", "SCHEDULED"] as const;
+export const postStatusValues = [
+  "DRAFT",
+  "IN_REVIEW",
+  "CHANGES_REQUESTED",
+  "APPROVED",
+  "PUBLISHED",
+  "SCHEDULED",
+] as const;
 export const revisionReasonValues = ["autosave", "manual", "publish"] as const;
 
 const optionalSummarySchema = z.string().trim().max(320).optional().nullable();
@@ -45,6 +52,10 @@ export const upsertPostSchema = z.object({
   summary: optionalSummarySchema,
   contentMdx: z.string().min(1, "Content cannot be empty"),
   coverUrl: optionalCoverUrlSchema,
+  seoTitle: z.string().trim().max(180).optional().nullable(),
+  seoDescription: z.string().trim().max(500).optional().nullable(),
+  canonicalUrl: optionalCoverUrlSchema,
+  ogImageUrl: optionalCoverUrlSchema,
   status: z.enum(postStatusValues),
   publishedAt: z
     .string()

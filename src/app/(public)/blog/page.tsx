@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { EditorialCover } from "@/components/blog/editorial-cover";
+import { VectorSearchBar } from "@/components/blog/vector-search-bar";
 import { PersonalizedFeedSection } from "@/components/personalization/PersonalizedFeedSection";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -179,10 +180,21 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               : "Ideas for people building what comes next."}
           </h1>
         </div>
-        <p className="max-w-xl text-base leading-7 text-muted-foreground lg:pb-2">
-          Field notes on engineering, product craft, and the systems behind
-          resilient digital businesses—written for clarity, not clicks.
-        </p>
+        <div className="flex flex-col gap-3 lg:items-end">
+          <p className="max-w-xl text-base leading-7 text-muted-foreground lg:pb-2">
+            Field notes on engineering, product craft, and the systems behind
+            resilient digital businesses—written for clarity, not clicks.
+          </p>
+          <div className="flex items-center gap-3">
+            <VectorSearchBar />
+            <Link
+              href="/blog/saved"
+              className={buttonVariants({ variant: "outline", size: "sm" }) + " shrink-0 rounded-full h-11 px-4 text-xs font-semibold"}
+            >
+              Saved Articles 🔖
+            </Link>
+          </div>
+        </div>
       </header>
 
       <DiscoveryPanel
@@ -463,10 +475,21 @@ function PostList({
           href={`/blog/${featuredPost.slug}`}
           className="block hover:no-underline"
         >
-          <EditorialCover
-            title={featuredPost.title}
-            eyebrow={featuredPost.tags[0]?.tag.name ?? "Featured story"}
-          />
+          {featuredPost.coverUrl ? (
+            <div className="aspect-video w-full overflow-hidden rounded-3xl bg-muted shadow-lg">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={featuredPost.coverUrl}
+                alt={featuredPost.title}
+                className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+              />
+            </div>
+          ) : (
+            <EditorialCover
+              title={featuredPost.title}
+              eyebrow={featuredPost.tags[0]?.tag.name ?? "Featured story"}
+            />
+          )}
         </Link>
         <div className="space-y-5 lg:p-6">
           <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground">
@@ -509,11 +532,22 @@ function PostList({
                 href={`/blog/${post.slug}`}
                 className="mb-5 block hover:no-underline"
               >
-                <EditorialCover
-                  title={post.title}
-                  eyebrow={post.tags[0]?.tag.name ?? "Journal"}
-                  compact
-                />
+                {post.coverUrl ? (
+                  <div className="aspect-video w-full overflow-hidden rounded-2xl bg-muted shadow-sm">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={post.coverUrl}
+                      alt={post.title}
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                  </div>
+                ) : (
+                  <EditorialCover
+                    title={post.title}
+                    eyebrow={post.tags[0]?.tag.name ?? "Journal"}
+                    compact
+                  />
+                )}
               </Link>
               <div className="flex flex-1 flex-col">
                 <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">

@@ -25,7 +25,7 @@ const writerActions: Array<{
   label: string;
   description: string;
   requiresSelection?: boolean;
-  targetLanguage?: "en" | "id";
+  targetLanguage?: "en" | "id" | "es" | "fr" | "de" | "ja";
 }> = [
   {
     action: "draft",
@@ -59,7 +59,7 @@ const writerActions: Array<{
   {
     action: "translate_id",
     label: "Translate → Indonesian",
-    description: "Terjemahkan ke Bahasa Indonesia sambil menjaga format.",
+    description: "Terjemahkan ke Bahasa Indonesia sambil menjaga format MDX.",
     requiresSelection: true,
     targetLanguage: "id",
   },

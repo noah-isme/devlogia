@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { Prisma, type PostStatus } from "@prisma/client";
 
 import { buttonVariants } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { BulkPostManager } from "@/components/admin/BulkPostManager";
 import { Pagination } from "@/components/ui/pagination";
 import {
   appendToStack,
@@ -17,7 +17,6 @@ import {
   serializeStack,
 } from "@/lib/pagination";
 import { buildMetadata } from "@/lib/seo";
-import { formatDate } from "@/lib/utils";
 
 export const metadata = buildMetadata({
   title: "Posts",
@@ -27,11 +26,14 @@ export const metadata = buildMetadata({
 const statusOptions = [
   { label: "All", value: "all" },
   { label: "Draft", value: "DRAFT" },
+  { label: "In Review", value: "IN_REVIEW" },
+  { label: "Changes Requested", value: "CHANGES_REQUESTED" },
+  { label: "Approved", value: "APPROVED" },
   { label: "Published", value: "PUBLISHED" },
   { label: "Scheduled", value: "SCHEDULED" },
 ] as const;
 
-const DEFAULT_LIMIT = 12;
+const DEFAULT_LIMIT = 5;
 
 type PostsPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -164,59 +166,24 @@ export default async function PostsPage({ searchParams }: PostsPageProps) {
         ))}
       </div>
       <div className="space-y-4">
-        {posts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No posts found. Create one to start publishing.
-          </p>
-        ) : (
-          <>
-            <ul className="space-y-3">
-              {posts.map((post) => (
-                <li key={post.id} className="rounded-lg border border-border bg-background p-4 shadow-sm">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-1">
-                      <Link href={`/admin/posts/${post.id}`} className="text-lg font-semibold hover:underline">
-                        {post.title}
-                      </Link>
-                      <p className="text-sm text-muted-foreground">/{post.slug}</p>
-                      {post.summary ? (
-                        <p className="text-sm text-muted-foreground">{post.summary}</p>
-                      ) : null}
-                      <p className="text-xs text-muted-foreground">Updated {formatDate(post.updatedAt)}</p>
-                      {post.tags.length ? (
-                        <div className="flex flex-wrap gap-2 pt-2">
-                          {post.tags.map(({ tag }) => (
-                            <Badge key={tag.id} variant="info">
-                              #{tag.name}
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                    <Badge
-                      variant={
-                        post.status === "PUBLISHED"
-                          ? "success"
-                          : post.status === "SCHEDULED"
-                            ? "warning"
-                            : "default"
-                      }
-                    >
-                      {post.status}
-                    </Badge>
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <Pagination
-              basePath="/admin/posts"
-              hasNext={hasNext}
-              hasPrevious={hasPrevious}
-              nextQuery={nextQuery}
-              previousQuery={previousQuery}
-            />
-          </>
-        )}
+        <BulkPostManager
+          posts={posts.map((p) => ({
+            id: p.id,
+            slug: p.slug,
+            title: p.title,
+            summary: p.summary,
+            status: p.status,
+            updatedAt: (p.updatedAt ?? p.createdAt).toISOString(),
+            tags: p.tags,
+          }))}
+        />
+        <Pagination
+          basePath="/admin/posts"
+          hasNext={hasNext}
+          hasPrevious={hasPrevious}
+          nextQuery={nextQuery}
+          previousQuery={previousQuery}
+        />
       </div>
     </div>
   );
