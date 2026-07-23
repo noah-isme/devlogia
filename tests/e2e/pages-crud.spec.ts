@@ -1,15 +1,9 @@
 import { expect, test } from "@playwright/test";
 
-const SUPERADMIN_EMAIL = process.env.SEED_SUPERADMIN_EMAIL ?? "owner@devlogia.test";
-const SUPERADMIN_PASSWORD = process.env.SEED_SUPERADMIN_PASSWORD ?? "owner123";
+import { loginAsSuperadmin } from "./auth-helper";
 
 test("static page lifecycle", async ({ page }) => {
-    // Login
-    await page.goto("/admin/login");
-    await page.getByLabel("Email").fill(SUPERADMIN_EMAIL);
-    await page.getByLabel("Password").fill(SUPERADMIN_PASSWORD);
-    await page.getByRole("button", { name: /sign in/i }).click();
-    await expect(page).toHaveURL(/admin\/dashboard/);
+    await loginAsSuperadmin(page);
 
     // Go to Pages
     // We'll navigate directly as sidebar coverage isn't guaranteed in this snippet
@@ -28,7 +22,7 @@ test("static page lifecycle", async ({ page }) => {
     const slug = `about-${Date.now()}`;
 
     // Fill Editor Form (Right side)
-    await page.getByLabel("Title").fill(title);
+    await page.getByLabel("Title", { exact: true }).fill(title);
     await page.getByLabel("Slug").fill(slug);
     await page.getByLabel("Content").fill("# About Us\n\nThis is a static page.");
 
@@ -46,7 +40,7 @@ test("static page lifecycle", async ({ page }) => {
     // The list button contains the title.
     await page.getByRole("button", { name: title }).click();
 
-    await expect(page.getByLabel("Title")).toHaveValue(title);
+    await expect(page.getByLabel("Title", { exact: true })).toHaveValue(title);
     await expect(page.getByLabel("Slug")).toHaveValue(slug);
     await expect(page.getByLabel("Published")).toBeChecked();
 

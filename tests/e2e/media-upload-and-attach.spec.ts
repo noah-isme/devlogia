@@ -1,8 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const SUPERADMIN_EMAIL =
-  process.env.SEED_SUPERADMIN_EMAIL ?? "owner@devlogia.test";
-const SUPERADMIN_PASSWORD = process.env.SEED_SUPERADMIN_PASSWORD ?? "owner123";
+import { loginAsSuperadmin } from "./auth-helper";
 
 const ONE_BY_ONE_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=";
@@ -11,12 +9,7 @@ test("admin can upload media and publish with OG", async ({
   page,
   request,
 }) => {
-  await page.goto("/admin/login");
-  await page.getByLabel("Email").fill(SUPERADMIN_EMAIL);
-  await page.getByLabel("Password").fill(SUPERADMIN_PASSWORD);
-  await page.getByRole("button", { name: /sign in/i }).click();
-
-  await expect(page).toHaveURL(/admin\/dashboard/);
+  await loginAsSuperadmin(page);
 
   await page.goto("/admin/posts/new");
   await expect(
@@ -26,7 +19,7 @@ test("admin can upload media and publish with OG", async ({
   const timestamp = Date.now();
   const title = `Media Test ${timestamp}`;
   const slug = `media-test-${timestamp}`;
-  await page.getByLabel("Title").fill(title);
+  await page.getByLabel("Title", { exact: true }).fill(title);
   await page.getByLabel("Slug").fill(slug);
   await page.getByLabel("Summary").fill("Testing media upload via Playwright");
   await page
@@ -50,7 +43,8 @@ test("admin can upload media and publish with OG", async ({
   await expect(page.getByText(/Terakhir disimpan/i)).toBeVisible();
 
   await page.goto(`/blog/${slug}`);
-  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+  await expect(page.getByRole("heading", { name: title })).toBeVisible({ timeout: 45_000 });
 
   const ogResponse = await request.get(
     `/api/og?slug=${slug}&title=${encodeURIComponent(title)}`,

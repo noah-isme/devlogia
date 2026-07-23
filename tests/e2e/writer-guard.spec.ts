@@ -1,15 +1,9 @@
 import { expect, test } from "@playwright/test";
 
-const WRITER_EMAIL = process.env.SEED_WRITER_EMAIL ?? "writer@devlogia.test";
-const WRITER_PASSWORD = process.env.SEED_WRITER_PASSWORD ?? "writer123";
+import { loginAsWriter } from "./auth-helper";
 
 test("writer can only save drafts", async ({ page }) => {
-  await page.goto("/admin/login");
-  await page.getByLabel("Email").fill(WRITER_EMAIL);
-  await page.getByLabel("Password").fill(WRITER_PASSWORD);
-  await page.getByRole("button", { name: /sign in/i }).click();
-
-  await expect(page).toHaveURL(/admin\/dashboard/);
+  await loginAsWriter(page);
 
   await page.goto("/admin/posts/new");
   await expect(page.getByRole("heading", { name: /create a new post/i })).toBeVisible();
@@ -19,7 +13,7 @@ test("writer can only save drafts", async ({ page }) => {
   await expect(page.getByLabel("Status").locator("option", { hasText: "PUBLISHED" })).toHaveCount(0);
 
   const title = `Writer Draft ${Date.now()}`;
-  await page.getByLabel("Title").fill(title);
+  await page.getByLabel("Title", { exact: true }).fill(title);
   await page.getByLabel("Content").fill("Writer guard test content.");
 
   await page.getByRole("button", { name: /save draft/i }).click();

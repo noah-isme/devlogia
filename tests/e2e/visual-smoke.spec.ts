@@ -1,6 +1,6 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
-import { createPostViaApi, loginAsSuperadmin, uniquePostName } from "./helpers";
+import { loginAsSuperadmin, createPostViaApi, uniquePostName } from "./helpers";
 
 type PagePayload = {
   readonly title: string;
@@ -150,7 +150,7 @@ test("visual smoke screenshots", async ({ page }, testInfo) => {
   await attachScreenshot(page, testInfo, "admin-posts-list");
 
   await page.goto(`/admin/posts/${createdPost.id}`);
-  await expect(page.getByLabel("Title")).toHaveValue(postTitle);
+  await expect(page.getByLabel("Title", { exact: true })).toHaveValue(postTitle);
   await attachScreenshot(page, testInfo, "admin-post-edit");
 
   await page.goto("/admin/posts/new");
@@ -218,7 +218,7 @@ test("visual smoke screenshots", async ({ page }, testInfo) => {
   await attachScreenshot(page, testInfo, "subscribe-mobile");
 
   await page.goto(`/admin/posts/${createdPost.id}`);
-  await expect(page.getByLabel("Title")).toHaveValue(postTitle);
+  await expect(page.getByLabel("Title", { exact: true })).toHaveValue(postTitle);
   await expectResponsivePage(page);
   await attachScreenshot(page, testInfo, "admin-post-edit-mobile");
 });

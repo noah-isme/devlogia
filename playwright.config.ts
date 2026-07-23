@@ -11,6 +11,9 @@ if (!process.env.CI && existsSync(".env.test")) {
 
 export default defineConfig({
   testDir: "tests/e2e",
+  // Limit parallelism so that concurrent logins don't race against each other
+  // on the shared remote DB. 2 workers is a good balance between speed and stability.
+  workers: process.env.CI ? 2 : 2,
   fullyParallel: true,
   retries: process.env.CI ? 2 : 0,
   timeout: 120 * 1000,
@@ -18,6 +21,7 @@ export default defineConfig({
     timeout: 30 * 1000,
   },
   reporter: [["list"], ["html", { open: "never" }]],
+  globalSetup: "tests/e2e/global-setup.ts",
   use: {
     actionTimeout: 30 * 1000,
     baseURL: "http://127.0.0.1:3000",
@@ -39,6 +43,7 @@ export default defineConfig({
   },
   projects: [
     {
+      // Default unauthenticated project (public pages, login page)
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
     },

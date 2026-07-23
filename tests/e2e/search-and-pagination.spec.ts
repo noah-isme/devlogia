@@ -20,8 +20,8 @@ test("public readers can paginate and filter", async ({ page }) => {
   await expect(page).toHaveURL(/\/blog/);
   await expect(page).not.toHaveURL(/cursor=/);
 
-  await page.getByRole("searchbox", { name: "Search articles" }).fill("Prisma");
-  await page.getByRole("button", { name: "Search" }).click();
+  await page.getByRole("searchbox", { name: "Search articles", exact: true }).fill("Prisma");
+  await page.getByRole("button", { name: "Search", exact: true }).click();
   const searchUrl = new URL(page.url());
   expect(searchUrl.pathname).toBe("/blog");
   expect(searchUrl.searchParams.get("q")).toBe("Prisma");

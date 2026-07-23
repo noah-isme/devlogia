@@ -26,7 +26,7 @@ test.describe("editor edge cases", () => {
       });
     });
 
-    await page.getByLabel("Title").fill(uniquePostName("Upload Failure"));
+    await page.getByLabel("Title", { exact: true }).fill(uniquePostName("Upload Failure"));
     await page.getByLabel("Content").fill("Upload failure coverage.");
 
     await page.setInputFiles('input[type="file"]', {
@@ -64,7 +64,7 @@ test.describe("editor edge cases", () => {
     const title = uniquePostName("Recovered Draft");
     const content = "Draft content that should survive a reload.";
 
-    await page.getByLabel("Title").fill(title);
+    await page.getByLabel("Title", { exact: true }).fill(title);
     await page.getByLabel("Content").fill(content);
 
     await expect(
@@ -75,7 +75,7 @@ test.describe("editor edge cases", () => {
 
     await expect(page.getByText(/Draf lokal ditemukan/i)).toBeVisible();
     await page.getByRole("button", { name: /Pulihkan draft/i }).click();
-    await expect(page.getByLabel("Title")).toHaveValue(title);
+    await expect(page.getByLabel("Title", { exact: true })).toHaveValue(title);
     await expect(page.getByLabel("Content")).toHaveValue(content);
   });
 
@@ -104,7 +104,7 @@ test.describe("editor edge cases", () => {
 
       const response = await writerPage.goto(`/admin/posts/${createdPost.id}`);
       expect(response?.status()).toBe(404);
-      await expect(writerPage.getByLabel("Title")).toHaveCount(0);
+      await expect(writerPage.getByLabel("Title", { exact: true })).toHaveCount(0);
       await expect(writerPage.getByRole("heading", { name: /edit post/i })).toHaveCount(0);
     } finally {
       await writerContext.close();

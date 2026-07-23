@@ -75,6 +75,7 @@ export function VectorSearchBar() {
       <div className="relative flex items-center">
         <Input
           type="search"
+          aria-label="Semantic search articles"
           placeholder="Search articles with vector & topic matching..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}

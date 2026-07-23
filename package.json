@@ -136,19 +136,5 @@
     "tsx": "4.20.6",
     "typescript": "5.9.3",
     "vitest": "4.0.1"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@prisma/client",
-      "@prisma/engines",
-      "@scarf/scarf",
-      "@sentry/cli",
-      "bcrypt",
-      "esbuild",
-      "msw",
-      "prisma",
-      "sharp",
-      "unrs-resolver"
-    ]
   }
 }

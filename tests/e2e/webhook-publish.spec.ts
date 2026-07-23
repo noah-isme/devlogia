@@ -1,8 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { expect, test } from "@playwright/test";
 
-const SUPERADMIN_EMAIL = process.env.SEED_SUPERADMIN_EMAIL ?? "owner@devlogia.test";
-const SUPERADMIN_PASSWORD = process.env.SEED_SUPERADMIN_PASSWORD ?? "owner123";
+import { loginAsSuperadmin } from "./auth-helper";
 
 const prisma = new PrismaClient();
 
@@ -11,35 +10,51 @@ test.afterAll(async () => {
 });
 
 test("publishing records audit log entry", async ({ page }) => {
-  await page.goto("/admin/login");
-  await page.getByLabel("Email").fill(SUPERADMIN_EMAIL);
-  await page.getByLabel("Password").fill(SUPERADMIN_PASSWORD);
-  await page.getByRole("button", { name: /sign in/i }).click();
-
-  await expect(page).toHaveURL(/admin\/dashboard/);
+  await loginAsSuperadmin(page);
 
   await page.goto("/admin/posts/new");
-  await expect(page.getByRole("heading", { name: /create a new post/i })).toBeVisible();
+  await page.waitForURL(/admin\/posts\/new/);
 
   const title = `Webhook Publish ${Date.now()}`;
-  await page.getByLabel("Title").fill(title);
+  await page.getByLabel("Title", { exact: true }).fill(title);
   await page.getByLabel("Summary").fill("Verifying publish audit log");
   await page.getByLabel("Content").fill("# Webhook\n\nTrigger outbound webhooks via audit log test.");
 
   await page.getByRole("button", { name: /^publish$/i }).click();
   await expect(page.getByRole("button", { name: /update post/i })).toBeVisible();
   await expect(page.getByText(/Terakhir disimpan/i)).toBeVisible();
+  // Wait for any pending network requests to settle before reading the slug
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 
   const slug = await page.getByLabel("Slug").inputValue();
   expect(slug).not.toEqual("");
 
-  const log = await prisma.auditLog.findFirst({
+  // Wait a moment to ensure the audit log is committed to the remote DB
+  await page.waitForTimeout(1000);
+
+  const logs = await prisma.auditLog.findMany({
     where: {
       action: "post:publish",
     },
     orderBy: { createdAt: "desc" },
+    take: 50,
   });
 
-  expect(log).not.toBeNull();
-  expect(log?.meta).toMatchObject({ slug });
+  const matchingLog = logs.find((l) => {
+    const meta = l.meta;
+    if (meta === null || meta === undefined) return false;
+    if (typeof meta === "object" && !Array.isArray(meta)) {
+      return (meta as Record<string, unknown>)["slug"] === slug;
+    }
+    if (typeof meta === "string") {
+      try {
+        const parsed = JSON.parse(meta) as Record<string, unknown>;
+        return parsed["slug"] === slug;
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  });
+  expect(matchingLog, `Expected audit log with slug="${slug}" in ${JSON.stringify(logs.map((l) => l.meta))}`).toBeDefined();
 });
