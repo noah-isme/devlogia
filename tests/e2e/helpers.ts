@@ -1,4 +1,3 @@
-import { existsSync, readFileSync } from "node:fs";
 import { expect, type Page } from "@playwright/test";
 
 export const APP_BASE_URL = "http://127.0.0.1:3000";

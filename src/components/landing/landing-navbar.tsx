@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { CommandPaletteTrigger } from "@/components/navigation/CommandPalette";
+import { LandingMobileNav } from "@/components/landing/landing-mobile-nav";
 import { billingFrontendEnabled } from "@/lib/features";
 import { siteConfig } from "@/lib/seo";
 
@@ -20,7 +21,10 @@ export function LandingNavbar() {
             {siteConfig.name}
           </span>
         </Link>
-        <nav className="hidden items-center gap-1 rounded-full border border-border/60 bg-card/70 p-1 text-sm font-medium shadow-sm md:flex">
+        <nav
+          aria-label="Main"
+          className="hidden items-center gap-1 rounded-full border border-border/60 bg-card/70 p-1 text-sm font-medium shadow-sm md:flex"
+        >
           <Link
             href="/#features"
             className="rounded-full px-4 py-2 text-muted-foreground transition hover:bg-muted hover:text-foreground hover:no-underline"
@@ -61,10 +65,11 @@ export function LandingNavbar() {
           <Button
             asChild
             size="sm"
-            className="rounded-full bg-foreground px-5 text-background shadow-lg shadow-foreground/10 hover:bg-foreground/90 hover:text-background"
+            className="hidden rounded-full bg-foreground px-5 text-background shadow-lg shadow-foreground/10 hover:bg-foreground/90 hover:text-background sm:inline-flex"
           >
             <Link href="/admin/login">Start writing</Link>
           </Button>
+          <LandingMobileNav showPricing={billingFrontendEnabled} />
         </div>
       </div>
     </header>

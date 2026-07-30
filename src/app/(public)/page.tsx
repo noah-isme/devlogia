@@ -14,11 +14,11 @@ import { FeaturedArticles, type FeaturedArticleItem } from "@/components/landing
 export const metadata: Metadata = {
   title: "Devlogia - Publish smarter. Grow faster.",
   description:
-    "CMS modern dengan AI writing, SEO, dan analytics untuk kreator & tim. MDX editor, personalized feeds, dan marketplace extensions.",
+    "A modern CMS with AI writing, SEO, and analytics for creators and teams. MDX editor, personalized feeds, and marketplace extensions.",
   openGraph: {
     title: "Devlogia - Modern CMS with AI",
     description:
-      "CMS modern dengan AI writing, SEO, dan analytics untuk kreator & tim.",
+      "A modern CMS with AI writing, SEO, and analytics for creators and teams.",
     type: "website",
   },
 };
@@ -55,13 +55,13 @@ export default async function LandingPage() {
       <HeroSection />
       {featuredArticles.length > 0 ? <FeaturedArticles articles={featuredArticles} /> : null}
       <SocialProof />
-      <div id="features">
+      <div id="features" className="scroll-mt-24">
         <FeaturesGrid />
       </div>
       <PersonalizationSection />
       <IntegrationsSection showBilling={billingFrontendEnabled} />
       {billingFrontendEnabled ? (
-        <div id="pricing">
+        <div id="pricing" className="scroll-mt-24">
           <PricingSection />
         </div>
       ) : null}

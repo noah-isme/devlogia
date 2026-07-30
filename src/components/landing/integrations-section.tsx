@@ -1,3 +1,5 @@
+import { ScrollReveal } from "@/components/ui/scroll-reveal";
+
 const integrations = [
   { name: "Stripe", logo: "💳" },
   { name: "Supabase", logo: "⚡" },
@@ -21,23 +23,29 @@ export function IntegrationsSection({
 
   return (
     <section className="py-16 space-y-8">
-      <div className="text-center space-y-4">
-        <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-          Terhubung dengan stack Anda
-        </h2>
-        <p className="mx-auto max-w-2xl text-muted-foreground">
-          Integrasi siap pakai dengan tools favorit developer dan marketer.
-        </p>
-      </div>
-      <div className="flex flex-wrap items-center justify-center gap-6">
-        {visibleIntegrations.map((integration) => (
-          <div
-            key={integration.name}
-            className="flex items-center gap-3 rounded-xl border border-border bg-card px-6 py-4 shadow-sm transition hover:shadow-md"
-          >
-            <span className="text-2xl">{integration.logo}</span>
-            <span className="font-medium">{integration.name}</span>
-          </div>
+      <ScrollReveal direction="up">
+        <div className="text-center space-y-4">
+          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            Connects to your stack
+          </h2>
+          <p className="mx-auto max-w-2xl text-muted-foreground">
+            Ready-made integrations with the tools developers and marketers already use.
+          </p>
+        </div>
+      </ScrollReveal>
+
+      <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
+        {visibleIntegrations.map((integration, index) => (
+          <ScrollReveal key={integration.name} direction="up" staggerIndex={index}>
+            <div className="group flex items-center gap-3 rounded-xl border border-border/80 bg-card px-6 py-4 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-md hover:bg-muted/40 cursor-default">
+              <span className="text-2xl transition-transform duration-300 group-hover:scale-125">
+                {integration.logo}
+              </span>
+              <span className="font-semibold text-foreground group-hover:text-primary transition-colors duration-200">
+                {integration.name}
+              </span>
+            </div>
+          </ScrollReveal>
         ))}
       </div>
     </section>

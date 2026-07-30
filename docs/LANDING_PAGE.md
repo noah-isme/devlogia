@@ -29,13 +29,22 @@ src/components/
 │   ├── pricing-section.tsx        # 3-tier pricing with toggle
 │   ├── faq-section.tsx           # Accordion FAQ
 │   ├── final-cta.tsx             # Final conversion section
-│   └── landing-navbar.tsx        # Marketing navbar
+│   ├── landing-navbar.tsx        # Marketing navbar
+│   ├── landing-mobile-nav.tsx    # Mobile hamburger menu (md:hidden)
+│   └── featured-articles.tsx     # CMS blog post cards
 └── ui/
     ├── accordion.tsx              # Accessible accordion component
+    ├── badge.tsx                  # Tag/color badges
     ├── tabs.tsx                   # Tabs component for product preview
     ├── card.tsx                   # Card components
     ├── button.tsx                 # (existing)
     ├── input.tsx                  # (existing)
+    ├── label.tsx                  # (existing)
+    ├── pagination.tsx             # Pagination controls
+    ├── scroll-reveal.tsx          # Intersection Observer animation wrapper
+    ├── select.tsx                 # Select dropdown
+    ├── skip-link.tsx              # Accessibility skip-to-content
+    ├── textarea.tsx               # (existing)
     └── ...
 ```
 
@@ -99,6 +108,62 @@ Three plans with monthly/annual toggle:
 - Strong final call-to-action
 - "Mulai menulis hari ini"
 - Emphasizes: "Gratis selamanya. Tidak perlu kartu kredit."
+
+### 9. Featured Articles
+
+- **Headline**: "Fresh Perspectives — Latest Technology & AI Articles"
+- **Layout**: Responsive grid (1→2→3 columns on mobile→tablet→desktop)
+- **Data source**: Query publishes through Prisma, sorted by publish date (descending)
+- **Article card** contains:
+  - Cover image (aspect-video, lazy-loaded)
+  - Tag badges (from post→tags relation, `Badge variant="info"`)
+  - Title (truncated via `line-clamp-3`)
+  - Summary excerpt (truncated via `line-clamp-3`, muted text)
+  - Publish date (formatted with `toLocaleDateString`)
+  - "Read Article →" link with hover arrow translation
+- **Interaction**: Cards styled as interactive hover group (scale image, highlight border, color transition)
+- **Entry gate**: Section renders `null` if no articles fetched (no empty state UI)
+
+### 10. Mobile Navigation
+
+- **Trigger**: Hamburger button (hidden at `md` breakpoint, visible on mobile)
+- **Dropdown**: Full-width overlay with backdrop-blur and border
+- **Links**: Features (/#features), Pricing (/#pricing, conditional), Docs (/developers), Journal (/blog), Login (/admin/login)
+- **Accessibility**: `aria-expanded`, `aria-controls="landing-mobile-menu"`, Escape key closes overlay
+- **CTA**: "Start writing" full-width button at bottom
+
+## Scroll Reveal Animations
+
+### ScrollReveal Component
+
+A reusable client-side animation wrapper (`src/components/ui/scroll-reveal.tsx`) that animates elements into view using the Intersection Observer API.
+
+**Props**:
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `children` | `React.ReactNode` | — | Content to animate |
+| `direction` | `"up" \| "down" \| "left" \| "right" \| "none"` | `"up"` | Animation direction |
+| `delay` | `number` | `0` | Initial delay in ms |
+| `duration` | `number` | `600` | Animation duration in ms |
+| `distance` | `string` | `"24px"` | Travel distance (CSS string) |
+| `once` | `boolean` | `true` | Animate only on first entry |
+| `staggerIndex` | `number` | `0` | Index for staggered animations |
+
+**Behavior**:
+
+- Uses `IntersectionObserver` with `threshold: 0.15`, `rootMargin: "0px 0px -40px 0px"`
+- Applies `translate3d` + `opacity` transitions with `cubic-bezier(0.16, 1, 0.3, 1)` easing
+- Respects `prefers-reduced-motion: reduce` — disables animation entirely
+- Stagger offset: `totalDelay = delay + staggerIndex * 100`
+- Uses `willChange: "opacity, transform"` for GPU acceleration
+- Falls back to visible (no animation) when APIs unavailable (SSR, missing IntersectionObserver)
+
+**Usage in landing page**:
+
+- Every section wrapper is wrapped in `<ScrollReveal direction="up">`
+- Article cards in Featured Articles use `staggerIndex={index}` for cascading entry
+- Hero, Social Proof, Features, Pricing, FAQ, Final CTA all animate on scroll
 
 ## Design System
 
@@ -235,17 +300,20 @@ onClick={() => {
 
 ## Responsive Breakpoints
 
-- **Mobile**: < 640px
+- **Mobile**: < 768px
   - Single column layout
   - Stacked sections
-  - Hamburger menu (future enhancement)
-- **Tablet**: 640px - 1024px
+  - Hamburger menu (`landing-mobile-nav.tsx`)
+  - Scroll-reveal animations active
+- **Tablet**: 768px - 1024px
   - 2-column grids
-  - Visible navigation
+  - Mobile nav hidden, full navbar shown
+  - Featured articles 2 columns
 - **Desktop**: > 1024px
   - 3-column grids for features
-  - Full navigation
+  - Full navigation with `landing-navbar.tsx`
   - Optimal content width
+  - Featured articles 3 columns
 
 ## Implementation Tasks
 
@@ -258,6 +326,9 @@ onClick={() => {
 - [x] LP-05: FAQ Accordion
 - [x] LP-06: SEO metadata
 - [x] LP-07: A11y features (skip link, ARIA)
+- [x] LP-08: Mobile hamburger navigation
+- [x] LP-09: Featured Articles section with CMS data
+- [x] LP-10: Scroll-reveal animations (ScrollReveal component)
 
 ### Future Enhancements 🔄
 
@@ -266,7 +337,6 @@ onClick={() => {
 - [ ] Replace the hero's illustrative product-preview panel with approved product video or interactive media
 - [ ] Add analytics event tracking
 - [ ] A/B test headline variations
-- [ ] Add mobile hamburger menu
 - [ ] Implement smooth scroll to sections
 - [ ] Add testimonials section
 - [ ] Create case study pages

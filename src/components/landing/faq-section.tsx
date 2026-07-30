@@ -1,59 +1,69 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { ScrollReveal } from "@/components/ui/scroll-reveal";
 
 const faqs = [
   {
     id: "faq-1",
-    question: "Apakah bisa migrasi dari WordPress?",
-    answer: "Ya, kami menyediakan importer otomatis dan API untuk migrasi konten dari WordPress, Ghost, dan platform lainnya. Tim support kami siap membantu proses migrasi Anda.",
+    question: "Can I migrate from WordPress?",
+    answer: "Yes. We provide an automatic importer and an API for moving content across from WordPress, Ghost, and other platforms, and our support team can help you plan the migration.",
   },
   {
     id: "faq-2",
-    question: "Bagaimana kuota AI dihitung?",
-    answer: "Kuota AI dihitung per token (sekitar 4 karakter). Plan Free dapat 1000 tokens/bulan, Pro mendapat 50k tokens/bulan. Anda bisa membeli add-on tokens jika diperlukan.",
+    question: "How is the AI quota calculated?",
+    answer: "AI usage is metered per token (roughly four characters). The Free plan includes 1,000 tokens per month and Pro includes 50,000 tokens per month. Add-on token packs are available if you need more.",
   },
   {
     id: "faq-3",
-    question: "Apakah ada plugin store?",
-    answer: "Ya, Devlogia Marketplace menyediakan plugin, template, dan AI extensions yang dibuat oleh komunitas. Anda juga bisa menjual plugin sendiri.",
+    question: "Is there a plugin store?",
+    answer: "Yes. The Devlogia Marketplace offers plugins, templates, and AI extensions built by the community, and you can publish and sell your own.",
   },
   {
     id: "faq-4",
-    question: "Apakah mendukung tim kolaborasi?",
-    answer: "Tentu! Sistem multi-tenant dan role-based access control memungkinkan tim berkolaborasi dengan aman. Setiap anggota bisa punya role berbeda (admin, editor, contributor).",
+    question: "Does it support team collaboration?",
+    answer: "It does. Multi-tenancy and role-based access control let teams work together safely, and every member can hold a different role such as admin, editor, or contributor.",
   },
   {
     id: "faq-5",
-    question: "Bagaimana dengan self-hosting?",
-    answer: "Kami menyediakan Docker image dan deployment guide lengkap untuk self-hosting. Source code tersedia di GitHub dengan lisensi MIT untuk plan Enterprise.",
+    question: "What about self-hosting?",
+    answer: "We ship a Docker image and a full deployment guide for self-hosting. The source is available on GitHub under the MIT licence, and Enterprise plans add a support agreement on top of it.",
   },
   {
     id: "faq-6",
-    question: "Apakah ada diskon untuk edukasi?",
-    answer: "Ya, kami memberikan diskon 50% untuk institusi pendidikan dan nonprofit. Silakan hubungi support dengan email institusi Anda untuk verifikasi.",
+    question: "Do you offer education discounts?",
+    answer: "Yes. Educational institutions and nonprofits receive 50% off. Contact support from your institutional email address and we will verify your account.",
   },
 ];
 
 export function FAQSection() {
   return (
     <section className="py-16 space-y-8">
-      <div className="text-center space-y-4">
-        <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-          Pertanyaan Umum
-        </h2>
-        <p className="mx-auto max-w-2xl text-muted-foreground">
-          Temukan jawaban untuk pertanyaan yang sering ditanyakan.
-        </p>
-      </div>
-      <div className="mx-auto max-w-3xl">
-        <Accordion>
-          {faqs.map((faq) => (
-            <AccordionItem key={faq.id} id={faq.id}>
-              <AccordionTrigger id={faq.id}>{faq.question}</AccordionTrigger>
-              <AccordionContent id={faq.id}>{faq.answer}</AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      </div>
+      <ScrollReveal direction="up">
+        <div className="text-center space-y-4">
+          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            Frequently asked questions
+          </h2>
+          <p className="mx-auto max-w-2xl text-muted-foreground">
+            Answers to the things people ask us most often.
+          </p>
+        </div>
+      </ScrollReveal>
+
+      <ScrollReveal direction="up" delay={150}>
+        <div className="mx-auto max-w-3xl rounded-2xl border border-border/80 bg-card p-4 sm:p-6 shadow-sm">
+          <Accordion>
+            {faqs.map((faq) => (
+              <AccordionItem key={faq.id} id={faq.id} className="border-border/60 transition-colors duration-200 hover:border-primary/30">
+                <AccordionTrigger id={faq.id} className="text-left font-semibold hover:text-primary transition-colors">
+                  {faq.question}
+                </AccordionTrigger>
+                <AccordionContent id={faq.id} className="text-muted-foreground leading-relaxed">
+                  {faq.answer}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </div>
+      </ScrollReveal>
     </section>
   );
 }

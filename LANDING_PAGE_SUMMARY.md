@@ -110,6 +110,36 @@ The Devlogia landing page has been successfully redesigned and implemented, repl
 └────────────────────────────────────────┘
 ```
 
+### 9. Featured Articles
+
+```
+  Fresh Perspectives
+  Latest Technology & AI Articles       [View All →]
+
+  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+  │ [Cover Img] │ │ [Cover Img] │ │ [Cover Img] │
+  │ #AI  #Tech  │ │ #DevOps     │ │ #Design     │
+  │ Article 1   │ │ Article 2   │ │ Article 3   │
+  │ 100-char... │ │ 100-char... │ │ 100-char... │
+  │ Jan 1, 2026 │ │ Dec 1, 2025 │ │ Nov 1, 2025 │
+  │ Read →      │ │ Read →      │ │ Read →      │
+  └─────────────┘ └─────────────┘ └─────────────┘
+```
+
+Dynamically loads published blog posts from the CMS. Displays cover image, tags, title, summary, publish date, and a "Read Article" link. Uses scroll-reveal animation with staggered delays for each card.
+
+### 10. Mobile Navigation
+
+```
+  [md:hidden] Hamburger button →
+  ▼ Dropdown: Features, Pricing, Docs, Journal, Login
+  ┌──────────────────────┐
+  │   Start writing      │
+  └──────────────────────┘
+```
+
+Collapsible mobile menu with keyboard navigation (Escape to close). Links to landing sections (/#features), docs, blog (Journal), and admin login. Reuses landing navbar at ≥768px breakpoint.
+
 ---
 
 ## 🎯 Key Achievements
@@ -131,8 +161,8 @@ The Devlogia landing page has been successfully redesigned and implemented, repl
 - **Bundle**: Optimized with Turbopack
 - **Routes**: 58 pages generated
 - **TypeScript**: 0 errors
-- **Components**: 14 new components
-- **Files Created**: 14 total
+- **Components**: 22 new components
+- **Files Created**: 22 total
 
 ### ♿ Accessibility Features
 
@@ -175,13 +205,23 @@ devlogia/
 │   │   │   ├── pricing-section.tsx
 │   │   │   ├── faq-section.tsx
 │   │   │   ├── final-cta.tsx
-│   │   │   └── landing-navbar.tsx
+│   │   │   ├── landing-navbar.tsx
+│   │   │   ├── landing-mobile-nav.tsx  ← NEW
+│   │   │   └── featured-articles.tsx  ← NEW
 │   │   │
 │   │   └── ui/
 │   │       ├── accordion.tsx     ← NEW
+│   │       ├── badge.tsx         ← NEW
 │   │       ├── tabs.tsx          ← NEW
 │   │       ├── card.tsx          ← NEW
 │   │       ├── button.tsx        (existing)
+│   │       ├── input.tsx         (existing)
+│   │       ├── label.tsx         (existing)
+│   │       ├── pagination.tsx    ← NEW
+│   │       ├── scroll-reveal.tsx  ← NEW
+│   │       ├── select.tsx        ← NEW
+│   │       ├── skip-link.tsx     ← NEW
+│   │       ├── textarea.tsx      ← NEW
 │   │       └── ...
 │   │
 │   └── app/api/auth/self-test/
