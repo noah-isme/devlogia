@@ -4,10 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-import type { RelatedPost, WriterAction } from "@/lib/ai/types";
+import type { RelatedPost, ResearchSource, WriterAction } from "@/lib/ai/types";
 
 type AssistantPanelProps = {
   disabled: boolean;
@@ -17,6 +18,7 @@ type AssistantPanelProps = {
   tags: string[];
   content: string;
   selection: { text: string; hasSelection: boolean };
+  canResearchNews: boolean;
   onApply: (mode: "replace-selection" | "append" | "insert" | "replace-all", content: string) => void;
 };
 
@@ -67,7 +69,7 @@ const writerActions: Array<{
 
 const LOCAL_TEMPLATE_KEY = "devlogia-ai-writer-template";
 
-export function AssistantPanel({ disabled, postId, title, summary, tags, content, selection, onApply }: AssistantPanelProps) {
+export function AssistantPanel({ disabled, postId, title, summary, tags, content, selection, canResearchNews, onApply }: AssistantPanelProps) {
   const [relatedPosts, setRelatedPosts] = useState<RelatedPost[]>([]);
   const [isLoadingRelated, setIsLoadingRelated] = useState(false);
   const [currentAction, setCurrentAction] = useState<WriterAction | null>(null);
@@ -77,6 +79,11 @@ export function AssistantPanel({ disabled, postId, title, summary, tags, content
   const [usage, setUsage] = useState<{ tokensIn: number; tokensOut: number; cost: string } | null>(null);
   const [budgetStatus, setBudgetStatus] = useState<string | null>(null);
   const [customInstructions, setCustomInstructions] = useState("Keep tone practical and friendly. Use short paragraphs.");
+  const [researchQuery, setResearchQuery] = useState("");
+  const [researchSources, setResearchSources] = useState<ResearchSource[]>([]);
+  const [researchToken, setResearchToken] = useState<string | null>(null);
+  const [selectedSourceUrls, setSelectedSourceUrls] = useState<string[]>([]);
+  const [researching, setResearching] = useState(false);
   const abortController = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -132,6 +139,10 @@ export function AssistantPanel({ disabled, postId, title, summary, tags, content
       setError("Select text in the editor to run this action.");
       return;
     }
+    if (action === "draft_from_sources" && (!researchToken || !selectedSourceUrls.length)) {
+      setError("Research current news and select at least one source first.");
+      return;
+    }
 
     abortCurrent();
     setCurrentAction(action);
@@ -160,6 +171,8 @@ export function AssistantPanel({ disabled, postId, title, summary, tags, content
           relatedPosts,
           styleGuide: customInstructions,
           targetLanguage: writerActions.find((item) => item.action === action)?.targetLanguage,
+          researchToken: action === "draft_from_sources" ? researchToken : undefined,
+          sourceUrls: action === "draft_from_sources" ? selectedSourceUrls : undefined,
         }),
       });
 
@@ -203,6 +216,24 @@ export function AssistantPanel({ disabled, postId, title, summary, tags, content
       setStreaming(false);
     } finally {
       abortController.current = null;
+    }
+  }
+
+  async function searchNews() {
+    if (researchQuery.trim().length < 3 || researching) return;
+    setResearching(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/admin/news/search", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: researchQuery }) });
+      const data = (await response.json()) as { sources?: ResearchSource[]; researchToken?: string; error?: string };
+      if (!response.ok || !data.sources || !data.researchToken) throw new Error(data.error || "News research failed");
+      setResearchSources(data.sources);
+      setResearchToken(data.researchToken);
+      setSelectedSourceUrls(data.sources.map((source) => source.url));
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "News research failed");
+    } finally {
+      setResearching(false);
     }
   }
 
@@ -287,6 +318,15 @@ export function AssistantPanel({ disabled, postId, title, summary, tags, content
           </Button>
         ) : null}
       </div>
+
+      {canResearchNews ? (
+        <section className="space-y-2 rounded-md border border-violet-500/30 bg-violet-500/5 p-3 text-xs">
+          <div><p className="font-medium">Current-news research</p><p className="text-muted-foreground">Select dated sources. AI will cite only the selected links.</p></div>
+          <div className="flex gap-2"><Input value={researchQuery} onChange={(event) => setResearchQuery(event.target.value)} placeholder="Topic or news angle" /><Button type="button" size="sm" variant="outline" disabled={researching || researchQuery.trim().length < 3} onClick={() => void searchNews()}>{researching ? "Searching…" : "Research"}</Button></div>
+          {researchSources.map((source) => <label key={source.url} className="flex gap-2 rounded border border-border p-2"><input type="checkbox" checked={selectedSourceUrls.includes(source.url)} onChange={(event) => setSelectedSourceUrls((current) => event.target.checked ? [...current, source.url] : current.filter((url) => url !== source.url))} /><span><a className="font-medium underline" href={source.url} target="_blank" rel="noreferrer">{source.title}</a><span className="block text-muted-foreground">{source.publisher} · {new Date(source.publishedAt).toLocaleDateString()}</span><span className="block text-muted-foreground">{source.description}</span></span></label>)}
+          {researchSources.length ? <Button type="button" size="sm" disabled={disabled || streaming || !selectedSourceUrls.length} onClick={() => runAction("draft_from_sources")}>Draft from selected sources</Button> : null}
+        </section>
+      ) : null}
 
       <div className="space-y-2 rounded-md border border-dashed border-border p-3 text-xs">
         <p className="font-medium">Selection preview</p>

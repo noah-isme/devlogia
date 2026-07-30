@@ -13,10 +13,11 @@ import {
 import { type WriterAction } from "@/lib/ai/types";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/rbac";
+import { verifyResearchSources } from "@/lib/news";
 
 const requestSchema = z.object({
   postId: z.string().optional(),
-  action: z.enum(["draft", "continue", "rewrite_clarity", "rewrite_concise", "translate_en", "translate_id"] satisfies WriterAction[]),
+  action: z.enum(["draft", "continue", "rewrite_clarity", "rewrite_concise", "translate_en", "translate_id", "draft_from_sources"] satisfies WriterAction[]),
   title: z.string().min(1),
   summary: z.string().optional(),
   tags: z.array(z.string().min(1)).max(20).optional(),
@@ -35,6 +36,8 @@ const requestSchema = z.object({
       }),
     )
     .optional(),
+  researchToken: z.string().max(20_000).optional(),
+  sourceUrls: z.array(z.string().url()).min(1).max(6).optional(),
 });
 
 export async function POST(request: Request) {
@@ -57,6 +60,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
   const payload = parsed.data;
+  const isSourceDraft = payload.action === "draft_from_sources";
+  if (isSourceDraft && session.user.role !== "admin" && session.user.role !== "superadmin") {
+    return NextResponse.json({ error: "Only administrators can draft from current-news sources" }, { status: 403 });
+  }
+  const researchSources = isSourceDraft ? verifyResearchSources(payload.researchToken ?? "", payload.sourceUrls ?? []) : undefined;
+  if (isSourceDraft && !researchSources) {
+    return NextResponse.json({ error: "Selected research sources have expired or are invalid. Search again." }, { status: 400 });
+  }
 
   const rateLimit = await enforceCreatorRateLimit(session.user.id);
   if (!rateLimit.success) {
@@ -83,11 +94,13 @@ export async function POST(request: Request) {
   try {
     const completion = await provider.writer({
       ...payload,
+      researchSources: researchSources ?? undefined,
       content: payload.content ?? "",
       selection: payload.selection ?? "",
     });
 
-    const moderationOutput = await moderateContent(completion.content, "completion");
+    const citedCompletion = researchSources?.length ? `${completion.content.replace(/\n*## Sources[\s\S]*$/i, "").trim()}\n\n## Sources\n${researchSources.map((source) => `- [${source.title}](${source.url}) — ${source.publisher}, ${new Date(source.publishedAt).toLocaleDateString("en-CA")}`).join("\n")}` : completion.content;
+    const moderationOutput = await moderateContent(citedCompletion, "completion");
     if (moderationOutput.flagged) {
       await recordAuditLog({
         userId: session.user.id,
@@ -103,7 +116,7 @@ export async function POST(request: Request) {
     }
 
     const budget = await enforceMonthlyBudget({ userId: session.user.id, additionalCost: completion.usage.costUsd });
-    const response = new Response(streamText(completion.content), {
+    const response = new Response(streamText(citedCompletion), {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
         "X-AI-Usage-Tokens-In": String(completion.usage.tokensIn ?? 0),

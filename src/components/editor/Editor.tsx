@@ -508,7 +508,8 @@ export function PostEditor({ initialPost, initialRevisions = [], mode, role, aiE
             summary={post.summary}
             tags={post.tags}
             content={post.contentMdx}
-            selection={{ text: selectionText, hasSelection }}
+                selection={{ text: selectionText, hasSelection }}
+                canResearchNews={role === "admin" || role === "superadmin"}
             onApply={applyGeneratedContent}
           />
           <div className="flex items-center justify-between rounded-md border border-dashed border-border bg-muted/30 px-3 py-2 text-xs">

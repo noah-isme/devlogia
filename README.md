@@ -79,6 +79,20 @@ GROQ_API_KEY="your-groq-api-key"
 GROQ_MODEL="llama-3.3-70b-versatile"
 ```
 
+### Source-backed current-news drafting
+
+Administrators can research and select dated sources in the post editor, then use **Draft from selected sources**. Configure exactly one news provider:
+
+```bash
+NEWS_PROVIDER="gnews" # or "newsapi"
+GNEWS_API_KEY="your-gnews-key"
+# NEWS_API_KEY="your-newsapi-key"
+NEWS_LANGUAGE="en"
+```
+
+Search results are signed for 15 minutes. The draft endpoint accepts only selected URLs from that signed result and appends a `## Sources` section. Research and AI drafts remain advisory and require normal human review before publishing.
+
+
 
 Open:
 

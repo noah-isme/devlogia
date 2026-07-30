@@ -20,7 +20,16 @@ export type WriterAction =
   | "rewrite_concise"
   | "translate_en"
   | "translate_id"
-  | "editorial_review";
+  | "editorial_review"
+  | "draft_from_sources";
+
+export type ResearchSource = {
+  title: string;
+  description: string;
+  publisher: string;
+  publishedAt: string;
+  url: string;
+};
 
 export type RelatedPost = {
   id: string;
@@ -41,6 +50,7 @@ export type WriterRequest = {
   relatedPosts?: RelatedPost[];
   toneGuide?: string;
   styleGuide?: string;
+  researchSources?: ResearchSource[];
 };
 
 export type WriterResult = {

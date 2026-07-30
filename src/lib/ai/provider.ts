@@ -185,6 +185,8 @@ export class NullProvider implements AIProvider {
       result = `[ID] ${selection || content}`;
     } else if (action === "editorial_review") {
       result = "## Editorial review\n\n- Verify the main claim is supported by a concrete example or source.\n- Clarify the intended audience and expected prerequisite knowledge.\n- Check code samples and links before publishing.\n\nThis is advisory feedback. A human editor must make the publication decision.";
+    } else if (action === "draft_from_sources") {
+      result = `# ${title}\n\n${summary || "Draft based on the selected current-news sources."}\n\n## Sources\n${request.researchSources?.map((source) => `- [${source.title}](${source.url}) — ${source.publisher}, ${source.publishedAt}`).join("\n") ?? ""}`;
     }
     const usage = estimateUsage(JSON.stringify(request), result);
     return { content: result, usage } satisfies AICompletionResult;
@@ -772,6 +774,8 @@ function buildWriterPrompt(request: WriterRequest) {
     translate_id: "Translate the selection into Indonesian while keeping markdown/MDX syntax intact.",
     editorial_review:
       "Review this draft for clarity, structure, technical accuracy risks, unsupported claims, missing context, and actionable publication blockers. Return concise Markdown with the headings: Summary, Strengths, Required changes, Suggested improvements, and Publish recommendation. This feedback is advisory only. Never claim you verified facts, links, or code unless the supplied draft proves them.",
+    draft_from_sources:
+      "Write a balanced MDX article using only the selected sources. Attribute material claims to their source, distinguish confirmed facts from analysis, and do not invent facts, quotes, citations, or URLs. Finish with a ## Sources section containing every supplied source URL.",
   };
   const base = [`# Task`, actionMap[request.action]];
   base.push(`
@@ -783,6 +787,9 @@ function buildWriterPrompt(request: WriterRequest) {
   if (request.styleGuide) base.push(`- Style guide: ${request.styleGuide}`);
   if (request.relatedPosts?.length) {
     base.push(`- Related posts: ${request.relatedPosts.map((post) => post.title).join(", ")}`);
+  }
+  if (request.researchSources?.length) {
+    base.push(`\n# Selected current-news sources\n${request.researchSources.map((source) => `- ${source.title} | ${source.publisher} | ${source.publishedAt}\n  ${source.description}\n  URL: ${source.url}`).join("\n")}`);
   }
   base.push(`- Target language: ${languageLabel}`);
   base.push(`
