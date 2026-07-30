@@ -99,7 +99,7 @@ export async function POST(request: Request) {
       selection: payload.selection ?? "",
     });
 
-    const citedCompletion = researchSources?.length ? `${completion.content.replace(/\n*## Sources[\s\S]*$/i, "").trim()}\n\n## Sources\n${researchSources.map((source) => `- [${source.title}](${source.url}) — ${source.publisher}, ${new Date(source.publishedAt).toLocaleDateString("en-CA")}`).join("\n")}` : completion.content;
+    const citedCompletion = researchSources?.length ? `${completion.content.replace(/\n*## Sources[\s\S]*$/i, "").trim()}\n\n## Sources\n${researchSources.map(formatSourceCitation).join("\n")}` : completion.content;
     const moderationOutput = await moderateContent(citedCompletion, "completion");
     if (moderationOutput.flagged) {
       await recordAuditLog({
@@ -162,6 +162,11 @@ export async function POST(request: Request) {
     console.error("AI writer failed", error);
     return NextResponse.json({ error: "AI request failed" }, { status: 502 });
   }
+}
+
+function formatSourceCitation(source: { title: string; url: string; publisher: string; publishedAt: string }) {
+  const title = source.title.replace(/([\\[\]])/g, "\\$1");
+  return `- [${title}](${source.url}) — ${source.publisher}, ${new Date(source.publishedAt).toLocaleDateString("en-CA")}`;
 }
 
 function streamText(content: string) {

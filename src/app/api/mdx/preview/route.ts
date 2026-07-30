@@ -15,9 +15,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
 
-  const element = await renderMdx(body.content);
-  const { renderToStaticMarkup } = await import("react-dom/server");
-  const html = renderToStaticMarkup(element);
-
-  return NextResponse.json({ html });
+  try {
+    const element = await renderMdx(body.content);
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const html = renderToStaticMarkup(element);
+    return NextResponse.json({ html });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message.replace(/\s+/g, " ").slice(0, 500) : "Invalid MDX syntax";
+    return NextResponse.json({ error: "Unable to render MDX", detail }, { status: 422 });
+  }
 }

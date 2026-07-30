@@ -19,14 +19,15 @@ export function useEditorPreview(getContent: () => string) {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to render preview");
+        const data = (await response.json().catch(() => ({}))) as { error?: string; detail?: string };
+        throw new Error(data.detail || data.error || "Failed to render preview");
       }
 
       const data = await response.json();
       setPreviewHtml(data.html ?? "");
     } catch (error) {
       console.error(error);
-      setPreviewError("Unable to render preview. Check your MDX syntax.");
+      setPreviewError(`Unable to render preview. ${(error as Error).message}`);
     }
   }, [getContent]);
 
