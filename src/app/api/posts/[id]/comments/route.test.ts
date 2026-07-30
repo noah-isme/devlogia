@@ -53,7 +53,7 @@ describe("/api/posts/[id]/comments", () => {
     ]);
 
     const { GET } = await import("./route");
-    const req = new Request("http://localhost:3000/api/posts/post_1/comments");
+    const req = new Request("http://localhost:3001/api/posts/post_1/comments");
     const res = await GET(req, { params: Promise.resolve({ id: "post_1" }) });
 
     expect(res.status).toBe(200);
@@ -66,7 +66,7 @@ describe("/api/posts/[id]/comments", () => {
     const { POST } = await import("./route");
 
     // Missing authorName
-    const reqInvalid = new Request("http://localhost:3000/api/posts/post_1/comments", {
+    const reqInvalid = new Request("http://localhost:3001/api/posts/post_1/comments", {
       method: "POST",
       body: JSON.stringify({ authorName: "", authorEmail: "user@test.com", content: "Hello" }),
     });
@@ -82,7 +82,7 @@ describe("/api/posts/[id]/comments", () => {
       content: "Awesome post!",
       createdAt: new Date().toISOString(),
     });
-    const reqValid = new Request("http://localhost:3000/api/posts/post_1/comments", {
+    const reqValid = new Request("http://localhost:3001/api/posts/post_1/comments", {
       method: "POST",
       body: JSON.stringify({ authorName: "Bob", authorEmail: "bob@test.com", content: "Awesome post!" }),
     });

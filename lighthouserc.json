@@ -3,8 +3,8 @@
     "collect": {
       "startServerCommand": "pnpm start",
       "url": [
-        "http://localhost:3000/",
-        "http://localhost:3000/blog"
+        "http://localhost:3001/",
+        "http://localhost:3001/blog"
       ],
       "numberOfRuns": 1,
       "settings": {

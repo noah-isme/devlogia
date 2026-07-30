@@ -32,7 +32,7 @@ jobs:
     env:
       DATABASE_URL: mysql://root:root@mysql:3306/devlogia
       NEXTAUTH_SECRET: ci-secret
-      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_URL: http://localhost:3001
       SUPABASE_URL: ${{ matrix.storage == 'supabase' && secrets.SUPABASE_URL || '' }}
       SUPABASE_ANON_KEY: ${{ matrix.storage == 'supabase' && secrets.SUPABASE_ANON_KEY || '' }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ matrix.storage == 'supabase' && secrets.SUPABASE_SERVICE_ROLE_KEY || '' }}
@@ -43,7 +43,7 @@ jobs:
       # Redis is optional and no Redis service is provisioned in this workflow.
       RATE_LIMIT_REDIS_URL: ""
       RATE_LIMIT_ALLOWLIST: 127.0.0.1
-      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3001
       MAINTENANCE_MODE: "false"
       CSP_REPORT_URI: ""
       NEXT_PUBLIC_SUPABASE_URL: ${{ matrix.storage == 'supabase' && secrets.SUPABASE_URL || '' }}

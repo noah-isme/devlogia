@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 const defaultUrl =
-  process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3001";
 
 type OgImageOptions =
   | string

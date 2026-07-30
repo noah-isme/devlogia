@@ -10,7 +10,7 @@ async function captureFeedFix() {
   const page = await context.newPage();
 
   try {
-    await page.goto("http://localhost:3000/blog/prisma-optimizing-queries", { waitUntil: "networkidle" });
+    await page.goto("http://localhost:3001/blog/prisma-optimizing-queries", { waitUntil: "networkidle" });
     await page.waitForTimeout(1000);
 
     const filePath = path.join(ARTIFACT_DIR, "fixed_personalized_feed_section.png");

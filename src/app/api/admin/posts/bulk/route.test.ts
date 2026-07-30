@@ -39,7 +39,7 @@ describe("/api/admin/posts/bulk", () => {
 
   test("POST publishes multiple posts", async () => {
     const { POST } = await import("./route");
-    const req = new Request("http://localhost:3000/api/admin/posts/bulk", {
+    const req = new Request("http://localhost:3001/api/admin/posts/bulk", {
       method: "POST",
       body: JSON.stringify({ action: "publish", postIds: ["p1", "p2"] }),
     });
@@ -53,7 +53,7 @@ describe("/api/admin/posts/bulk", () => {
 
   test("POST deletes multiple posts", async () => {
     const { POST } = await import("./route");
-    const req = new Request("http://localhost:3000/api/admin/posts/bulk", {
+    const req = new Request("http://localhost:3001/api/admin/posts/bulk", {
       method: "POST",
       body: JSON.stringify({ action: "delete", postIds: ["p1", "p2"] }),
     });

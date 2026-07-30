@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-const DEFAULT_ENDPOINT = process.env.METRICS_ENDPOINT ?? "http://localhost:3000/api/metrics";
+const DEFAULT_ENDPOINT = process.env.METRICS_ENDPOINT ?? "http://localhost:3001/api/metrics";
 const METRICS_API_KEY = process.env.METRICS_API_KEY ?? "";
 const ERROR_RATE_THRESHOLD = Number(process.env.METRICS_ERROR_RATE_THRESHOLD ?? 0.01);
 const P95_THRESHOLD = Number(process.env.METRICS_P95_THRESHOLD_MS ?? 800);

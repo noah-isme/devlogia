@@ -52,7 +52,7 @@ describe("/api/admin/comments", () => {
     ]);
 
     const { GET } = await import("./route");
-    const req = new Request("http://localhost:3000/api/admin/comments");
+    const req = new Request("http://localhost:3001/api/admin/comments");
     const res = await GET(req);
 
     expect(res.status).toBe(200);
@@ -63,7 +63,7 @@ describe("/api/admin/comments", () => {
 
   test("PATCH updates comment status", async () => {
     const { PATCH } = await import("./[id]/route");
-    const req = new Request("http://localhost:3000/api/admin/comments/c1", {
+    const req = new Request("http://localhost:3001/api/admin/comments/c1", {
       method: "PATCH",
       body: JSON.stringify({ status: "APPROVED" }),
     });
@@ -78,7 +78,7 @@ describe("/api/admin/comments", () => {
 
   test("DELETE removes comment", async () => {
     const { DELETE } = await import("./[id]/route");
-    const req = new Request("http://localhost:3000/api/admin/comments/c1", {
+    const req = new Request("http://localhost:3001/api/admin/comments/c1", {
       method: "DELETE",
     });
     const res = await DELETE(req, { params: Promise.resolve({ id: "c1" }) });

@@ -286,7 +286,7 @@ export const openApiDocument = generator.generateDocument({
   },
   servers: [
     { url: "https://devlogia.test", description: "Production" },
-    { url: "http://localhost:3000", description: "Local development" },
+    { url: "http://localhost:3001", description: "Local development" },
   ],
   security: [{ CookieAuth: [] }],
 });

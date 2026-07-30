@@ -31,7 +31,7 @@ Likely causes:
 
    ```env
    NEXTAUTH_SECRET="replace-with-the-generated-value"
-   NEXTAUTH_URL="http://localhost:3000"
+   NEXTAUTH_URL="http://localhost:3001"
    ```
 
 2. If `AUTH_SECRET` is set by the hosting platform, either remove it or make it identical to `NEXTAUTH_SECRET`.

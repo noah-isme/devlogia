@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     return new NextResponse("Missing article slug parameter", { status: 400 });
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || siteConfig.url || "http://localhost:3000";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || siteConfig.url || "http://localhost:3001";
   const redirectUrl = new URL(`/blog/${encodeURIComponent(slug)}`, baseUrl);
   redirectUrl.searchParams.set("preview", "true");
 

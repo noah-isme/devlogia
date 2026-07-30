@@ -10,13 +10,13 @@ async function captureRestoredLayout() {
   const page = await context.newPage();
 
   try {
-    await page.goto("http://localhost:3000/admin/login", { waitUntil: "networkidle" });
+    await page.goto("http://localhost:3001/admin/login", { waitUntil: "networkidle" });
     await page.getByLabel("Email").fill("admin@devlogia.test");
     await page.getByLabel("Password").fill("admin123");
     await page.getByRole("button", { name: /sign in/i }).click();
     await page.waitForTimeout(1500);
 
-    await page.goto("http://localhost:3000/admin/posts", { waitUntil: "networkidle" });
+    await page.goto("http://localhost:3001/admin/posts", { waitUntil: "networkidle" });
     await page.waitForTimeout(1000);
 
     const filePath = path.join(ARTIFACT_DIR, "restored_admin_posts_clean.png");

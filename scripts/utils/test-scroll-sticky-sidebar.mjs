@@ -17,14 +17,14 @@ async function testScrollStickySidebar() {
   const page = await context.newPage();
 
   try {
-    await page.goto("http://localhost:3000/admin/login", { waitUntil: "networkidle" });
+    await page.goto("http://localhost:3001/admin/login", { waitUntil: "networkidle" });
     await page.getByLabel("Email").fill("noorwahid052002@gmail.com");
     await page.getByLabel("Password").fill("Noorwahid313717!@#$%");
     await page.getByRole("button", { name: /sign in/i }).click();
     await page.waitForTimeout(2000);
 
     // Go to long page (New Post Editor)
-    await page.goto("http://localhost:3000/admin/posts/new", { waitUntil: "networkidle" });
+    await page.goto("http://localhost:3001/admin/posts/new", { waitUntil: "networkidle" });
     await page.waitForTimeout(1000);
 
     // Capture top view

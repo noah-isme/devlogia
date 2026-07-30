@@ -24,7 +24,7 @@ async function globalSetup(config: FullConfig) {
   }
 
   const baseURL =
-    config.projects[0]?.use?.baseURL ?? "http://127.0.0.1:3000";
+    config.projects[0]?.use?.baseURL ?? "http://127.0.0.1:3001";
 
   const superadminEmail =
     process.env.SEED_SUPERADMIN_EMAIL ?? "owner@devlogia.test";

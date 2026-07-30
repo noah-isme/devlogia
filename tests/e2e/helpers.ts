@@ -1,6 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 
-export const APP_BASE_URL = "http://127.0.0.1:3000";
+export const APP_BASE_URL = "http://127.0.0.1:3001";
 
 const SUPERADMIN_EMAIL = process.env.SEED_SUPERADMIN_EMAIL ?? "owner@devlogia.test";
 const SUPERADMIN_PASSWORD = process.env.SEED_SUPERADMIN_PASSWORD ?? "owner123";

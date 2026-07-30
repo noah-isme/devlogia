@@ -16,11 +16,11 @@ async function capture() {
   const page = await context.newPage();
 
   const pagesToCapture = [
-    { url: "http://localhost:3000/", filename: "01_landing_page.png" },
-    { url: "http://localhost:3000/blog", filename: "02_blog_journal_index.png" },
-    { url: "http://localhost:3000/blog/autonomous-agentic-coding-architecture", filename: "03_article_detail_comments_reactions.png" },
-    { url: "http://localhost:3000/blog/saved", filename: "04_saved_articles_reading_list.png" },
-    { url: "http://localhost:3000/admin/login", filename: "05_admin_login.png" },
+    { url: "http://localhost:3001/", filename: "01_landing_page.png" },
+    { url: "http://localhost:3001/blog", filename: "02_blog_journal_index.png" },
+    { url: "http://localhost:3001/blog/autonomous-agentic-coding-architecture", filename: "03_article_detail_comments_reactions.png" },
+    { url: "http://localhost:3001/blog/saved", filename: "04_saved_articles_reading_list.png" },
+    { url: "http://localhost:3001/admin/login", filename: "05_admin_login.png" },
   ];
 
   console.log("Capturing page screenshots...");

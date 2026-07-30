@@ -24,7 +24,7 @@ export default defineConfig({
   globalSetup: "tests/e2e/global-setup.ts",
   use: {
     actionTimeout: 30 * 1000,
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: "http://127.0.0.1:3001",
     navigationTimeout: 60 * 1000,
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
@@ -32,13 +32,13 @@ export default defineConfig({
   webServer: {
     command: process.env.CI
       ? "pnpm start"
-      : "pnpm exec next dev --hostname 0.0.0.0 --port 3000",
-    port: 3000,
+      : "pnpm exec next dev --hostname 0.0.0.0 --port 3001",
+    port: 3001,
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
     env: {
       ...process.env,
-      NEXTAUTH_URL: "http://127.0.0.1:3000",
+      NEXTAUTH_URL: "http://127.0.0.1:3001",
     },
   },
   projects: [

@@ -11,20 +11,20 @@ async function verifyMissingCmsFeatures() {
 
   try {
     // Login
-    await page.goto("http://localhost:3000/admin/login", { waitUntil: "domcontentloaded" });
+    await page.goto("http://localhost:3001/admin/login", { waitUntil: "domcontentloaded" });
     await page.fill('input[name="email"]', "owner@devlogia.test");
     await page.fill('input[name="password"]', "owner123");
     await page.click('button[type="submit"]');
     await page.waitForTimeout(1500);
 
     // 1. Admin Settings Backup Button
-    await page.goto("http://localhost:3000/admin/settings", { waitUntil: "domcontentloaded" });
+    await page.goto("http://localhost:3001/admin/settings", { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1000);
     await page.screenshot({ path: path.join(ARTIFACT_DIR, "admin_settings_backup_export.png") });
     console.log("  Saved: admin_settings_backup_export.png");
 
     // 2. Editor Scheduled Datetime & Share Preview
-    await page.goto("http://localhost:3000/admin/posts/new", { waitUntil: "domcontentloaded" });
+    await page.goto("http://localhost:3001/admin/posts/new", { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1500);
     const select = page.locator('select[name="status"]');
     if (await select.isVisible()) {

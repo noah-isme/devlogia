@@ -26,7 +26,7 @@ async function runAdminE2EVisualTest() {
   try {
     // 1. Admin Login Page & Authentication
     console.log("\n[1/10] Authenticating on Admin Login Page...");
-    await page.goto("http://localhost:3000/admin/login", { waitUntil: "networkidle" });
+    await page.goto("http://localhost:3001/admin/login", { waitUntil: "networkidle" });
     await takeScreenshot("01_admin_login.png");
 
     await page.getByLabel("Email").fill("noorwahid052002@gmail.com");
@@ -38,14 +38,14 @@ async function runAdminE2EVisualTest() {
 
     // 2. Admin Dashboard
     console.log("\n[2/10] Testing Admin Dashboard...");
-    await page.goto("http://localhost:3000/admin/dashboard", { waitUntil: "networkidle" });
+    await page.goto("http://localhost:3001/admin/dashboard", { waitUntil: "networkidle" });
     await page.waitForTimeout(1000);
     await takeScreenshot("02_admin_dashboard.png");
     results.push({ feature: "Admin Dashboard", status: "PASS", detail: "Content health & analytics metrics rendered" });
 
     // 3. Posts Console & Bulk Actions
     console.log("\n[3/10] Testing Admin Posts Console & Bulk Actions...");
-    await page.goto("http://localhost:3000/admin/posts", { waitUntil: "networkidle" });
+    await page.goto("http://localhost:3001/admin/posts", { waitUntil: "networkidle" });
     await page.waitForTimeout(1000);
     await takeScreenshot("03_admin_posts_list.png");
 
@@ -62,7 +62,7 @@ async function runAdminE2EVisualTest() {
 
     // 4. Post Editor & Custom SEO Overrides
     console.log("\n[4/10] Testing Post Editor & Custom SEO Overrides...");
-    await page.goto("http://localhost:3000/admin/posts/new", { waitUntil: "networkidle" });
+    await page.goto("http://localhost:3001/admin/posts/new", { waitUntil: "networkidle" });
     await page.waitForTimeout(1000);
     await takeScreenshot("05_admin_post_editor_new.png");
 
@@ -76,42 +76,42 @@ async function runAdminE2EVisualTest() {
 
     // 5. Pages Console
     console.log("\n[5/10] Testing Admin Pages Console...");
-    await page.goto("http://localhost:3000/admin/pages", { waitUntil: "networkidle" });
+    await page.goto("http://localhost:3001/admin/pages", { waitUntil: "networkidle" });
     await page.waitForTimeout(1000);
     await takeScreenshot("07_admin_pages_console.png");
     results.push({ feature: "Pages Console", status: "PASS", detail: "Pages listing & revision controls verified" });
 
     // 6. Comments Moderation Screen
     console.log("\n[6/10] Testing Comments Moderation Screen...");
-    await page.goto("http://localhost:3000/admin/comments", { waitUntil: "networkidle" });
+    await page.goto("http://localhost:3001/admin/comments", { waitUntil: "networkidle" });
     await page.waitForTimeout(1000);
     await takeScreenshot("08_admin_comments_moderation.png");
     results.push({ feature: "Comments Moderation", status: "PASS", detail: "Status filter tabs (All, Pending, Approved, Spam) and moderation actions verified" });
 
     // 7. Media Library
     console.log("\n[7/10] Testing Media Library...");
-    await page.goto("http://localhost:3000/admin/media", { waitUntil: "networkidle" });
+    await page.goto("http://localhost:3001/admin/media", { waitUntil: "networkidle" });
     await page.waitForTimeout(1000);
     await takeScreenshot("09_admin_media_library.png");
     results.push({ feature: "Media Library", status: "PASS", detail: "Media search & asset gallery verified" });
 
     // 8. Users & Roles
     console.log("\n[8/10] Testing Admin Users & Roles...");
-    await page.goto("http://localhost:3000/admin/users", { waitUntil: "networkidle" });
+    await page.goto("http://localhost:3001/admin/users", { waitUntil: "networkidle" });
     await page.waitForTimeout(1000);
     await takeScreenshot("10_admin_users_roles.png");
     results.push({ feature: "Users & RBAC Roles", status: "PASS", detail: "Team member role management verified" });
 
     // 9. Audit Trail
     console.log("\n[9/10] Testing Audit Trail...");
-    await page.goto("http://localhost:3000/admin/audit", { waitUntil: "networkidle" });
+    await page.goto("http://localhost:3001/admin/audit", { waitUntil: "networkidle" });
     await page.waitForTimeout(1000);
     await takeScreenshot("11_admin_audit_trail.png");
     results.push({ feature: "Audit Trail", status: "PASS", detail: "System event audit logs verified" });
 
     // 10. Settings
     console.log("\n[10/10] Testing Admin Settings...");
-    await page.goto("http://localhost:3000/admin/settings", { waitUntil: "networkidle" });
+    await page.goto("http://localhost:3001/admin/settings", { waitUntil: "networkidle" });
     await page.waitForTimeout(1000);
     await takeScreenshot("12_admin_settings.png");
     results.push({ feature: "System Settings", status: "PASS", detail: "System configuration & feature flags verified" });

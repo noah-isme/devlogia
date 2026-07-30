@@ -15,7 +15,7 @@ Do not treat AI recommendations, marketplace billing, plugins/extensions, tenant
 
 | Environment | URL                            | Notes                                                     |
 | ----------- | ------------------------------ | --------------------------------------------------------- |
-| Local       | `http://localhost:3000`        | Uses dockerised MySQL and stub storage                    |
+| Local       | `http://localhost:3001`        | Uses dockerised MySQL and stub storage                    |
 | Staging     | `https://staging.devlogia.app` | Mirrors production topology with managed MySQL + Supabase |
 | Production  | `https://devlogia.app`         | Customer-facing                                           |
 

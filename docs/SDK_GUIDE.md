@@ -23,7 +23,7 @@ import { DevlogiaSDK } from "@devlogia/sdk";
 
 const sdk = new DevlogiaSDK({
   token: process.env.SDK_PUBLISH_TOKEN,
-  baseUrl: "http://localhost:3000",
+  baseUrl: "http://localhost:3001",
   tenantId: "tenant_123",
 });
 ```

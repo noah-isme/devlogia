@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 const legacyBaseEnv = process.env.LEGACY_API_BASE_URL;
 const currentBaseEnv =
-  process.env.NEW_API_BASE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  process.env.NEW_API_BASE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3001";
 const sampleSize = Number(process.env.SHADOW_COMPARE_SAMPLE_SIZE ?? "5");
 const threshold = Number(process.env.SHADOW_COMPARE_THRESHOLD ?? "0.01");
 

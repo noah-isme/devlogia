@@ -4,7 +4,7 @@ import { createTenantConfig, evaluateTenantReadiness } from "../../src/lib/tenan
 
 async function main() {
   const tenantId = process.argv[2];
-  const returnUrl = process.argv[3] ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const returnUrl = process.argv[3] ?? process.env.NEXTAUTH_URL ?? "http://localhost:3001";
   const refreshUrl = process.argv[4] ?? returnUrl;
 
   if (!tenantId) {

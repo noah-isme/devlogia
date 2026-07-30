@@ -18,7 +18,7 @@ describe("/api/cron/publish-scheduled", () => {
 
   test("triggers publishing in non-production when no CRON_SECRET is set", async () => {
     const { GET } = await import("./route");
-    const req = new Request("http://localhost:3000/api/cron/publish-scheduled");
+    const req = new Request("http://localhost:3001/api/cron/publish-scheduled");
     const res = await GET(req);
 
     expect(res.status).toBe(200);
@@ -33,12 +33,12 @@ describe("/api/cron/publish-scheduled", () => {
     const { GET } = await import("./route");
 
     // Unauthorized request
-    const reqUnauthorized = new Request("http://localhost:3000/api/cron/publish-scheduled");
+    const reqUnauthorized = new Request("http://localhost:3001/api/cron/publish-scheduled");
     const resUnauthorized = await GET(reqUnauthorized);
     expect(resUnauthorized.status).toBe(401);
 
     // Authorized request with Bearer token
-    const reqAuthorized = new Request("http://localhost:3000/api/cron/publish-scheduled", {
+    const reqAuthorized = new Request("http://localhost:3001/api/cron/publish-scheduled", {
       headers: { authorization: "Bearer super-secret-token" },
     });
     const resAuthorized = await GET(reqAuthorized);

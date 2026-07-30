@@ -53,7 +53,7 @@ describe("/api/bookmarks", () => {
 
   test("POST creates a bookmark if not existing", async () => {
     const { POST } = await import("./route");
-    const req = new Request("http://localhost:3000/api/bookmarks", {
+    const req = new Request("http://localhost:3001/api/bookmarks", {
       method: "POST",
       body: JSON.stringify({ postId: "p1" }),
     });

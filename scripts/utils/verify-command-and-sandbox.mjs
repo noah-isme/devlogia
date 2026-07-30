@@ -11,7 +11,7 @@ async function verifyFeatures() {
 
   try {
     // 1. Command Palette Trigger & Modal Open
-    await page.goto("http://localhost:3000/blog", { waitUntil: "domcontentloaded" });
+    await page.goto("http://localhost:3001/blog", { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1000);
 
     // Trigger Command Palette via keyboard shortcut (Meta+K / Control+K)
@@ -31,7 +31,7 @@ async function verifyFeatures() {
     await page.waitForTimeout(400);
 
     // 2. Interactive Code Block & Execution Sandbox
-    await page.goto("http://localhost:3000/blog/autonomous-agentic-coding-architecture", { waitUntil: "domcontentloaded" });
+    await page.goto("http://localhost:3001/blog/autonomous-agentic-coding-architecture", { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1000);
 
     // Scroll to code snippet and click "▶ Run Code"

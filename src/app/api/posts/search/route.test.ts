@@ -24,7 +24,7 @@ describe("/api/posts/search", () => {
 
   test("GET returns empty array if q parameter is blank", async () => {
     const { GET } = await import("./route");
-    const req = new Request("http://localhost:3000/api/posts/search?q=");
+    const req = new Request("http://localhost:3001/api/posts/search?q=");
     const res = await GET(req);
 
     expect(res.status).toBe(200);
@@ -48,7 +48,7 @@ describe("/api/posts/search", () => {
     ]);
 
     const { GET } = await import("./route");
-    const req = new Request("http://localhost:3000/api/posts/search?q=Next.js");
+    const req = new Request("http://localhost:3001/api/posts/search?q=Next.js");
     const res = await GET(req);
 
     expect(res.status).toBe(200);

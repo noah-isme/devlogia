@@ -10,7 +10,7 @@ async function verifyJournalCovers() {
   const page = await context.newPage();
 
   try {
-    await page.goto("http://localhost:3000/blog", { waitUntil: "networkidle" });
+    await page.goto("http://localhost:3001/blog", { waitUntil: "networkidle" });
     await page.waitForTimeout(1000);
 
     const filePath = path.join(ARTIFACT_DIR, "journal_page_matching_covers.png");

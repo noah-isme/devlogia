@@ -82,12 +82,12 @@ GROQ_MODEL="llama-3.3-70b-versatile"
 
 Open:
 
-- Public site: <http://localhost:3000>
-- Journal: <http://localhost:3000/blog>
-- Admin login: <http://localhost:3000/admin/login>
-- Editorial Review Queue: <http://localhost:3000/admin/reviews>
-- API Keys & Access Tokens: <http://localhost:3000/admin/api-keys>
-- Developer portal (beta): <http://localhost:3000/developers>
+- Public site: <http://localhost:3001>
+- Journal: <http://localhost:3001/blog>
+- Admin login: <http://localhost:3001/admin/login>
+- Editorial Review Queue: <http://localhost:3001/admin/reviews>
+- API Keys & Access Tokens: <http://localhost:3001/admin/api-keys>
+- Developer portal (beta): <http://localhost:3001/developers>
 
 The deterministic seed creates these local accounts:
 

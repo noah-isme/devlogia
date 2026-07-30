@@ -11,13 +11,13 @@ async function verifyCoverMatching() {
 
   try {
     // 1. Homepage Featured Articles
-    await page.goto("http://localhost:3000", { waitUntil: "networkidle" });
+    await page.goto("http://localhost:3001", { waitUntil: "networkidle" });
     await page.waitForTimeout(1000);
     await page.screenshot({ path: path.join(ARTIFACT_DIR, "homepage_matching_covers.png") });
     console.log("  Saved: homepage_matching_covers.png");
 
     // 2. Article Detail Page
-    await page.goto("http://localhost:3000/blog/future-of-ai-native-software-engineering", { waitUntil: "networkidle" });
+    await page.goto("http://localhost:3001/blog/future-of-ai-native-software-engineering", { waitUntil: "networkidle" });
     await page.waitForTimeout(1000);
     await page.screenshot({ path: path.join(ARTIFACT_DIR, "article_detail_matching_cover.png") });
     console.log("  Saved: article_detail_matching_cover.png");

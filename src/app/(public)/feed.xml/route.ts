@@ -37,7 +37,7 @@ export async function GET() {
     console.error("Failed to fetch Atom feed posts", err);
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || siteConfig.url || "http://localhost:3000";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || siteConfig.url || "http://localhost:3001";
 
   const entries = posts
     .map((post) => {

@@ -10,9 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NEXTAUTH_SECRET: monitor-secret
-      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_URL: http://localhost:3001
       DATABASE_URL: fake://monitor
-      METRICS_ENDPOINT: ${{ secrets.METRICS_ENDPOINT != '' && secrets.METRICS_ENDPOINT || 'http://localhost:3000/api/metrics' }}
+      METRICS_ENDPOINT: ${{ secrets.METRICS_ENDPOINT != '' && secrets.METRICS_ENDPOINT || 'http://localhost:3001/api/metrics' }}
       METRICS_API_KEY: ${{ secrets.METRICS_API_KEY != '' && secrets.METRICS_API_KEY || '' }}
     steps:
       - uses: actions/checkout@v4

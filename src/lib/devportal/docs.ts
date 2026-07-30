@@ -80,7 +80,7 @@ pnpm add @devlogia/sdk
       id: "ts",
       label: "TypeScript",
       language: "ts",
-      code: 'import { DevlogiaSDK } from "@devlogia/sdk";\n\nconst client = new DevlogiaSDK({\n  token: process.env.SDK_PUBLISH_TOKEN!,\n  baseUrl: "http://localhost:3000",\n});\n\nconst extensions = await client.ai.listExtensions({ tenantId: "tenant_123" });\n'
+      code: 'import { DevlogiaSDK } from "@devlogia/sdk";\n\nconst client = new DevlogiaSDK({\n  token: process.env.SDK_PUBLISH_TOKEN!,\n  baseUrl: "http://localhost:3001",\n});\n\nconst extensions = await client.ai.listExtensions({ tenantId: "tenant_123" });\n'
     },
     {
       id: "js",
