@@ -57,6 +57,21 @@ pnpm db:reset
 pnpm dev
 ```
 
+### Editorial AI review
+
+To enable the advisory **AI Review** control for administrators in `/admin/reviews`, configure an OpenAI or OpenAI Responses-compatible provider:
+
+```bash
+AI_PROVIDER="openai"
+AI_API_KEY="your-provider-key"
+AI_MODEL="gpt-4o-mini"
+# Optional for a compatible provider. It must expose a /responses endpoint.
+AI_OPENAI_BASE_URL="https://api.example.com/v1"
+```
+
+AI feedback is advisory only. It does not alter a post's workflow status or publish it.
+
+
 Open:
 
 - Public site: <http://localhost:3000>

@@ -31,7 +31,10 @@ export function EditorialReviewQueue({ initialPosts, currentUserRole }: Editoria
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [feedbackInput, setFeedbackInput] = useState<Record<string, string>>({});
   const [activeFeedbackPostId, setActiveFeedbackPostId] = useState<string | null>(null);
+  const [aiReviewByPostId, setAiReviewByPostId] = useState<Record<string, string>>({});
+  const [aiReviewingId, setAiReviewingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const canRequestAiReview = currentUserRole === "admin" || currentUserRole === "superadmin";
 
   const filteredPosts = posts.filter((post) => {
     if (activeTab === "all") return true;
@@ -68,6 +71,27 @@ export function EditorialReviewQueue({ initialPosts, currentUserRole }: Editoria
       setMessage({ type: "error", text: (err as Error).message || "Failed to update review status" });
     } finally {
       setProcessingId(null);
+    }
+  }
+
+  async function handleAiReview(postId: string) {
+    setAiReviewingId(postId);
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/admin/posts/${postId}/ai-review`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = (await response.json()) as { review?: string; error?: string };
+      if (!response.ok || !data.review) {
+        throw new Error(data.error || "AI editorial review failed");
+      }
+      setAiReviewByPostId((current) => ({ ...current, [postId]: data.review! }));
+    } catch (error) {
+      console.error(error);
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "AI editorial review failed" });
+    } finally {
+      setAiReviewingId(null);
     }
   }
 
@@ -168,6 +192,7 @@ export function EditorialReviewQueue({ initialPosts, currentUserRole }: Editoria
           {filteredPosts.map((post) => {
             const isProcessing = processingId === post.id;
             const isFeedbackOpen = activeFeedbackPostId === post.id;
+            const aiReview = aiReviewByPostId[post.id];
 
             return (
               <div
@@ -213,6 +238,19 @@ export function EditorialReviewQueue({ initialPosts, currentUserRole }: Editoria
                     >
                       Open Editor
                     </Link>
+
+                    {canRequestAiReview ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void handleAiReview(post.id)}
+                        disabled={isProcessing || aiReviewingId === post.id}
+                        className="rounded-xl text-xs"
+                      >
+                        {aiReviewingId === post.id ? "Reviewing…" : aiReview ? "Refresh AI Review" : "AI Review"}
+                      </Button>
+                    ) : null}
 
                     {/* Writers: Submit for review if DRAFT or CHANGES_REQUESTED */}
                     {currentUserRole === "writer" &&
@@ -318,6 +356,17 @@ export function EditorialReviewQueue({ initialPosts, currentUserRole }: Editoria
                       </Button>
                     </div>
                   </div>
+                ) : null}
+
+                {aiReview ? (
+                  <section className="mt-4 rounded-2xl border border-violet-500/25 bg-violet-500/5 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <h4 className="text-xs font-semibold text-foreground">AI editorial feedback</h4>
+                      <span className="text-[10px] font-medium uppercase tracking-wide text-violet-700 dark:text-violet-300">Advisory only</span>
+                    </div>
+                    <p className="mt-1 text-[11px] text-muted-foreground">A human administrator remains responsible for the review and publication decision.</p>
+                    <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-xs leading-5 text-foreground">{aiReview}</pre>
+                  </section>
                 ) : null}
               </div>
             );

@@ -19,7 +19,8 @@ export type WriterAction =
   | "rewrite_clarity"
   | "rewrite_concise"
   | "translate_en"
-  | "translate_id";
+  | "translate_id"
+  | "editorial_review";
 
 export type RelatedPost = {
   id: string;

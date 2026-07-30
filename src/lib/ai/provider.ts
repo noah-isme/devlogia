@@ -180,6 +180,8 @@ export class NullProvider implements AIProvider {
       result = `[EN] ${selection || content}`;
     } else if (action === "translate_id") {
       result = `[ID] ${selection || content}`;
+    } else if (action === "editorial_review") {
+      result = "## Editorial review\n\n- Verify the main claim is supported by a concrete example or source.\n- Clarify the intended audience and expected prerequisite knowledge.\n- Check code samples and links before publishing.\n\nThis is advisory feedback. A human editor must make the publication decision.";
     }
     const usage = estimateUsage(JSON.stringify(request), result);
     return { content: result, usage } satisfies AICompletionResult;
@@ -298,8 +300,12 @@ export class OpenAIProvider implements AIProvider {
       response_format: options.responseFormat === "json" ? { type: "json_object" } : undefined,
     };
 
+    const baseUrl = process.env.AI_OPENAI_BASE_URL?.trim() || process.env.OPENAI_BASE_URL?.trim();
+    const endpoint = baseUrl
+      ? new URL("responses", `${baseUrl.replace(/\/+$/, "")}/`).toString()
+      : OPENAI_ENDPOINT;
     const response = await fetchWithRetry(
-      OPENAI_ENDPOINT,
+      endpoint,
       {
       method: "POST",
       headers: {
@@ -741,6 +747,8 @@ function buildWriterPrompt(request: WriterRequest) {
     rewrite_concise: "Rewrite the selection to be more concise (≤20% shorter).",
     translate_en: "Translate the selection into English while keeping markdown/MDX syntax intact.",
     translate_id: "Translate the selection into Indonesian while keeping markdown/MDX syntax intact.",
+    editorial_review:
+      "Review this draft for clarity, structure, technical accuracy risks, unsupported claims, missing context, and actionable publication blockers. Return concise Markdown with the headings: Summary, Strengths, Required changes, Suggested improvements, and Publish recommendation. This feedback is advisory only. Never claim you verified facts, links, or code unless the supplied draft proves them.",
   };
   const base = [`# Task`, actionMap[request.action]];
   base.push(`
