@@ -74,11 +74,22 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   try {
     const whereClause = buildWhereClause({ searchQuery, tagSlug });
+    const paginatedWhere = cursorPayload
+      ? {
+          AND: [
+            whereClause,
+            {
+              OR: [
+                { publishedAt: { lt: new Date(cursorPayload.sortKey) } },
+                { publishedAt: new Date(cursorPayload.sortKey), id: { lt: cursorPayload.id } },
+              ],
+            },
+          ],
+        }
+      : whereClause;
     const fetchedPosts = await safeFindMany<BlogPostWithRelations>("post", {
-      where: whereClause,
-      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
-      cursor: cursorPayload?.id ? { id: cursorPayload.id } : undefined,
-      skip: cursorPayload?.id ? 1 : undefined,
+      where: paginatedWhere,
+      orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
       take: limit + 1,
       include: { author: true, tags: { include: { tag: true } } },
     });
