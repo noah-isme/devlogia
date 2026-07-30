@@ -1,6 +1,6 @@
 # CMS revisions and scheduled publishing audit
 
-Last verified: **14 July 2026**.
+Last verified: **30 July 2026**.
 
 ## Scope
 
@@ -19,9 +19,10 @@ This document tracks the implemented CMS/blog revision and scheduling slice: `Po
 ### Restore flow
 
 - `POST /api/admin/posts/[id]/revisions/[revisionId]/restore` restores a post snapshot, creates a new `restore` snapshot, and writes `post:restore_revision` to `AuditLog`.
-- `POST /api/admin/pages/[id]/revisions/[revisionId]/restore` restores a page snapshot and writes `page:restore_revision`.
-- The post editor and page manager display recent revisions and expose restore controls.
+- `POST /api/admin/pages/[id]/revisions/[revisionId]/restore` restores a page snapshot, creates a new `restore` snapshot, and writes `page:restore_revision` to `AuditLog`.
+- The post editor and page manager display recent revisions, provide an in-editor line diff against the current draft, and expose restore controls.
 - Restore helpers reject revision IDs that do not belong to the requested parent record.
+- Both post and page restores create a resulting `restore` snapshot and write their respective audit entries.
 
 ### Scheduled publishing
 
@@ -39,20 +40,20 @@ This document tracks the implemented CMS/blog revision and scheduling slice: `Po
 
 ## Known gaps
 
-- No deployment scheduler is declared in `vercel.json`; production must invoke `pnpm posts:publish-scheduled` from an external cron/container scheduler.
+- No deployment scheduler is declared in `vercel.json`. Vercel Cron was removed for Hobby-plan compatibility, so production must call the authenticated `/api/cron/publish-scheduled` endpoint from an external scheduler or run `pnpm posts:publish-scheduled` in a worker/container.
 - Pages use a boolean `published` flag and do not support scheduled publication.
-- Revision lists are loaded with their parent edit pages; there is no dedicated revision-detail/diff endpoint.
-- The page restore helper does not create an additional `restore` snapshot after applying the selected revision, unlike the post restore flow.
-- Scheduled publishing updates posts one at a time and does not wrap the content update, audit entry, and webhook in one transaction/outbox.
-- The scheduled-publishing behavior has unit coverage but no dedicated browser test that advances a due post through the command into the public journal.
+- Revisions have an in-editor line diff, but there is no standalone revision-detail/history endpoint and no diff between two arbitrary stored revisions.
+- Restore actions apply immediately from both the revision list and diff view. They do not require an explicit confirmation.
+- Scheduled publishing updates the post, then creates an audit entry, then invokes webhooks without a transaction or outbox. Concurrent workers can also select the same due row because the update does not condition on `status: SCHEDULED`, allowing duplicate audit entries and webhook delivery.
+- Scheduled publishing has narrow unit coverage and no browser flow for future scheduled post → authenticated worker invocation → public journal visibility.
 
 ## Recommended next work
 
 1. Configure an authenticated production scheduler and monitor its exit/result count.
-2. Add an E2E flow for future scheduled post → due worker run → public visibility.
-3. Add revision detail/diff UI and explicit restore confirmation.
-4. Make page restore semantics consistent with post restore by recording the resulting snapshot.
-5. Consider transaction/outbox semantics so database publication and webhook delivery are recoverable independently.
+2. Make claiming/publishing concurrency-safe, then use transaction/outbox semantics so publication and webhook delivery are independently recoverable.
+3. Add an E2E flow for future scheduled post → due worker run → public visibility, including a second worker invocation.
+4. Add explicit restore confirmation and, if needed, a standalone revision history/detail comparison view.
+5. Consider scheduled publication for pages only if the product needs parity with posts.
 
 ## Release check
 
