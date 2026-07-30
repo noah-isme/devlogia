@@ -71,6 +71,14 @@ AI_OPENAI_BASE_URL="https://api.example.com/v1"
 
 AI feedback is advisory only. It does not alter a post's workflow status or publish it.
 
+Groq is supported through its OpenAI-compatible Chat Completions API:
+
+```bash
+AI_PROVIDER="groq"
+GROQ_API_KEY="your-groq-api-key"
+GROQ_MODEL="llama-3.3-70b-versatile"
+```
+
 
 Open:
 

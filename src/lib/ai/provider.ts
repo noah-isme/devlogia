@@ -17,6 +17,9 @@ import { slugify as normalizeSlug } from "@/lib/utils";
 
 const OPENAI_ENDPOINT = "https://api.openai.com/v1/responses";
 const HF_ENDPOINT = "https://api-inference.huggingface.co/models";
+const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
+
+type OpenAICompatibleApiStyle = "responses" | "chat-completions";
 
 export interface AIProvider {
   writer(request: WriterRequest): Promise<AICompletionResult>;
@@ -275,7 +278,12 @@ export class NullProvider implements AIProvider {
 
 export class OpenAIProvider implements AIProvider {
   private readonly model: string;
-  constructor(private readonly apiKey: string, model?: string) {
+  constructor(
+    private readonly apiKey: string,
+    model?: string,
+    private readonly baseUrl?: string,
+    private readonly apiStyle: OpenAICompatibleApiStyle = "responses",
+  ) {
     if (!apiKey) {
       throw new Error("Missing OPENAI_API_KEY");
     }
@@ -291,19 +299,30 @@ export class OpenAIProvider implements AIProvider {
     model?: string;
   }): Promise<{ text: string; usage: AICompletionUsage; model: string }> {
     const model = options.model ?? this.model;
-    const body = {
-      model,
-      input: options.prompt,
-      system: options.system,
-      temperature: options.temperature ?? Number(process.env.AI_TEMPERATURE ?? "0.6"),
-      max_output_tokens: options.maxTokens ?? Number(process.env.AI_MAX_TOKENS ?? "2000"),
-      response_format: options.responseFormat === "json" ? { type: "json_object" } : undefined,
-    };
 
-    const baseUrl = process.env.AI_OPENAI_BASE_URL?.trim() || process.env.OPENAI_BASE_URL?.trim();
+    const baseUrl = this.baseUrl ?? process.env.AI_OPENAI_BASE_URL?.trim() ?? process.env.OPENAI_BASE_URL?.trim();
     const endpoint = baseUrl
-      ? new URL("responses", `${baseUrl.replace(/\/+$/, "")}/`).toString()
+      ? new URL(this.apiStyle === "chat-completions" ? "chat/completions" : "responses", `${baseUrl.replace(/\/+$/, "")}/`).toString()
       : OPENAI_ENDPOINT;
+    const body = this.apiStyle === "chat-completions"
+      ? {
+          model,
+          messages: [
+            ...(options.system ? [{ role: "system" as const, content: options.system }] : []),
+            { role: "user" as const, content: options.prompt },
+          ],
+          temperature: options.temperature ?? Number(process.env.AI_TEMPERATURE ?? "0.6"),
+          max_tokens: options.maxTokens ?? Number(process.env.AI_MAX_TOKENS ?? "2000"),
+          ...(options.responseFormat === "json" ? { response_format: { type: "json_object" } } : {}),
+        }
+      : {
+          model,
+          input: options.prompt,
+          system: options.system,
+          temperature: options.temperature ?? Number(process.env.AI_TEMPERATURE ?? "0.6"),
+          max_output_tokens: options.maxTokens ?? Number(process.env.AI_MAX_TOKENS ?? "2000"),
+          response_format: options.responseFormat === "json" ? { type: "json_object" } : undefined,
+        };
     const response = await fetchWithRetry(
       endpoint,
       {
@@ -325,7 +344,7 @@ export class OpenAIProvider implements AIProvider {
 
     const data = (await response.json()) as {
       output_text?: string;
-      usage?: { input_tokens?: number; output_tokens?: number; total_tokens?: number; total_cost?: number };
+      usage?: { input_tokens?: number; output_tokens?: number; prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; total_cost?: number };
       choices?: Array<{ message?: { content?: string } }>;
     };
     const text = data.output_text || data.choices?.[0]?.message?.content;
@@ -333,8 +352,8 @@ export class OpenAIProvider implements AIProvider {
       throw new Error("OpenAI response missing content");
     }
     const usage: AICompletionUsage = {
-      tokensIn: data.usage?.input_tokens ?? 0,
-      tokensOut: data.usage?.output_tokens ?? 0,
+      tokensIn: data.usage?.input_tokens ?? data.usage?.prompt_tokens ?? 0,
+      tokensOut: data.usage?.output_tokens ?? data.usage?.completion_tokens ?? 0,
       costUsd: Number(data.usage?.total_cost ?? 0),
     };
     return { text: text.trim(), usage, model };
@@ -616,6 +635,10 @@ export function resolveAIProvider(): AIProvider {
     if (provider === "openai") {
       const apiKey = process.env.AI_API_KEY || process.env.OPENAI_API_KEY || "";
       cachedProvider = new OpenAIProvider(apiKey);
+    } else if (provider === "groq") {
+      const apiKey = process.env.GROQ_API_KEY || process.env.AI_API_KEY || "";
+      const model = process.env.GROQ_MODEL || process.env.AI_MODEL_WRITER || process.env.AI_MODEL || "llama-3.3-70b-versatile";
+      cachedProvider = new OpenAIProvider(apiKey, model, process.env.GROQ_BASE_URL || GROQ_BASE_URL, "chat-completions");
     } else if (provider === "hf") {
       const apiKey = process.env.HF_API_KEY || process.env.AI_API_KEY || "";
       cachedProvider = new HFProvider(apiKey);
