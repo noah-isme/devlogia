@@ -62,6 +62,7 @@ export function PostEditor({ initialPost, initialRevisions = [], mode, role, aiE
   const [revisions, setRevisions] = useState<readonly EditorRevision[]>(initialRevisions);
   const [previewRevision, setPreviewRevision] = useState<EditorRevision | null>(null);
   const [showDiffModal, setShowDiffModal] = useState(false);
+  const [restoreConfirmRevision, setRestoreConfirmRevision] = useState<EditorRevision | null>(null);
   const [seoKeywords, setSeoKeywords] = useState<string[]>([]);
   const [seoFaqs, setSeoFaqs] = useState<string[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -284,7 +285,14 @@ export function PostEditor({ initialPost, initialRevisions = [], mode, role, aiE
     }
   }
 
-  async function handleRestoreRevision(revisionId: string) {
+  function handleRestoreRevision(revisionId: string) {
+    const revision = revisions.find((r) => r.id === revisionId);
+    if (revision) {
+      setRestoreConfirmRevision(revision);
+    }
+  }
+
+  async function handleConfirmRestore(revisionId: string) {
     if (!initialPost?.id) return;
 
     setActionState("saving");
@@ -296,6 +304,7 @@ export function PostEditor({ initialPost, initialRevisions = [], mode, role, aiE
     if (!response.ok) {
       setActionState("error");
       setAutosaveState("error");
+      setRestoreConfirmRevision(null);
       return;
     }
 
@@ -320,6 +329,7 @@ export function PostEditor({ initialPost, initialRevisions = [], mode, role, aiE
       setRevisions((previous) => previous.filter((revision) => revision.id !== revisionId));
     }
     setPreviewRevision(null);
+    setRestoreConfirmRevision(null);
     setActionState("success");
     setAutosaveState("saved");
   }
@@ -725,7 +735,7 @@ export function PostEditor({ initialPost, initialRevisions = [], mode, role, aiE
                         <Button type="button" size="sm" variant="ghost" onClick={() => setPreviewRevision(revision)}>
                           Preview
                         </Button>
-                        <Button type="button" size="sm" variant="outline" onClick={() => void handleRestoreRevision(revision.id)}>
+                        <Button type="button" size="sm" variant="outline" onClick={() => handleRestoreRevision(revision.id)}>
                           Restore
                         </Button>
                       </div>
@@ -784,7 +794,7 @@ export function PostEditor({ initialPost, initialRevisions = [], mode, role, aiE
                   onClick={() => {
                     const revId = previewRevision.id;
                     setPreviewRevision(null);
-                    void handleRestoreRevision(revId);
+                    handleRestoreRevision(revId);
                   }}
                 >
                   Restore this revision
@@ -806,9 +816,46 @@ export function PostEditor({ initialPost, initialRevisions = [], mode, role, aiE
             const revId = previewRevision.id;
             setShowDiffModal(false);
             setPreviewRevision(null);
-            void handleRestoreRevision(revId);
+            handleRestoreRevision(revId);
           }}
         />
+      ) : null}
+
+      {restoreConfirmRevision ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md space-y-4 rounded-lg border border-border bg-background p-6 shadow-lg">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div>
+                <h3 className="text-lg font-semibold">Confirm Restore</h3>
+                <p className="text-xs text-muted-foreground">
+                  Are you sure you want to restore revision <span className="font-semibold text-foreground">"{restoreConfirmRevision.title}"</span>?
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Reason: <span className="font-medium text-foreground">{restoreConfirmRevision.reason}</span> · Status: <span className="font-medium text-foreground">{restoreConfirmRevision.status}</span> · Saved: {new Date(restoreConfirmRevision.createdAt).toLocaleString()}
+                </p>
+              </div>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setRestoreConfirmRevision(null)}>
+                ✕
+              </Button>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+              <Button type="button" variant="outline" size="sm" onClick={() => setRestoreConfirmRevision(null)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  const revId = restoreConfirmRevision.id;
+                  setRestoreConfirmRevision(null);
+                  handleConfirmRestore(revId);
+                }}
+              >
+                Confirm Restore
+              </Button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   );

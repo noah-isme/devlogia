@@ -35,6 +35,7 @@ export function PageManager({ initialPages }: PageManagerProps) {
   const [selectedId, setSelectedId] = useState<string | null>(initialPages[0]?.id ?? null);
   const [draft, setDraft] = useState<PageSummary | null>(initialPages[0] ?? null);
   const [previewRevision, setPreviewRevision] = useState<PageRevisionSummary | null>(null);
+  const [restoreConfirmRevision, setRestoreConfirmRevision] = useState<PageRevisionSummary | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const orderedPages = useMemo(
@@ -131,7 +132,14 @@ export function PageManager({ initialPages }: PageManagerProps) {
     }
   };
 
-  const handleRestoreRevision = async (revisionId: string) => {
+  const handleRestoreRevision = (revisionId: string) => {
+    const revision = draft?.revisions.find((r) => r.id === revisionId);
+    if (revision) {
+      setRestoreConfirmRevision(revision);
+    }
+  };
+
+  const handleConfirmRestore = async (revisionId: string) => {
     if (!draft) return;
 
     setIsSaving(true);
@@ -165,6 +173,7 @@ export function PageManager({ initialPages }: PageManagerProps) {
       setPages((prev) => prev.map((page) => (page.id === restored.id ? restored : page)));
       setDraft(restored);
       setPreviewRevision(null);
+      setRestoreConfirmRevision(null);
       toast.success("Revision restored", { description: "The page now matches the selected snapshot." });
     } catch (error) {
       console.error(error);
@@ -317,7 +326,7 @@ export function PageManager({ initialPages }: PageManagerProps) {
                         <Button type="button" size="sm" variant="ghost" disabled={isSaving} onClick={() => setPreviewRevision(revision)}>
                           Preview
                         </Button>
-                        <Button type="button" size="sm" variant="outline" disabled={isSaving} onClick={() => void handleRestoreRevision(revision.id)}>
+                        <Button type="button" size="sm" variant="outline" disabled={isSaving} onClick={() => handleRestoreRevision(revision.id)}>
                           Restore
                         </Button>
                       </div>
@@ -364,10 +373,48 @@ export function PageManager({ initialPages }: PageManagerProps) {
                 onClick={() => {
                   const revId = previewRevision.id;
                   setPreviewRevision(null);
-                  void handleRestoreRevision(revId);
+                  handleRestoreRevision(revId);
                 }}
               >
                 Restore this revision
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {restoreConfirmRevision ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md space-y-4 rounded-lg border border-border bg-background p-6 shadow-lg">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div>
+                <h3 className="text-lg font-semibold">Confirm Restore</h3>
+                <p className="text-xs text-muted-foreground">
+                  Are you sure you want to restore revision <span className="font-semibold text-foreground">"{restoreConfirmRevision.title}"</span>?
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Reason: <span className="font-medium text-foreground">{restoreConfirmRevision.reason}</span> · Saved: {new Date(restoreConfirmRevision.createdAt).toLocaleString()}
+                </p>
+              </div>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setRestoreConfirmRevision(null)}>
+                ✕
+              </Button>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+              <Button type="button" variant="outline" size="sm" onClick={() => setRestoreConfirmRevision(null)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={isSaving}
+                onClick={() => {
+                  const revId = restoreConfirmRevision.id;
+                  setRestoreConfirmRevision(null);
+                  handleConfirmRestore(revId);
+                }}
+              >
+                Confirm Restore
               </Button>
             </div>
           </div>

@@ -195,14 +195,17 @@ model PostTag {
 }
 
 model Page {
-  id         String   @id @default(cuid()) @db.VarChar(191)
-  slug       String   @unique @db.VarChar(191)
-  title      String   @db.VarChar(191)
-  contentMdx String   @db.LongText
-  published  Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id         String      @id @default(cuid()) @db.VarChar(191)
+  slug       String      @unique @db.VarChar(191)
+  title      String      @db.VarChar(191)
+  contentMdx String      @db.LongText
+  status     PostStatus  @default(DRAFT)
+  publishedAt DateTime?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
   revisions  PageRevision[]
+
+  @@index([status, publishedAt])
 }
 
 model PostRevision {
@@ -228,16 +231,17 @@ model PostRevision {
 }
 
 model PageRevision {
-  id         String   @id @default(cuid()) @db.VarChar(191)
-  pageId     String   @db.VarChar(191)
-  userId     String?  @db.VarChar(191)
-  reason     String   @db.VarChar(32)
-  title      String   @db.VarChar(191)
-  slug       String   @db.VarChar(191)
-  contentMdx String   @db.LongText
-  published  Boolean
-  createdAt  DateTime @default(now())
-  page       Page     @relation(fields: [pageId], references: [id])
+  id          String     @id @default(cuid()) @db.VarChar(191)
+  pageId      String     @db.VarChar(191)
+  userId      String?    @db.VarChar(191)
+  reason      String     @db.VarChar(32)
+  title       String     @db.VarChar(191)
+  slug        String     @db.VarChar(191)
+  contentMdx  String     @db.LongText
+  status      PostStatus
+  publishedAt DateTime?
+  createdAt   DateTime   @default(now())
+  page        Page       @relation(fields: [pageId], references: [id])
 
   @@index([pageId, createdAt])
 }
@@ -262,6 +266,20 @@ model AuditLog {
   targetId  String?
   meta      Json?
   createdAt DateTime @default(now())
+}
+
+model OutboxEvent {
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  eventType String   @db.VarChar(191)
+  payload   Json
+  status    String   @default("PENDING") @db.VarChar(32)
+  attempts  Int      @default(0)
+  lastError String?
+  createdAt DateTime @default(now())
+  processedAt DateTime?
+
+  @@index([status, createdAt])
+  @@index([eventType, status])
 }
 
 model HeadlineVariant {
