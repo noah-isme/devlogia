@@ -30,7 +30,7 @@ The production release scope is the CMS/blog experience:
 - RSS, sitemap, Open Graph images, structured data, health/readiness endpoints, rate limiting, telemetry, and webhook revalidation.
 - OpenAPI output and a beta developer portal/SDK foundation.
 
-Tenant workspaces, marketplace/billing, plugins/extensions, federation, recommendations, and the developer ecosystem have routes and foundation code, but are still beta. Their Prisma models are not all covered by checked-in migrations; keep those modules out of a production rollout until their migrations and targeted E2E flows are complete.
+The checked-in beta SDK exports `DevlogiaSDK` with `feed`, `insights`, `federation`, `auth`, and `ai` modules, plus standalone webhook signature verification. Build it locally with `pnpm sdk:build`. Treat SDK methods that target beta platform routes as preview APIs and verify their corresponding route exists in the deployment before integrating.
 
 ## Stack
 
@@ -159,6 +159,11 @@ Operational/API routes:
 - `/api/docs` renders interactive Swagger UI for the checked-in schema.
 - `/api/openapi.json` and `/api/docs/openapi.json` expose the generated OpenAPI document.
 - `/api/rss`, `/api/sitemap`, and `/api/og` power discovery and social previews.
+- `/api/workspaces` and `/api/workspaces/[id]` support tenant collaboration room management, including member assignments and presence metadata.
+- `/api/plugins` and `/api/plugins/[id]` support marketplace plugin publishing and configuration updates.
+- `/api/extensions` and `/api/extensions/[id]` support extension registration and lifecycle management.
+- `/api/ai/extensions` supports tenant AI extension registry CRUD for writer/optimizer/SEO/summarizer capabilities.
+- `/api/cron/process-outbox` reliably drains pending webhook delivery events.
 
 ## Configuration
 
@@ -190,8 +195,9 @@ When `DATABASE_URL` is absent, build-time read helpers return empty results so s
 | `pnpm db:backup` / `pnpm db:restore` | Create or restore a MySQL logical backup                                  |
 | `pnpm openapi:generate`              | Regenerate `openapi.yaml` after API changes                               |
 | `pnpm openapi:validate`              | Validate the checked-in OpenAPI schema                                    |
-| `pnpm sdk:build`                     | Build the beta SDK into `packages/sdk/dist`                               |
-| `pnpm posts:publish-scheduled`       | Publish due scheduled posts idempotently                                  |
+| `pnpm sdk:build` | Build the beta SDK into `packages/sdk/dist` |
+| `pnpm posts:publish-scheduled` | Publish due scheduled posts idempotently |
+| `pnpm outbox:process` | Drain pending outbox events for webhook delivery |
 
 `package.json` is the canonical inventory for analytics, AI, billing, federation, tenant, deployment, and developer-portal scripts.
 

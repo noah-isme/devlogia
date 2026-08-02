@@ -41,6 +41,7 @@ The current `DevlogiaSDK` class exposes:
 - `federation` — beta federation queries.
 - `auth` — beta SDK token exchange client.
 - `ai` — beta extension, workspace, and usage requests.
+- `verifyWebhookSignature` — standalone helper for validating Devlogia webhook payloads.
 
 Example:
 
@@ -58,13 +59,14 @@ const recommendations = await sdk.federation.query({
 
 The SDK is ahead of the stable CMS release in a few places. Before integrating a method, compare its request path in `packages/sdk/src/modules/` with the App Router handlers in `src/app/api/`.
 
-In the 14 July 2026 audit:
-
 - `feed.list()` targets `/api/feed`, while the repository route is `/api/feed/personal`.
 - `insights.summary()` targets `/api/insights`, while the repository route is `/api/insights/summary`.
 - `auth.exchange()` targets `/api/auth/sdk-exchange`, which is not implemented.
 - `federation.query()` matches `/api/federation/query`.
-- AI methods match beta `/api/ai/*` and `/api/workspaces` routes, but those flows can require schema tables not covered by current migrations.
+- AI calls now align with `/api/ai/extensions` and the `/api/workspaces` management endpoints.
+- `/api/plugins` and `/api/extensions` support marketplace lifecycle routes.
+- `/api/cron/process-outbox` supports the checked-in outbox worker.
+- `verifyWebhookSignature` can validate webhook payloads before processing.
 
 Treat mismatched methods as unimplemented previews until the client and server paths are reconciled.
 

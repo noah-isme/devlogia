@@ -4,10 +4,29 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { createSubmission, listSubmissions } from "@/lib/devportal/submission-store";
 
+const manifestSchema = z.object({
+  name: z.string().min(1).max(191),
+  version: z.string().min(1).max(32),
+  entrypoint: z.string().min(1).max(512).optional(),
+  configSchema: z.record(z.string(), z.any()).optional(),
+});
+
 const createSchema = z.object({
   repoUrl: z.string().url(),
   version: z.string().min(1),
-  manifest: z.string().min(1),
+  manifest: z.string().min(1).transform((value, ctx) => {
+    const parsed = JSON.parse(value);
+    const result = manifestSchema.safeParse(parsed);
+    if (!result.success) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Manifest JSON is invalid",
+        fatal: true,
+      });
+      return z.NEVER;
+    }
+    return parsed;
+  }),
   scopes: z.array(z.string()).default([]),
 });
 

@@ -76,3 +76,11 @@ export class HttpClient {
     return (await response.json()) as T;
   }
 }
+
+export async function verifyWebhookSignature(payload: unknown, signature: string, secret: string): Promise<boolean> {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
+  const data = encoder.encode(typeof payload === "string" ? payload : JSON.stringify(payload));
+  const signatureBuffer = Uint8Array.from(atob(signature.replace("sha256=", "")), (char) => char.charCodeAt(0));
+  return crypto.subtle.verify("HMAC", key, signatureBuffer, data);
+}

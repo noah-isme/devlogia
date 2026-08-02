@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
+import { aiExtensionInputSchema } from "@/lib/ai/extensions";
 import { can } from "@/lib/rbac";
 import { logger } from "@/lib/logger";
 import { createAIExtension, listAIExtensions } from "@/lib/ai/extensions";
@@ -48,9 +49,15 @@ export async function POST(request: NextRequest) {
   if (!can(session.user, "ai:extensions:manage")) {
     return forbidden();
   }
-  const payload = await request.json().catch(() => ({}));
+
+  const payload = await request.json().catch(() => null);
+  const parsed = aiExtensionInputSchema.safeParse(payload ?? {});
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 });
+  }
+
   try {
-    const extension = await createAIExtension(payload);
+    const extension = await createAIExtension(parsed.data);
     return NextResponse.json({ extension }, { status: 201 });
   } catch (error) {
     logger.error({ err: error }, "Failed to create AI extension");
